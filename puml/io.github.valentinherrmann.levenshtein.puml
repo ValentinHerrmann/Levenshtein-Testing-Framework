@@ -34,14 +34,16 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +getOverallExistence(): Existence
         +getParentClassWrapper(): ClassWrapper<T>
         +getExpectedName(): String
+        +getActualName(): String
+        +getActualModifiers(): String
         --
         #{abstract} findWithDeviation()
         #{abstract} parseExistence()
         +{abstract} expectedToString(): String
         +{abstract} actualToString(): String
         --
-        #verifyModifiers(modifierBitmask: int)
-        #verifyType(typeWrapperProperty, actualType)
+        +verifyModifiers(modifierBitmask: int)
+        #ensureChecked()  (lookup runs once)
     }
 
     abstract class ClassWrapper<T> {
@@ -54,6 +56,10 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +ClassWrapper(expectedName, expectedPackage, ...)
         +getClazz(): Class<T>
         +{abstract} getObj(forceNew, useByteBuddy): Object
+        +getObj(): Object
+        +newObj(): Object
+        +getObj(forceNew, useByteBuddy, constructorWrapper, args...): T
+        +setCachedObj(obj: Object)
         --
         +verifySuperClass()
         +verifyInterfaces()
@@ -61,15 +67,12 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +getMethodsWrappers(): List<Wrapper<T>>
         +getConstructorWrappers(): List<Wrapper<T>>
         --
-        +getDynamicSubclassObj(constructorParamTypes, ...): Object
+        +getDynamicSubclassObj(constructorWrapper, args...): Object
         +testGetter(attribute, getter)
     }
 
     class GenericClassWrapper<T> {
-        -clazz: Class<T>
-        --
         +GenericClassWrapper(clz: Class<T>)
-        +getClazz(): Class<T>
         +getObj(forceNew, useByteBuddy): Object
     }
     note right of GenericClassWrapper
@@ -85,8 +88,8 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +AttributeWrapper(parentClass, expectedName, expectedType, ...)
         +getValue(): V
         +getValue(obj: Object): V
-        +setValue(value: V)
-        +setValue(value: V, obj: Object)
+        +setValue(value: Object)
+        +setValue(obj: Object, value: Object)
     }
 
     class MethodWrapper<T,R> {
@@ -97,6 +100,7 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +MethodWrapper(parentClass, expectedName, expectedReturnType, ...)
         +invoke(params...): R
         +invokeOnSpecificObject(obj, params...): R
+        +invokeExpectingException(type, obj, params...): X
     }
 
     class ConstructorWrapper<T> {
@@ -105,7 +109,9 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         --
         +ConstructorWrapper(parentClass, paramTypes, ...)
         +invoke(args...): T
+        +invokeExpectingException(type, args...): X
         +getParamTypes(): Class<?>[]
+        +getActualParamTypes(): Class<?>[]
     }
 
     class StructuralLevenshtein {
@@ -127,6 +133,24 @@ package "io.github.valentinherrmann.levenshtein" as LEV {
         +{static} canContain(actualType, expectedType): boolean
         +{static} unwrapPrimitive(type): Class<?>
     }
+
+    class LevenshteinSettings {
+        +{static} get/setLanguage(...)
+        +{static} get/setClassNameDeviationThreshold(...)
+        +{static} get/setMethodNameDeviationThreshold(...)
+        +{static} get/setAttributeNameDeviationThreshold(...)
+        +{static} reset()
+    }
+
+    enum Messages {
+        WRAPPER_DEVIATION, ...
+        --
+        +get(): String
+        +format(args...): String
+    }
+
+    annotation LevenshteinTest
+    annotation HiddenLevenshteinTest
 
     ' Inheritance relationships
     ClassWrapper --|> Wrapper

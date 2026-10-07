@@ -7,7 +7,7 @@ skinparam linetype ortho
 !include https://raw.githubusercontent.com/patrik-csak/one-dark-plantuml-theme/v1.0.1/theme.puml
 
 title Complete Pattern Structure Overview
-package "io.github.valentinherrmann" as AET {
+package "io.github.valentinherrmann (framework: .levenshtein, example tests: .example.tests)" as AET {
     package "levenshtein" <<Framework>> {
 
         class WrapperProperty<T> {

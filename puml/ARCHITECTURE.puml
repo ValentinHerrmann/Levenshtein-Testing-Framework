@@ -9,7 +9,7 @@ skinparam packageStyle rectangle
 
 title Levenshtein Name Deviation Pattern - Architecture Overview
 
-package "Test Framework\n(io.github.valentinherrmann)" as AET {
+package "Levenshtein Testing Framework\n(framework/: io.github.valentinherrmann.levenshtein)" as AET {
 
     package "levenshtein" <<Core Framework>> #2C3E50 {
         class Wrapper<T> <<abstract>> {
@@ -43,7 +43,20 @@ package "Test Framework\n(io.github.valentinherrmann)" as AET {
             Levenshtein distance
             Type compatibility checks
         }
+
+        annotation LevenshteinTest {
+            @Public @StrictTimeout(5)
+            @MirrorOutput (Ares 2)
+        }
+
+        class LevenshteinSettings {
+            Thresholds, language
+            (runtime configurable)
+        }
     }
+}
+
+package "Example exercise\n(example/test: io.github.valentinherrmann.example.tests)" as EX {
 
     package "wrappers" <<Test Implementation>> #27AE60 {
         class DrivableWrapper {
@@ -59,16 +72,18 @@ package "Test Framework\n(io.github.valentinherrmann)" as AET {
         }
     }
 
-    package "test" <<JUnit Tests>> #F39C12 {
+    package "tests" <<JUnit Tests>> #F39C12 {
         class TestManager {
+            @LevenshteinTest @Policy
             @TestFactory methods
             Structural tests
             Behavioral tests
         }
+        class SecurityPolicy.yaml <<Ares 2 policy>>
     }
 }
 
-package "Student Submission\n(io.github.valentinherrmann)" as Sub #E74C3C {
+package "Student Submission\n(example/assignment/src: io.github.valentinherrmann.example.vehicles)\nsupervised by Ares 2 (ArchUnit + AspectJ)" as Sub #E74C3C {
     interface Driveable {
         MAX_SPEED
         start()
@@ -104,6 +119,8 @@ TestManager ..> AbstrWrapper : uses
 TestManager ..> DrivableWrapper : uses
 
 TestManager ..> StructuralLevenshtein : generates tests
+TestManager ..> LevenshteinTest : annotated with
+TestManager ..> SecurityPolicy.yaml : @Policy
 
 ClassWrapper --|> Wrapper
 AttributeWrapper --|> Wrapper
@@ -118,13 +135,14 @@ note right of StructuralLevenshtein
     • ONE_FOR_EVERYTHING
     • ONE_PER_CLASS
     • ONE_PER_MEMBER_CATEGORY
+    • ONE_PER_MEMBER
 end note
 
 note right of ClassWrapper
     Uses ByteBuddy for:
-    • Testing abstract classes
-    • Dynamic subclass creation
-    • Private member access fallback
+    • Abstract classes and interfaces
+      (dynamic subclass, actual constructor)
+    Concrete classes: own constructor
 end note
 
 note bottom of "Sub"

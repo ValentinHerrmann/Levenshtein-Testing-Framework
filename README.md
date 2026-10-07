@@ -1,824 +1,396 @@
 # Levenshtein Name Deviation Testing Framework
 
-**Version Notice:** V0260.9.0 was published accidentially (instead of 0.9.0). To get back to well-structure versioning V1000.0.0 acts as V1.0.0.
+Structural and behavioural tests for student code that **tolerate small naming deviations** (typos,
+case slips, `int` vs. `Integer`, ...) while still verifying the structure, built on
+[Ares 2](https://github.com/ls1intum/Ares2) for exams and exercises on Artemis.
+
+> **Version notice:** `0260.9.0` was published accidentally (instead of `0.9.0`); `1000.0.0` acts as
+> `1.0.0`. **`2000.0.0`** is the first release of the Ares 2 / Java 25 line and contains breaking changes,
+> see [Migrating from 1000.x](#migrating-from-1000x).
 
 ## Overview
 
-This pattern provides a robust framework for testing student code that tolerates minor naming deviations (typos, small alterations) while maintaining structural integrity verification. It uses **Levenshtein distance** for fuzzy name matching and **Java Reflection** for dynamic structure analysis, making it ideal for educational exercises and exams.
+The framework uses **Levenshtein distance** for fuzzy name matching and **reflection** for structure
+analysis. Every expected element is reported as `EXACT`, `DEVIATES` (found with small differences;
+behavioural tests keep using the student's actual element) or `MISSING`.
 
 ### Key Features
 
-✅ **Fuzzy Name Matching** - Tolerates typos in class, method, attribute, and constructor names  
-✅ **Structural Verification** - Validates class hierarchies, interfaces, modifiers, and types  
-✅ **ByteBuddy Integration** - Tests abstract classes via dynamic subclass generation  
-✅ **Exercise Variants Compatible** - Works seamlessly with parameterized test patterns  
-✅ **Detailed Feedback** - Provides clear distinction between EXACT, DEVIATES, and MISSING states  
-✅ **Security-Aware** - Handles restricted access via getter fallbacks and ByteBuddy proxies
+✅ **Fuzzy name matching** for classes, methods and attributes; the closest candidate wins  
+✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces  
+✅ **Behavioural testing** through wrappers that call the student's (possibly misspelled) members  
+✅ **Abstract classes and interfaces** instantiated through Byte Buddy subclasses  
+✅ **Exercise Variants compatible**: names and types are plain strings and classes  
+✅ **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision
+
+### Why
+
+Exact name matching fails correct solutions because of a typo. That frustrates students, distorts exam
+results and creates manual re-grading work. This framework stays forgiving about names while keeping the
+structural and behavioural checks strict.
 
 ---
 
-## Problem Statement
+## Requirements
 
-Testing student code with exact name matching can lead to issues when students make minor naming deviations. Such deviations may result in test failures even if the underlying logic is correct.
-
-In learning exercises where students implement specific classes or methods, small naming deviations are common:
-* **Increased frustration:** Correct logic marked incorrect due to naming issues
-* **Reduced learning effectiveness:** Focus shifts from concepts to exact names
-* **Exam penalties:** Unfair penalization for minor mistakes
-* **Instructor workload:** Manual review of complaints and re-evaluation
-
-### Rationale
-
-This pattern creates a forgiving testing environment while maintaining assessment integrity:
-* **Fully compatible with Exercise Variants Pattern:** Uses Strings for finding names and Types via Reflection ([see details](../exercise_variants/README.md))
-* **Improves student experience:** Focus on learning concepts rather than exact names
-* **Reduces instructor workload:** Minimizes manual reviews due to naming issues
-* **Maintains rigor:** Still validates structural correctness and type safety
+* **JDK 25** (build and test runtime, including the Artemis build agents)
+* **Maven 3.9+**
+* **Ares 2.2.1** (`de.tum.cit.ase:ares`), JUnit 6, AssertJ, Byte Buddy ≥ 1.18. These are all provided by
+  the exam project, see below.
 
 ---
 
 ## Quick Start
 
 ### Try it out
-Run tests using:
+
 ```bash
-./mvnw clean test
+./mvnw -B verify        # builds the framework and runs the example exercise under Ares 2
 ```
 
-### Load package as dependency in your project
-**Maven:** pom.xml
+The repository contains two modules:
+
+| Module | Content |
+|---|---|
+| [`framework/`](framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` |
+| [`example/`](example) | A complete reference exercise in the Artemis layout (`assignment/src`, `test/`) protected by Ares 2. **Copy this when you set up an exam repository.** |
+
+### Use it in an exam repository
+
+An exam repository needs four things. All of them are shown, working, in
+[`example/pom.xml`](example/pom.xml) and [`example/test`](example/test).
+
+**1. Dependencies.** Ares must be `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
+
 ```xml
-<!-- Include Levenshtein Testing Framework -->
+<dependency>
+    <groupId>de.tum.cit.ase</groupId>
+    <artifactId>ares</artifactId>
+    <version>2.2.1</version>
+    <scope>provided</scope>
+</dependency>
+<dependency>
+    <groupId>org.aspectj</groupId>
+    <artifactId>aspectjrt</artifactId>
+    <version>1.9.25.1</version>
+</dependency>
 <dependency>
     <groupId>io.github.valentinherrmann</groupId>
     <artifactId>levenshtein-testing-framework</artifactId>
-    <version>1000.0.0</version> <!-- insert desired version or use dynamic versioning: [1000.0.0,) -->]
+    <version>2000.0.0</version>
     <scope>test</scope>
 </dependency>
 ```
 
-**Gradle:** build.gradle
-```gradle
-// Include Levenshtein Testing Framework
-testImplementation 'io.github.valentinherrmann:levenshtein-testing-framework:1000.0.0'
-``` 
+**2. Ares 2 build wiring.** Use `aspectj-maven-plugin` (weaves the student classes), `maven-dependency-plugin`
+(copies the Ares agent) and Surefire with `-javaagent` plus the module flags. Copy the plugin blocks from
+[`example/pom.xml`](example/pom.xml); they follow the Ares guide
+"[transform an Ares 1 protected project into an Ares 2 protected project](https://ls1intum.github.io/Ares2/instructor/transform-ares-1-into-ares-2/)"
+(Postcompile, Maven).
 
+**3. Reserved-package guard: mandatory.** Student classes in `target/classes` come *before* every
+dependency JAR on the test classpath. A student who submits `io/github/valentinherrmann/levenshtein/StructuralLevenshtein.java`
+would replace the framework, and with it every structural test. The antrun execution
+`verify-ares-reserved-packages-v2` in `example/pom.xml` therefore lists the Ares prefixes **plus**
+`io/github/valentinherrmann/levenshtein/**`, the instructor test package, `org/junit/**`, `org/assertj/**`
+and `org/opentest4j/**`, and fails the build otherwise.
 
-
-### Basic Usage Example
+**4. Security policy and annotations.**
 
 ```java
-// 1. Create wrapper for expected class structure
+@LevenshteinTest   // = @Public + @StrictTimeout(5) + @MirrorOutput
+@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+class ExamTest {
+    // @Test, @TestFactory ... (plain JUnit annotations)
+}
+```
+
+* `@LevenshteinTest` (or `@HiddenLevenshteinTest` plus `@Deadline`) **activates** Ares. A class with
+  `@Policy` but without an Ares test-type annotation runs **completely unsupervised**, silently.
+* `@Policy` is exam specific and therefore not part of `@LevenshteinTest`. The nearest `@Policy` wins;
+  policies are never merged.
+* `SecurityPolicy.yaml`: see [`example/test/SecurityPolicy.yaml`](example/test/SecurityPolicy.yaml).
+  - Use `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`.
+  - `theFollowingClassesAreTestClasses` must list the **exact fully qualified names** of every instructor
+    test, helper, constant and wrapper class. Never use a package name there, and never a class students
+    can edit.
+  - For an exam, normally keep all six permission lists empty.
+* Use a student package that is not a prefix of your test or wrapper packages.
+
+#### Ares 2 behaviour worth knowing
+
+* **Endless loops end the JVM.** On a timeout, Ares 2 interrupts the student code. Student code cannot
+  react to that interrupt (all thread operations, including `Thread.sleep` and `Object.wait`, are blocked),
+  so Ares halts the test JVM with exit code 124. Configure Surefire with `reuseForks=false` (as in the
+  example), so only the tests of the affected class are lost, and keep tests that might loop in their own
+  classes.
+* **Static analysis looks at the whole submission.** A single forbidden call anywhere in the student code
+  (e.g. `Thread.sleep`, file access) fails *every* supervised test, not only the one that runs the code.
+* **No negative package rules.** Ares 1's `@BlacklistPackage("java.util.stream.*")` has no Ares 2
+  counterpart (`java.*` is always permitted). If an exam must forbid streams, write a dedicated
+  structural/ArchUnit test for it.
+* **`*_INSTRUMENTATION` modes are not usable with Ares 2.2.1**: the agent fails to transform student
+  classes that declare records.
+* The example contains self-checks that fail if the sandbox is not active:
+  [`SecurityControlTest`](example/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
+  (permitted/forbidden file read) and
+  [`TimeoutControlTest`](example/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
+  (deadline). They need the `SandboxControl` class in the student sources, so do not copy them into a
+  real exam. Use them to validate your setup once.
+
+### Basic usage
+
+```java
+// 1. Describe the expected class
 public class CarWrapper<T> extends ClassWrapper<T> {
     private final AttributeWrapper<T, Double> price;
+    private final AttributeWrapper<T, Double> speed;
+    private final ConstructorWrapper<T> constructor;
     private final MethodWrapper<T, Void> start;
-    
-    public CarWrapper() {
-        super("Car", "io.github.valentinherrmann", "public");
-        
+
+    public CarWrapper(ClassWrapper<?> superClass, ClassWrapper<?>... interfaces) {
+        super("Car", "org.example.exam", superClass, interfaces, "public");
         price = new AttributeWrapper<>(this, "price", double.class, "private");
+        speed = new AttributeWrapper<>(this, "speed", double.class, "private");
+        constructor = new ConstructorWrapper<>(this, new Class<?>[]{String.class, int.class, double.class}, "public");
         start = new MethodWrapper<>(this, "start", void.class, "public");
     }
-    
+
+    public AttributeWrapper<T, Double> price() { return price; }
+    public AttributeWrapper<T, Double> speed() { return speed; }
+    public MethodWrapper<T, Void> start() { return start; }
+
+    // default instance used when a test passes no object
+    @Override
     public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, useByteBuddy, constructor_full, "BMW", 2023, 30000.0);
+        return getObj(forceNew, useByteBuddy, constructor, "BMW", 2023, 30000.0);
     }
 }
 
-// 2. Use in tests
-@TestFactory
-List<DynamicTest> structuralTests() {
-    CarWrapper<?> carWrapper = new CarWrapper<>();
-    return StructuralLevenshtein.structuralTestFactory(
-        DetailLevel.ONE_PER_CLASS, 
-        carWrapper
-    );
-}
+// 2. Structural and behavioural tests
+@LevenshteinTest
+@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+class ExamTest {
+    static CarWrapper<?> car = new CarWrapper<>(null);
 
-@Test
-void testCarBehavior() {
-    CarWrapper<?> car = new CarWrapper<>();
-    car.startMethod().invoke();  // Calls start() on actual student class
-    double speed = car.getSpeed().invoke();
-    assertThat(speed).isEqualTo(10.0);
+    @TestFactory
+    List<DynamicTest> structure() {
+        return StructuralLevenshtein.structuralTestFactory(DetailLevel.ONE_PER_MEMBER_CATEGORY, car);
+    }
+
+    @Test
+    void startSetsSpeed() {
+        Object c = car.newObj();
+        car.start().invokeOnSpecificObject(c);
+        assertThat(car.speed().getValue(c)).isEqualTo(10.0);
+    }
 }
 ```
 
 ---
 
-## Architecture Overview
+## Architecture
 
-![ARCHITECTURE](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/ARCHITECTURE.puml)
+![ARCHITECTURE](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/puml/ARCHITECTURE.puml)
 
+**`io.github.valentinherrmann.levenshtein`** (framework, published)
+* `Wrapper<T>`: base of all wrappers (name, modifiers, existence, messages)
+* `ClassWrapper<T>`: classes, abstract classes and interfaces, including superclass, interfaces and instantiation
+* `AttributeWrapper<T,V>`, `MethodWrapper<T,R>`, `ConstructorWrapper<T>`: members
+* `GenericClassWrapper<T>`: wraps an already loaded class (actual superclass and interfaces)
+* `WrapperProperty<T>`: expected vs. actual value plus existence
+* `StructuralLevenshtein`: JUnit `DynamicTest` factory
+* `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
+* `LevenshteinSettings`: runtime configuration (thresholds, language)
+* `Messages`: German/English feedback
+* `Utils`: Levenshtein distance, type compatibility, `saveCast`
 
-### Package Structure
-
-**`io.github.valentinherrmann.levenshtein`** - Core framework (reusable)
-* `Wrapper<T>` - Abstract base for all wrappers
-* `ClassWrapper<T>` - Wraps classes (abstract/concrete/interface)
-* `AttributeWrapper<T,V>` - Wraps fields/attributes
-* `MethodWrapper<T,R>` - Wraps methods
-* `ConstructorWrapper<T>` - Wraps constructors
-* `GenericClassWrapper<T>` - Wraps existing classes (e.g., for inheritance checks)
-* `WrapperProperty<T>` - Tracks expected vs. actual values and existence state
-* `StructuralLevenshtein` - Test factory for generating JUnit DynamicTests
-* `Utils` - Levenshtein distance and type compatibility utilities
-
-**`io.github.valentinherrmann.wrappers`** - Test-specific implementations
-* One wrapper class per class under test (e.g., `CarWrapper`, `AbstrWrapper`, `DrivableWrapper`)
-* Defines expected structure (attributes, methods, constructors)
-* Provides access methods for test code
-
-**`io.github.valentinherrmann`** - Test execution
-* `TestManager` - Contains @TestFactory and @Test methods
-* `TestSettings` - Configuration (package, deviation thresholds)
-* `Constants` - Centralized test data (names, types)
+**`example/`** (not published)
+* `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`)
+* `test/.../tests`: `TestManager` (tests), `TestAbstr`/`TestImpl`/`TestInterface` (test logic),
+  `Constants` (Exercise Variants), `wrappers/*`, `SecurityPolicy.yaml`
 
 ---
 
 ## How It Works
 
-### 1. Wrapper Definition Phase
+### 1. Lookup with deviation
 
-Define expected structure using wrapper classes:
+Each wrapper looks up its element **once**, on first use:
 
-```java
-public class CarWrapper<T> extends ClassWrapper<T> {
-    private final AttributeWrapper<T, Double> price;
-    private final MethodWrapper<T, Double> calculateCost;
-    
-    public CarWrapper(ClassWrapper<?> superClass, ClassWrapper<?>... interfaces) {
-        super("Car", "io.github.valentinherrmann", superClass, interfaces, "public");
-        
-        // Define expected attributes
-        price = new AttributeWrapper<>(this, "price", double.class, "private");
-        
-        // Define expected methods
-        calculateCost = new MethodWrapper<>(this, "calculateCost", double.class, "public");
-    }
-}
+1. **Exact match** by name (and parameter types).
+2. Otherwise the **closest candidate** within the threshold, by Levenshtein distance with ties broken
+   by name. Synthetic members and members that *another* wrapper of the same class expects exactly are
+   skipped, so a missing `getMaxSpeed()` cannot take `getMinSpeed()`.
+3. Classes are found by scanning the compiled classes of the expected package (case slips such as
+   `car`/`Car` included). They are loaded **without initialisation**, so student static initialisers do
+   not run during the structural check.
+
+### 2. Existence states
+
+| State | Meaning | Examples |
+|---|---|---|
+| `EXACT` | Matches the specification | `price` / `price` |
+| `DEVIATES` | Found with small differences; behavioural tests use the actual element | `calculateCost` / `calculateCots`, `int` / `Integer`, `protected` instead of `public`, inherited indirectly, additional interface, unexpected `static` |
+| `MISSING` | Not found or not usable as specified | name too different, `String` vs. `int`, missing `static` |
+| `UNCHECKED` | Internal "not looked up yet"; never wins an aggregation and is never shown | |
+
+Name thresholds are percentages of the longer name:
+`distance * 100 / max(expected.length(), actual.length()) <= threshold`.
+
+```
+threshold 20:  "price" vs "pric"                -> 20.0 %  DEVIATES
+               "calculateCost" vs "calculateCots" -> 15.4 %  DEVIATES
+               "Car" vs "Cra"                  -> 66.7 %  MISSING
 ```
 
-### 2. Fuzzy Matching Phase
+Types: exact → `EXACT`. Primitive ⇄ wrapper, a wider declared type (`Object` for `String`), or a wider
+numeric type (`long` for `int`) → `DEVIATES`. Anything else → `MISSING`.
 
-Wrappers automatically search for elements using Levenshtein distance:
+Modifiers: a missing `static` → `MISSING`. A different visibility, a missing `final`/`abstract`, or an
+unexpected `static` on an attribute or method → `DEVIATES`. An unknown modifier in the specification (a
+typo) throws `IllegalArgumentException` when the wrapper is created.
 
-```java
-protected void findWithDeviation() {
-    try {
-        // Try exact match first
-        field = clazz.getDeclaredField(name.expected);
-        name.existence = EXACT;
-    } catch (NoSuchFieldException e) {
-        // Try fuzzy match within threshold
-        for (Field f : clazz.getDeclaredFields()) {
-            if (isNameWithinDeviation(name.expected, f.getName(), THRESHOLD)) {
-                name.existence = DEVIATES;
-                field = f;
-            }
-        }
-    }
-}
-```
-
-### 3. Existence States
-
-Each wrapper element tracks its existence:
-* **`UNCHECKED`** - Not yet verified
-* **`EXACT`** - Perfect match (name, type, modifiers)
-* **`DEVIATES`** - Found with minor differences (fuzzy match or compatible type)
-* **`MISSING`** - Not found or incompatible
-
-### 4. Test Generation
-
-Generate structural tests automatically:
+### 3. Structural test generation
 
 ```java
-@TestFactory
-List<DynamicTest> structuralTests() {
-    return StructuralLevenshtein.structuralTestFactory(
-        DetailLevel.ONE_PER_MEMBER_CATEGORY,  // Group by constructors/attributes/methods
-        new CarWrapper<>(new AbstrWrapper<>(), new DrivableWrapper<>())
-    );
-}
+StructuralLevenshtein.structuralTestFactory(DetailLevel.ONE_PER_MEMBER_CATEGORY, driveable, vehicle, car);
 ```
 
-**Detail Levels:**
-* `ONE_FOR_EVERYTHING` - Single test for all elements
-* `ONE_PER_CLASS` - One test per class
-* `ONE_PER_MEMBER_CATEGORY` - Separate tests for constructors/attributes/methods
-* `ONE_PER_MEMBER` - Individual test for each element (not yet implemented)
+| Detail level | Tests |
+|---|---|
+| `ONE_FOR_EVERYTHING` | `Structural[all]` |
+| `ONE_PER_CLASS` | `Structural[Car]`, ... |
+| `ONE_PER_MEMBER_CATEGORY` | `Class[Car]`, `Constructors[Car]`, `Attributes[Car]`, `Methods[Car]`, ... |
+| `ONE_PER_MEMBER` | `Class[Car]`, `Constructor[public Car(String, int)]`, `Attribute[Car.price]`, `Method[Car.public void start()]`, ... |
 
-### 5. ByteBuddy Integration
+Tests come in a deterministic order, and duplicate names get a `#2` suffix instead of replacing each
+other. Student code only runs inside the generated tests, i.e. supervised by Ares. If a single element
+cannot be checked, that element is reported instead of the whole test aborting.
 
-Test abstract classes by creating dynamic subclasses:
+### 4. Behavioural tests
 
 ```java
-public Object getDynamicSubclassObj(Class<?>[] constructorParamTypes, Object... args) {
-    Class<?> dynamicType = new ByteBuddy()
-        .subclass(getClazz())
-        .make()
-        .load(getClazz().getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
-        .getLoaded();
-    
-    return dynamicType.getConstructor(constructorParamTypes).newInstance(args);
-}
+Object car = carWrapper.newObj();                                   // new default instance
+carWrapper.start().invokeOnSpecificObject(car);                     // calls the student's method
+double speed = (double) carWrapper.speed().getValue(car);           // reads the (private) attribute
+carWrapper.testGetter(carWrapper.price(), carWrapper.getPrice());   // attribute == getter
+
+// expected exceptions (here: a MethodWrapper for "void setYear(int)")
+IllegalArgumentException e = carWrapper.setYear().invokeExpectingException(IllegalArgumentException.class, car, -1);
 ```
 
-**Benefits:**
-* Tests abstract classes without concrete implementations
-* Verifies constructors and inherited members
-* Enables behavioral testing of partial implementations
+* An exception thrown by student code fails the test with its type and message (the original exception is
+  attached as the cause). Ares security violations and assertion failures are passed through unchanged.
+* `getObj()` returns a cached default instance. The cache is only reused for the same constructor and
+  arguments; `newObj()` / `getObj(true, ...)` always create a new one. `setCachedObj(obj)` pins an object
+  you created yourself.
+* `Utils.saveCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
+  message instead of producing a `ClassCastException` later.
+
+### 5. Abstract classes and interfaces (Byte Buddy)
+
+Abstract classes and interfaces are instantiated through a Byte Buddy subclass, using the actual
+constructor (including `protected` ones). Concrete classes are **always** created with their own
+constructor, so `final` classes and `getClass()`-based `equals` work. Calling an abstract method on such
+an instance throws `AbstractMethodError`; test interface behaviour through an implementing class.
+(The `useByteBuddy` parameter of `getObj` is ignored since 2000.0.0.)
 
 ---
 
 ## Configuration
 
-### TestSettings.java
+Configure at runtime, e.g. in a static initializer of your test class:
 
 ```java
-public class TestSettings {
-    public static final String BASE_PACKAGE = "io.github.valentinherrmann";
-    
-    // Deviation thresholds (0-100, percentage of max string length)
-    public static final int CLASS_NAME_DEVIATION_THRESHOLD = 20;
-    public static final int METHOD_NAME_DEVIATION_THRESHOLD = 20;
-    public static final int ATTRIBUTE_NAME_DEVIATION_THRESHOLD = 20;
+static {
+    LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);  // default: DEUTSCH
+    LevenshteinSettings.setClassNameDeviationThreshold(10);                 // default: 20 (percent)
+    LevenshteinSettings.setMethodNameDeviationThreshold(20);
+    LevenshteinSettings.setAttributeNameDeviationThreshold(20);
 }
 ```
 
-### Constants.java (Exercise Variants Pattern)
+Timeouts: `@LevenshteinTest` carries `@StrictTimeout(5)`. A `@StrictTimeout` on the class or a method
+overrides it. (`regardingTimeouts` in the policy is not enforced by Ares 2.2.1.)
 
-Centralize expected names and types for parameterization:
+### Exercise Variants
+
+Keep all expected names and types in one place and read them in the wrappers, as in
+[`example/.../Constants.java`](example/test/io/github/valentinherrmann/example/tests/Constants.java):
 
 ```java
-public class Constants {
-    public static String concreteClass() { return "Car"; }
-    public static String abstractClass() { return "AbstractVehicle"; }
-    public static Class<?> priceType() { return double.class; }
-    // ... more constants
+public static String concreteClass() {
+    return switch (variant) {
+        case DEFAULT -> "Car";
+    };
 }
 ```
 
 ---
 
-## Complete Testing Workflow
-
-### Step-by-Step Guide
-
-#### 1. Define Wrapper Classes
-
-Create a wrapper for each class you want to test. The wrapper defines the expected structure:
-
-```java
-public class CarWrapper<T> extends ClassWrapper<T> {
-    // Define expected attributes
-    private final AttributeWrapper<T, Double> price;
-    private final AttributeWrapper<T, Double> speed;
-    
-    // Define expected constructors
-    private final ConstructorWrapper<T> constructor_full;
-    private final ConstructorWrapper<T> constructor_default;
-    
-    // Define expected methods
-    private final MethodWrapper<T, Void> start;
-    private final MethodWrapper<T, Double> getSpeed;
-    private final MethodWrapper<T, Double> calculateCost;
-    
-    public CarWrapper(ClassWrapper<?> superClass, ClassWrapper<?>... interfaces) {
-        super("Car", "io.github.valentinherrmann", superClass, interfaces, "public");
-        
-        // Initialize attributes with expected name, type, and modifiers
-        price = new AttributeWrapper<>(this, "price", double.class, "private");
-        speed = new AttributeWrapper<>(this, "speed", double.class, "private");
-        
-        // Initialize constructors with parameter types
-        constructor_full = new ConstructorWrapper<>(this, 
-            new Class<?>[]{String.class, int.class, double.class}, "public");
-        constructor_default = new ConstructorWrapper<>(this, 
-            new Class<?>[]{String.class, int.class}, "public");
-        
-        // Initialize methods with return types and parameter types
-        start = new MethodWrapper<>(this, "start", void.class, "public");
-        getSpeed = new MethodWrapper<>(this, "getSpeed", double.class, "public");
-        calculateCost = new MethodWrapper<>(this, "calculateCost", double.class, "public");
-    }
-    
-    // Provide getter methods for convenient access in tests
-    public AttributeWrapper<T, Double> price() { return price; }
-    public MethodWrapper<T, Void> startMethod() { return start; }
-    public MethodWrapper<T, Double> getSpeed() { return getSpeed; }
-    
-    // Implement abstract getObj method for instance creation
-    @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, useByteBuddy, constructor_full, "BMW", 2023, 30000.0);
-    }
-}
-```
-
-#### 2. Generate Structural Tests
-
-Use `StructuralLevenshtein.structuralTestFactory()` to automatically generate tests:
-
-```java
-@TestFactory
-List<DynamicTest> structuralTests() {
-    // Create wrappers for all classes
-    DrivableWrapper<?> drivable = new DrivableWrapper<>();
-    AbstrWrapper<?> abstractVehicle = new AbstrWrapper<>();
-    CarWrapper<?> car = new CarWrapper<>(abstractVehicle, drivable);
-    
-    // Generate tests with desired detail level
-    return StructuralLevenshtein.structuralTestFactory(
-        DetailLevel.ONE_PER_MEMBER_CATEGORY,
-        drivable, abstractVehicle, car
-    );
-}
-```
-
-This generates separate test methods for:
-- **Class structure** - Name, modifiers, superclass, interfaces
-- **Constructors** - All constructors with parameter types
-- **Attributes** - All attributes with types and modifiers
-- **Methods** - All methods with return types, parameters, and modifiers
-
-#### 3. Write Behavioral Tests
-
-Use wrapper methods to invoke student code:
-
-```java
-@Test
-void testCarStartsCorrectly() {
-    CarWrapper<?> car = new CarWrapper<>(new AbstrWrapper<>(), new DrivableWrapper<>());
-    
-    // Invoke start() method on actual student implementation
-    car.startMethod().invoke();
-    
-    // Check that speed was set correctly
-    double speed = car.getSpeed().invoke();
-    assertThat(speed).isEqualTo(10.0);
-}
-
-@Test
-void testCalculateCostWithYears() {
-    CarWrapper<?> car = new CarWrapper<>(new AbstrWrapper<>(), new DrivableWrapper<>());
-    
-    // Invoke overloaded method with parameter
-    double cost = car.calculateCostYears().invoke(5);
-    assertThat(cost).isEqualTo(15000.0);  // 5 years * 10% * 30000
-}
-```
-
-#### 4. Test Attribute-Getter Consistency
-
-Verify that getters return the actual attribute values:
-
-```java
-@Test
-void testGettersReturnAttributeValues() {
-    CarWrapper<?> car = new CarWrapper<>(new AbstrWrapper<>(), new DrivableWrapper<>());
-    
-    // This internally compares attribute value with getter return value
-    car.testGetter(car.price(), car.getPrice());
-}
-```
-
-### Understanding Existence States
-
-The framework tracks four states for each element:
-
-| State | Meaning | Example |
-|-------|---------|---------|
-| `UNCHECKED` | Not yet verified | Initial state before `findWithDeviation()` is called |
-| `EXACT` | Perfect match | Expected: `price`, Actual: `price` (same name, type, modifiers) |
-| `DEVIATES` | Minor differences | Expected: `price`, Actual: `pric` (typo) OR `int` vs `long` (compatible type) |
-| `MISSING` | Not found or incompatible | Expected attribute not found OR incompatible type like `String` vs `int` |
-
-**How it works:**
-
-1. **Name matching**: Uses Levenshtein distance to find similar names
-   ```java
-   // Threshold: 20% of max string length
-   "price" vs "pric"   → DEVIATES (1 char difference, 20% of 5 = 1 allowed)
-   "price" vs "cost"   → MISSING (4 char difference, exceeds threshold)
-   ```
-
-2. **Type matching**: Checks exact match, assignability, and primitive widening
-   ```java
-   // Exact match
-   int vs int          → EXACT
-   
-   // Assignable (subclass)
-   Vehicle vs Car      → DEVIATES (if Car extends Vehicle)
-   
-   // Primitive widening
-   int vs long         → DEVIATES (int can be widened to long)
-   float vs double     → DEVIATES (float can be widened to double)
-   
-   // Incompatible
-   String vs int       → MISSING
-   ```
-
-3. **Modifier matching**: Checks critical vs non-critical modifiers
-   ```java
-   // Critical: static, abstract, interface
-   Expected: "public static"
-   Actual:   "public"          → MISSING (static is missing)
-   
-   // Non-critical: public/protected/private
-   Expected: "private"
-   Actual:   "protected"       → DEVIATES (visibility different but not critical)
-   ```
-
-### Dynamic Test Generation Detail Levels
-
-Choose the appropriate detail level based on your needs:
-
-#### ONE_FOR_EVERYTHING
-```java
-// Generates 1 test that checks all classes and all their members
-structuralTests()  // Single test, single failure point
-```
-**Use when**: Quick overview, development phase
-
-#### ONE_PER_CLASS
-```java
-// Generates 1 test per class (including all its members)
-structuralTests[Car]            // All Car elements
-structuralTests[AbstractVehicle] // All AbstractVehicle elements
-structuralTests[Driveable]      // All Driveable elements
-```
-**Use when**: Moderate granularity, most common choice
-
-#### ONE_PER_MEMBER_CATEGORY
-```java
-// Generates separate tests for each category per class
-structuralClass[Car]            // Only class structure
-structuralConstructors[Car]     // All Car constructors
-structuralAttributes[Car]       // All Car attributes
-structuralMethods[Car]          // All Car methods
-```
-**Use when**: Detailed feedback, easier to identify which category has issues
-
-### ByteBuddy Integration Details
-
-ByteBuddy is used to test abstract classes and private members:
-
-#### Testing Abstract Classes
-
-```java
-public class AbstrWrapper<T> extends ClassWrapper<T> {
-    public AbstrWrapper() {
-        super("AbstractVehicle", "io.github.valentinherrmann", "public", "abstract");
-        // ... define members ...
-    }
-    
-    @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        // For abstract classes, useByteBuddy should be true
-        return getObj(forceNew, true, constructor, "BMW", 2023);
-    }
-}
-
-// In tests
-@Test
-void testAbstractClassConstructor() {
-    AbstrWrapper<?> abstractVehicle = new AbstrWrapper<>();
-    
-    // ByteBuddy creates a concrete subclass at runtime
-    Object instance = abstractVehicle.getObj(true);  // useByteBuddy=true
-    
-    // Now you can test inherited methods
-    String manufacturer = abstractVehicle.getManufacturer().invoke();
-    assertThat(manufacturer).isEqualTo("BMW");
-}
-```
-
-**How it works internally:**
-1. ByteBuddy creates a dynamic subclass that extends the abstract class
-2. Abstract methods get default implementations (no-op or default returns)
-3. Constructor and concrete methods work normally
-4. You can test all non-abstract functionality
-
-#### Private Member Access
-
-For private members, there are two approaches:
-
-**Approach 1: Use ByteBuddy (Recommended for non-private elements)**
-```java
-// useByteBuddy=true allows access through ByteBuddy proxy
-Object instance = wrapper.getObj(true);  // ByteBuddy instance
-```
-
-**Approach 2: Use Reflection (Required for private elements)**
-```java
-// useByteBuddy=false forces reflection-based access
-Object instance = wrapper.getObj(false);  // Pure reflection
-
-// For private fields, AttributeWrapper automatically:
-// 1. Tries field.setAccessible(true) and direct access
-// 2. Falls back to public getter method if SecurityException occurs
-double price = car.price().getValue();  // Handles private field
-```
-
-**Security Manager Fallback:**
-```java
-// If SecurityException prevents field.setAccessible(true):
-// AttributeWrapper.getValue() automatically tries:
-String getterName = "get" + capitalize(fieldName);  // "getPrice"
-return ReflectionTestUtils.invokeMethod(obj, getterName);
-```
-
-### Combining with Exercise Variants Pattern
-
-Use Constants for parameterization:
-
-```java
-// Constants.java
-public class Constants {
-    public static String concreteClass() { return "Car"; }
-    public static String abstractClass() { return "AbstractVehicle"; }
-    public static String interfaceName() { return "Driveable"; }
-    
-    public static String concreteClassAttribute() { return "price"; }
-    public static Class<?> priceType() { return double.class; }
-    
-    public static String calculateCostMethod() { return "calculateCost"; }
-    // ... more constants
-}
-
-// CarWrapper.java
-public CarWrapper() {
-    super(
-        concreteClass(),      // From Constants
-        BASE_PACKAGE,
-        "public"
-    );
-    
-    price = new AttributeWrapper<>(
-        this,
-        concreteClassAttribute(),  // From Constants
-        priceType(),               // From Constants
-        "private"
-    );
-}
-```
-
-This allows parameterization for exercise variants while maintaining type safety and fuzzy matching!
-
----
-
-## Advanced Features
-
-### Security Manager Compatibility
-
-Handles restricted access gracefully:
-
-```java
-public V getValue(Object obj) {
-    try {
-        field.setAccessible(true);
-        return field.get(obj);
-    } catch (SecurityException e) {
-        // Fallback to public getter method
-        String getter = "get" + capitalize(name.expected);
-        return ReflectionTestUtils.invokeMethod(obj, getter);
-    }
-}
-```
-
-### Type Compatibility Checking
-
-Allows compatible type deviations:
-
-```java
-// int can be widened to long
-// float can be widened to double
-if (canContain(actualType, expectedType)) {
-    typeWrapperProperty.existence = DEVIATES;
-}
-```
-
-### Inheritance Verification
-
-```java
-CarWrapper car = new CarWrapper<>(
-    new AbstrWrapper<>(),           // superClassWrapper
-    new DrivableWrapper<>()         // interfaceWrappers
-);
-
-car.verifySuperClass();   // Checks extends AbstractVehicle
-car.verifyInterfaces();   // Checks implements Driveable
-```
-
----
-
-## Framework Class Diagrams
-
-### Core Framework (levenshtein package)
-
-![Levenshtein Framework](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/io.github.valentinherrmann.levenshtein.puml)
-
-
-### Test Implementation (wrappers package)
-![Wrappers](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/io.github.valentinherrmann.wrappers.puml)
-
-
----
-
-## Best Practices
-
-### 1. Wrapper Organization
-* One wrapper class per class under test
-* Use descriptive getter methods (e.g., `price()`, `startMethod()`)
-* Group related elements (constructors, attributes, methods)
-
-### 2. Test Structure
-```java
-@TestFactory  // Structural verification
-List<DynamicTest> structure() { ... }
-
-@Test         // Behavioral testing
-void testCalculateCost() { ... }
-
-@Test         // Integration testing
-void testGetterMatchesAttribute() {
-    carWrapper.testGetter(carWrapper.price(), carWrapper.getPrice());
-}
-```
-
-### 3. ByteBuddy Usage
-* Use `useByteBuddy=true` for abstract classes and non-private members
-* Use `useByteBuddy=false` for private member access (uses reflection)
-* Cache instances when possible via `getObj(forceNew=false, ...)`
-
-### 4. Error Messages
-Wrappers provide detailed feedback:
-```
-!! DEVIATION !!
-Expect: public double price
-Actual: public double pric  (typo detected)
-```
-
----
-
-## Limitations & Future Work
-
-### Current Limitations
-* `ONE_PER_MEMBER` detail level not yet implemented
-* Levenshtein threshold is fixed per element type (not per test)
-* No support for generic type parameters in wrapper definitions
-
-### Planned Enhancements
-* Configurable thresholds per wrapper instance
-* Enhanced feedback with suggestions for fixes
-* Support for enum verification
-* Annotation verification
+## Migrating from 1000.x
+
+| 1000.x | 2000.0.0 |
+|---|---|
+| Ares 1 (`de.tum.in.ase:artemis-java-test-sandbox`) | Ares 2 (`de.tum.cit.ase:ares`, provided), Java 25 |
+| `@LevenshteinTest` = Ares 1 security annotations; **the sandbox was never active** because no `@Public`/`@Hidden` was included | `@LevenshteinTest` = `@Public @StrictTimeout(5) @MirrorOutput`; plus `@Policy` + `SecurityPolicy.yaml` in the exam |
+| `io.github.valentinherrmann.test.TestSettings` constants (inlined at compile time, not changeable) | `io.github.valentinherrmann.levenshtein.LevenshteinSettings` setters |
+| `io.github.valentinherrmann.test.Messages.X` (String) | `io.github.valentinherrmann.levenshtein.Messages.X.get()` / `.format(...)` |
+| `TestSettings.BASE_PACKAGE`, `variant` | in your own `Constants` |
+| `useByteBuddy=false` for private members | not needed; the parameter is ignored |
+| `setObj` writes `obj` directly | `setCachedObj(obj)` |
+| Exceptions from student code: generic failure | type and message in the failure, `invokeExpectingException(...)` |
 
 ---
 
 ## FAQ & Troubleshooting
 
-### Common Questions
+**The policy seems to have no effect.** Check that the class carries `@LevenshteinTest`
+(or another Ares test-type annotation), that `withinPath` is `classes/<student/package/path>`, that Ares is
+`provided`, and that `SecurityControlTest` of the example passes in your setup.
 
-**Q: How do I set the Levenshtein distance threshold?**
+**All tests fail with "... was blocked by Ares".** The static analysis found a forbidden call somewhere in
+the student code (see the message). This is intended. If the exercise legitimately needs the operation,
+grant exactly that in the policy.
 
-A: Configure thresholds in `TestSettings.java`:
-```java
-public class TestSettings {
-    // Values are percentages (0-100) of the maximum string length
-    public static final int CLASS_NAME_DEVIATION_THRESHOLD = 20;
-    public static final int METHOD_NAME_DEVIATION_THRESHOLD = 20;
-    public static final int ATTRIBUTE_NAME_DEVIATION_THRESHOLD = 20;
-}
-```
-Example: With 20% threshold, "price" (5 chars) allows 1 char deviation (20% of 5 = 1).
+**The test JVM crashed with exit code 124.** A test timed out in student code. Ares halts the JVM in that
+case, see [Ares 2 behaviour worth knowing](#ares-2-behaviour-worth-knowing).
 
-**Q: When should I use `useByteBuddy=true` vs `useByteBuddy=false`?**
+**A similar name is not found.** Compute `distance * 100 / maxLength` and compare it with the threshold.
+Method lookup also requires the same number of parameters (types may differ only primitive ⇄ wrapper).
 
-A: 
-- `useByteBuddy=true`: For abstract classes and testing non-private members
-- `useByteBuddy=false`: When accessing private fields/methods or when ByteBuddy causes issues
+**Extra members in the student code?** They are ignored. Only an additional *interface* is reported as
+`DEVIATES`.
 
-**Q: How do I test interface constants?**
-
-A: Use `AttributeWrapper` with appropriate modifiers:
-```java
-maxSpeed = new AttributeWrapper<>(
-    this,
-    "MAX_SPEED",
-    double.class,
-    "public", "static", "final"  // Interface constant modifiers
-);
-```
-
-**Q: Can I test generic classes?**
-
-A: Partially. The current implementation handles type parameters at runtime through reflection, but wrapper definitions don't support explicit generic type parameters. Use `Object` or specific types in wrappers.
-
-**Q: What if student code has additional methods/attributes I didn't expect?**
-
-A: The framework only verifies elements you define in wrappers. Additional elements are ignored. This allows students to add helper methods without failing tests.
-
-### Troubleshooting
-
-**Issue: `ExceptionInInitializerError` with ByteBuddy**
-
-Possible causes:
-1. ByteBuddy version incompatibility
-2. ClassLoader issues
-3. Security manager restrictions
-
-Solutions:
-- Use `useByteBuddy=false` for the affected elements
-- Check ByteBuddy version in `build.gradle`
-- Ensure proper ClassLoader strategy: `ClassLoadingStrategy.Default.WRAPPER`
-
-**Issue: `SecurityException` when accessing private members**
-
-This is expected with security managers. The framework automatically falls back to getter methods:
-- Ensure student code has public getters for private attributes
-- If no getter exists, test will fail with clear message
-
-**Issue: Tests pass but shouldn't (false positive)**
-
-Check that:
-1. Wrapper definitions match expected structure exactly
-2. Deviation thresholds aren't too permissive
-3. Type compatibility checking isn't too lenient
-
-**Issue: Tests fail but shouldn't (false negative)**
-
-Check that:
-1. Wrapper modifiers match actual implementation (e.g., "public abstract" for interfaces)
-2. Expected types match actual types (including primitive vs wrapper classes)
-3. Deviation thresholds allow for the actual difference
-4. Method parameter types are in correct order
-
-**Issue: `findWithDeviation()` not finding similar names**
-
-Debug steps:
-1. Calculate Levenshtein distance manually
-2. Check threshold: `(distance * 100) / maxLength <= threshold`
-3. Verify case sensitivity (matching is case-sensitive)
-4. Check for extra whitespace in names
-
-### Performance Considerations
-
-**Reflection overhead**: Each wrapper uses reflection to find elements. For large test suites:
-- Cache wrapper instances when possible
-- Use `forceNew=false` to reuse objects
-- Consider `ONE_PER_CLASS` detail level instead of `ONE_PER_MEMBER_CATEGORY`
-
-**ByteBuddy overhead**: Dynamic subclass generation is relatively expensive:
-- Cache instances with `getObj(forceNew=false, ...)`
-- Reuse wrapper instances across multiple tests
-- Consider lazy initialization for wrappers
+**Generic classes?** Type parameters are not part of the specification; use the erased types.
 
 ---
 
-## Example: Complete Test Flow
+## Limitations
 
-```java
-// 1. Define wrapper
-CarWrapper<?> car = new CarWrapper<>(new AbstrWrapper<>(), new DrivableWrapper<>());
-
-// 2. Structural verification (automatic)
-@TestFactory
-List<DynamicTest> structuralTests() {
-    return StructuralLevenshtein.structuralTestFactory(
-        DetailLevel.ONE_PER_CLASS, car
-    );
-}
-
-// 3. Behavioral testing (manual)
-@Test
-void testCarStartIncreasesSpeed() {
-    car.startMethod().invoke();
-    double speed = car.getSpeed().invoke();
-    assertThat(speed).isGreaterThan(0.0);
-}
-
-// 4. Getter/Attribute consistency
-@Test
-void testPriceGetter() {
-    car.testGetter(car.price(), car.getPrice());
-}
-```
+* Thresholds are global per element kind, not per wrapper.
+* No verification of generic type parameters, enums, record components or annotations.
+* Method parameter types must match (up to primitive ⇄ wrapper); reordered parameters are `MISSING`.
 
 ---
+
+## Development
+
+```bash
+./mvnw -B verify                                   # framework unit tests + example under Ares 2
+./mvnw -B -P release -pl framework verify          # + sources, javadoc, GPG signature (needs a key)
+```
+
+Releases are published to Maven Central by the `Publish` workflow on a GitHub release
+(`-P release -pl framework deploy`).
 
 ## References
 
-* **Exercise Variants Pattern**: [../exercise_variants/README.md](../exercise_variants/README.md)
-* **ByteBuddy Documentation**: https://bytebuddy.net/
-* **Levenshtein Distance**: https://en.wikipedia.org/wiki/Levenshtein_distance
+* Ares 2: https://github.com/ls1intum/Ares2 and its migration guide "transform Ares 1 into Ares 2"
+* Byte Buddy: https://bytebuddy.net/
+* Levenshtein distance: https://en.wikipedia.org/wiki/Levenshtein_distance
 
----
+## License
 
-## License & Contributing
-
-This pattern is part of the Artemis Testing Patterns repository. Contributions and feedback are welcome!
-
-
+GNU General Public License v3.0, see [LICENSE](LICENSE). Contributions and feedback are welcome!
