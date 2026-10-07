@@ -110,7 +110,44 @@ public Car(String manufacturer, int year) {
 
 ## Struktur-Übersicht
 
-![Simplified Concepts UML](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/example/puml/simplified_concepts.puml)
+```mermaid
+classDiagram
+    direction BT
+    class Driveable {
+        <<interface>>
+        +double MAX_SPEED$
+        +start() void
+        +getSpeed() double
+    }
+    class AbstractVehicle {
+        <<abstract>>
+        #String manufacturer
+        #int year
+        +AbstractVehicle(String manufacturer, int year)
+        +getManufacturer() String
+        +getYear() int
+        +calculateCost()* double
+        +getInfo() String
+    }
+    class Car {
+        -double price
+        -double speed
+        +Car(String manufacturer, int year, double price)
+        +Car(String manufacturer, int year)
+        +getPrice() double
+        +calculateCost() double
+        +calculateCost(int years) double
+        +getInfo() String
+        +start() void
+        +getSpeed() double
+    }
+    Car --|> AbstractVehicle : extends
+    Car ..|> Driveable : implements
+
+    note for Driveable "Interface constant:\nMAX_SPEED = 200.0 is implicitly\npublic static final"
+    note for AbstractVehicle "Abstract superclass:\ncalculateCost() must be\nimplemented by subclasses"
+    note for Car "Constructor overloading: Car(String, int, double), Car(String, int)\nMethod overloading: calculateCost(), calculateCost(int)\nMethod overriding: calculateCost(), getInfo(), start(), getSpeed()"
+```
 
 
 ## Verwendung

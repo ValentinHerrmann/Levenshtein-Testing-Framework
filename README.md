@@ -191,7 +191,65 @@ class ExamTest {
 
 ## Architecture
 
-![ARCHITECTURE](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/puml/ARCHITECTURE.puml)
+```mermaid
+flowchart TB
+    subgraph EX["Example exercise (example/test)"]
+        direction LR
+        TM["TestManager<br/>@LevenshteinTest + @Policy"]
+        POL[("SecurityPolicy.yaml")]
+        subgraph WR["wrappers"]
+            direction TB
+            DW[DrivableWrapper]
+            AW[AbstrWrapper]
+            CRW[CarWrapper]
+        end
+        TM -- uses --> WR
+        TM -. "@Policy" .-> POL
+    end
+
+    subgraph FW["Framework (framework/, published)"]
+        direction LR
+        LT["@LevenshteinTest<br/>@HiddenLevenshteinTest"]
+        SL[StructuralLevenshtein]
+        CW["ClassWrapper&lt;T&gt;"]
+        MW["AttributeWrapper<br/>MethodWrapper<br/>ConstructorWrapper"]
+        W["Wrapper&lt;T&gt;"]
+        WP["WrapperProperty&lt;T&gt;"]
+        U["Utils · LevenshteinSettings<br/>Messages"]
+        CW --> W
+        MW --> W
+        W --> WP
+    end
+
+    subgraph ST["Student code (example/assignment/src), supervised by Ares 2"]
+        direction LR
+        D["«interface»<br/>Driveable"]
+        AV["«abstract»<br/>AbstractVehicle"]
+        C[Car]
+        C -- extends --> AV
+        C -. implements .-> D
+    end
+
+    TM -. annotated with .-> LT
+    TM -- generates tests --> SL
+    WR -- extend --> CW
+    WR == "verify (fuzzy)" ==> ST
+
+    classDef fw fill:#2C3E50,stroke:#1a252f,color:#ffffff
+    classDef ex fill:#27AE60,stroke:#1e8449,color:#ffffff
+    classDef tests fill:#F39C12,stroke:#b9770e,color:#000000
+    classDef student fill:#E74C3C,stroke:#a93226,color:#ffffff
+    class LT,SL,W,CW,MW,WP,U fw
+    class DW,AW,CRW ex
+    class TM,POL tests
+    class D,AV,C student
+```
+
+Every expected class of the student code has a wrapper (a `ClassWrapper` subclass) that describes it and
+finds the student's actual class and members, even with small naming deviations. `TestManager` generates
+the structural tests from the wrappers and uses them for the behavioural tests, under Ares 2 supervision
+(`@LevenshteinTest` + `@Policy`). Detailed class diagrams of the framework and of the example wrappers are
+in [docs/diagrams.md](docs/diagrams.md).
 
 **`io.github.valentinherrmann.levenshtein`** (framework, published)
 * `Wrapper<T>`: base of all wrappers (name, modifiers, existence, messages)
