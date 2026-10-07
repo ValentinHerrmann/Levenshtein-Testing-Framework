@@ -162,6 +162,14 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void internalFieldsAreNoMemberWrappers() {
+            W<Object> w = nested("FinalCar", "public static final");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "public");
+            w.getObj(false, true, ctor, "BMW"); // fills the internal cache key
+            assertThat(w.getConstructorWrappers()).isEmpty();
+        }
+
+        @Test
         void equalsAndHashCodeAreConsistent() { // M4
             assertThat(nested("Base")).isEqualTo(nested("Base")).hasSameHashCodeAs(nested("Base"));
         }

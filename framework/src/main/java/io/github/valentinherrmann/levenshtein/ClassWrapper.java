@@ -581,7 +581,9 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     private List<Wrapper<T>> wrapperFields(Class<?> wrapperType) {
         List<Wrapper<T>> wrappers = new ArrayList<>();
         List<Field> fields = ReflectionSupport.findFields(getClass(),
-                f -> wrapperType.isAssignableFrom(f.getType()) && !Modifier.isStatic(f.getModifiers()),
+                // only fields of concrete wrapper subclasses; framework-internal fields (e.g. the cache key) are no wrappers
+                f -> wrapperType.isAssignableFrom(f.getType()) && !Modifier.isStatic(f.getModifiers())
+                        && !f.getDeclaringClass().isAssignableFrom(ClassWrapper.class),
                 HierarchyTraversalMode.TOP_DOWN);
         for (Field field : fields) {
             try {
