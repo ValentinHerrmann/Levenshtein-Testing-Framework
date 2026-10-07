@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Reference exercise for the Levenshtein Testing Framework, protected by Ares 2 in
+  Postcompile mode (AspectJ). It doubles as the copy template for real exam repositories
+  and follows the Ares 2 guide "transform an Ares 1 protected project into an Ares 2
+  protected project" (Maven, Postcompile) with the standard Artemis layout:
+    assignment/src  student code (supervised, woven by AspectJ)
+    test/           instructor tests, wrappers and SecurityPolicy.yaml
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.valentinherrmann</groupId>
+    <artifactId>levenshtein-testing-framework-example</artifactId>
+    <version>2000.0.0-SNAPSHOT</version>
+
+    <name>Levenshtein Testing Framework (example exercise)</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <ares.version>2.2.1</ares.version>
+        <aspectj.version>1.9.25.1</aspectj.version>
+        <junit.version>6.1.3</junit.version>
+        <levenshtein.version>2000.0.0-SNAPSHOT</levenshtein.version>
+        <!-- Keeps @{argLine} resolvable when JaCoCo is not part of the run. -->
+        <argLine></argLine>
+        <!-- The example is never published. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
+    <dependencies>
+        <!-- provided, NOT test: aspectj-maven-plugin resolves <aspectLibraries> against the
+             compile-visible dependencies when it weaves the main (student) classes. A
+             test-scoped Ares builds fine but enforces nothing. -->
+        <dependency>
+            <groupId>de.tum.cit.ase</groupId>
+            <artifactId>ares</artifactId>
+            <version>${ares.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>${aspectj.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.valentinherrmann</groupId>
+            <artifactId>levenshtein-testing-framework</artifactId>
+            <version>${levenshtein.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-testkit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- Standard Artemis layout. Copy this block verbatim. -->
+        <sourceDirectory>${project.basedir}/assignment/src</sourceDirectory>
+        <testSourceDirectory>${project.basedir}/test</testSourceDirectory>
+        <testResources>
+            <testResource>
+                <directory>${project.basedir}/test</directory>
+                <excludes>
+                    <exclude>**/*.java</exclude>
+                </excludes>
+            </testResource>
+        </testResources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+
+            <!-- 1. Weave the Ares aspects into the supervised (student) classes. -->
+            <plugin>
+                <groupId>dev.aspectj</groupId>
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>1.14.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjtools</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <!-- Required: the project has no .aj sources, the aspects come from the Ares JAR. -->
+                    <forceAjcCompile>true</forceAjcCompile>
+                    <complianceLevel>${maven.compiler.release}</complianceLevel>
+                    <source>${maven.compiler.release}</source>
+                    <target>${maven.compiler.release}</target>
+                    <aspectLibraries>
+                        <aspectLibrary>
+                            <groupId>de.tum.cit.ase</groupId>
+                            <artifactId>ares</artifactId>
+                        </aspectLibrary>
+                    </aspectLibraries>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>weave-main-classes</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 2. Reserved-package boundary, version 2 (copied from Ares'
+                 MavenReservedPackages.xml) EXTENDED by the packages of this framework and of
+                 the instructor tests. Student classes in target/classes come before every
+                 dependency JAR on the test classpath, so a student class declared in one of
+                 these packages would replace the framework or a test class (for example a
+                 no-op StructuralLevenshtein). This check is mandatory in every exam repository. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>verify-ares-reserved-packages-v2</id>
+                        <phase>process-classes</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <resourcecount property="ares.reserved.package.count">
+                                    <fileset dir="${project.build.outputDirectory}">
+                                        <include name="java/**"/><include name="javax/**"/><include name="sun/**"/>
+                                        <include name="jdk/**"/><include name="com/sun/**"/>
+                                        <include name="de/tum/cit/ase/ares/api/**"/><include name="net/bytebuddy/**"/>
+                                        <include name="org/aspectj/**"/><include name="com/ibm/wala/**"/>
+                                        <include name="com/tngtech/archunit/**"/><include name="anonymous/toolclasses/**"/>
+                                        <include name="metatest/**"/>
+                                        <!-- Levenshtein Testing Framework and the instructor test package. -->
+                                        <include name="io/github/valentinherrmann/levenshtein/**"/>
+                                        <include name="io/github/valentinherrmann/example/tests/**"/>
+                                        <include name="org/junit/**"/><include name="org/assertj/**"/>
+                                        <include name="org/opentest4j/**"/>
+                                    </fileset>
+                                </resourcecount>
+                                <fail message="Ares reserved-package validation 2 rejected student output. No bypass flag is supported.">
+                                    <condition><not><equals arg1="${ares.reserved.package.count}" arg2="0"/></not></condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 3. Put the Ares agent and the AspectJ runtime at a path the build knows. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.11.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-ares-runtime-jars</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>de.tum.cit.ase</groupId>
+                                    <artifactId>ares</artifactId>
+                                    <version>${ares.version}</version>
+                                    <classifier>agent</classifier>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/ares</outputDirectory>
+                                    <destFileName>ares-agent.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.aspectj</groupId>
+                                    <artifactId>aspectjrt</artifactId>
+                                    <version>${aspectj.version}</version>
+                                    <overWrite>true</overWrite>
+                                    <outputDirectory>${project.build.directory}/ares</outputDirectory>
+                                    <destFileName>aspectjrt.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 4. Attach the agent and open the modules Ares needs. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <!-- A fresh JVM per test class: Ares 2 halts the JVM (exit code 124) when timed-out student
+                         code ignores the interrupt, so only the tests of that one class are lost. -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                    <argLine>
+                        @{argLine}
+                        "-javaagent:${project.build.directory}/ares/ares-agent.jar"
+                        "-Xbootclasspath/a:${project.build.directory}/ares/aspectjrt.jar"
+                        --add-exports java.base/java.lang=ALL-UNNAMED
+                        --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+                        --add-opens java.base/java.io=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens java.base/java.net=ALL-UNNAMED
+                        --add-opens java.base/java.nio=ALL-UNNAMED
+                        --add-opens java.base/java.nio.channels=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.util.concurrent=ALL-UNNAMED
+                        --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                        --add-opens java.base/java.util.concurrent.locks=ALL-UNNAMED
+                        --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+                        --add-opens java.base/sun.net.www.protocol.http=ALL-UNNAMED
+                        --add-opens java.base/sun.net.www.protocol.https=ALL-UNNAMED
+                        --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+                        --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
