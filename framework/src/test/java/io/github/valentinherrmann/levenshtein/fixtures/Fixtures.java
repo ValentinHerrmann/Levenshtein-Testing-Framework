@@ -17,6 +17,9 @@ public final class Fixtures {
         public void drive() { }
     }
 
+    public record Point(int x, int y) { }
+    public enum Color { RED, GREEN }
+
     public static class Base { }
     public static class NoSuper { }
     public static class Derived extends Base { }

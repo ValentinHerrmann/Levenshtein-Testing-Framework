@@ -43,6 +43,11 @@ student loses the structural point, not the behavioural ones.
 ## Limitations
 
 * Thresholds are global per element kind, not per wrapper.
-* No verification of generic type parameters, enums, record components or annotations.
+* Records and enums can be wrapped like classes (their implicit superclass is ignored), but record components,
+  enum constants, `sealed`/`permits`, generic type parameters and annotations are not verified.
+* **JavaFX / EOS exercises are untested.** The framework needs Ares 2 on the test classpath:
+  `@LevenshteinTest` composes Ares 2 annotations, and the wrappers call student code through Ares 2's
+  `ReflectionTestUtils`. EOS 1.1.0 bundles a fork of Ares 1, and whether it works together with Ares 2 has not
+  been checked.
 * Method parameter types must match (up to primitive ⇄ wrapper or numeric type); reordered parameters are
   `MISSING`.

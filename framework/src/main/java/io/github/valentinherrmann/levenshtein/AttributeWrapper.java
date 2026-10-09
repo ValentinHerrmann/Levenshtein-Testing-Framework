@@ -102,7 +102,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         } catch (ReflectiveOperationException | RuntimeException e) {
             val = getValueViaGetter(target, e);
         }
-        return (V) saveCast(val, type.expected, true);
+        return (V) safeCast(val, type.expected, true);
     }
 
     private Object getValueViaGetter(Object target, Exception accessFailure) {
@@ -181,7 +181,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         try {
             field.setAccessible(true);
             Object converted = value == null || field.getType().isPrimitive() || !(value instanceof Number)
-                    ? value : saveCast(value, field.getType());
+                    ? value : safeCast(value, field.getType());
             field.set(target, converted);
         }
         catch (ReflectiveOperationException | RuntimeException e) {

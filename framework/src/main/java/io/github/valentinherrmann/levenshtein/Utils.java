@@ -85,19 +85,19 @@ public final class Utils
      * @param castTo the expected type
      * @return the converted value
      */
-    public static Object saveCast(Object val, Class<?> castTo) {
-        return saveCast(val, castTo, false);
+    public static Object safeCast(Object val, Class<?> castTo) {
+        return safeCast(val, castTo, false);
     }
 
     /**
-     * Like {@link #saveCast(Object, Class)}, but optionally permits {@code null}.
+     * Like {@link #safeCast(Object, Class)}, but optionally permits {@code null}.
      *
      * @param val the value to convert
      * @param castTo the expected type
      * @param allowNull whether {@code null} is accepted (and returned)
      * @return the converted value
      */
-    public static Object saveCast(Object val, Class<?> castTo, boolean allowNull) {
+    public static Object safeCast(Object val, Class<?> castTo, boolean allowNull) {
         if (val == null) {
             if (!allowNull) {
                 throw new IllegalArgumentException(Messages.NULL_NOT_ALLOWED.get());

@@ -89,7 +89,7 @@ import org.assertj.core.api.Assertions;
  * <h4>Pattern C: Testing Business Logic Methods</h4>
  * <pre>{@code
  * // Create instance with specific values
- * Object obj = vehicleAbstr().getObj(true, true,
+ * Object obj = vehicleAbstr().getObj(true,
  *     vehicleAbstr().constructor(),
  *     "BMW", 2023
  * );
@@ -99,15 +99,15 @@ import org.assertj.core.api.Assertions;
  * assertThat(info).contains("BMW", "2023");
  * }</pre>
  *
- * <h3>5. The saveCast() Utility</h3>
+ * <h3>5. The safeCast() Utility</h3>
  * <p>Used to safely cast reflection results to expected types:</p>
  * <pre>{@code
  * Object manufacturerObj = vehicleAbstr().manufacturer().getValue(obj);
  *
  * // Safe cast with type checking and primitive widening support:
- * String manufacturer = (String) saveCast(manufacturerObj, manufacturerType());
+ * String manufacturer = (String) safeCast(manufacturerObj, manufacturerType());
  *
- * // Why saveCast()?
+ * // Why safeCast()?
  * // - Handles null values
  * // - Supports primitive widening (int → long, float → double)
  * // - Provides clear error messages
@@ -117,7 +117,6 @@ import org.assertj.core.api.Assertions;
  * <pre>{@code
  * Object obj = vehicleAbstr().getObj(
  *     true,                            // forceNew: create new instance (don't reuse cached)
- *     true,                            // useByteBuddy: use ByteBuddy for abstract class
  *     vehicleAbstr().constructor(),    // which constructor to use
  *     "BMW", 2023                      // constructor arguments
  * );
@@ -167,7 +166,7 @@ public class TestAbstr {
      *     .invokeOnSpecificObject(obj);         // Invoke on our instance
      *
      * // Step 3: Cast and verify
-     * var manufacturerStr = saveCast(manufacturer, manufacturerType());
+     * var manufacturerStr = safeCast(manufacturer, manufacturerType());
      * assertThat(manufacturerStr).isEqualTo("Toyota");
      * }</pre>
      *
@@ -180,7 +179,7 @@ public class TestAbstr {
         try {
             Object obj = vehicleAbstr().constructor().invoke("Toyota", 2022);
 
-            var manufacturer = saveCast(vehicleAbstr().getManufacturer().invokeOnSpecificObject(obj), manufacturerType());
+            var manufacturer = safeCast(vehicleAbstr().getManufacturer().invokeOnSpecificObject(obj), manufacturerType());
             Assertions.assertThat(manufacturer)
                 .withFailMessage("Value of attribute %s must be equal to the value passed in constructor.",
                                vehicleAbstr().manufacturer().getExpectedName())
@@ -219,7 +218,7 @@ public class TestAbstr {
      * manufacturer="BMW", year=2023</p>
      */
     public static void testConstructorYear() {
-        var year = saveCast(vehicleAbstr().year().getValue(), yearType());
+        var year = safeCast(vehicleAbstr().year().getValue(), yearType());
         Assertions.assertThat(year)
             .withFailMessage("Value of attribute %s must be equal to the value passed in constructor.",
                            vehicleAbstr().year().getExpectedName())
@@ -291,7 +290,6 @@ public class TestAbstr {
      * <pre>{@code
      * Object obj = vehicleAbstr().getObj(
      *     true,                            // forceNew: always create new instance
-     *     true,                            // useByteBuddy: needed for abstract classes
      *     vehicleAbstr().constructor(),    // which constructor to use
      *     "BMW", 2023                      // constructor arguments
      * );
@@ -300,14 +298,14 @@ public class TestAbstr {
      * <h4>2. Retrieving Attribute Values for Comparison</h4>
      * <pre>{@code
      * // Get manufacturer attribute value
-     * var man = (String)saveCast(
+     * var man = (String)safeCast(
      *     vehicleAbstr().manufacturer().getValue(obj),  // Get value
      *     manufacturerType()                            // Expected type
      * );
      *
-     * // Why saveCast()?
+     * // Why safeCast()?
      * // - getValue() returns Object
-     * // - saveCast() safely converts to expected type
+     * // - safeCast() safely converts to expected type
      * // - Handles primitive widening (int→long, float→double)
      * // - Provides clear errors if cast fails
      * }</pre>
@@ -356,11 +354,11 @@ public class TestAbstr {
      * }</pre>
      */
     public static void testGetInfo() {
-        Object obj = vehicleAbstr().getObj(true, true,
+        Object obj = vehicleAbstr().getObj(true,
                 vehicleAbstr().constructor(),
                 "BMW",2023);
-        var man = (String)saveCast(vehicleAbstr().manufacturer().getValue(obj),manufacturerType());
-        var year = saveCast(vehicleAbstr().year().getValue(obj),yearType());
+        var man = (String)safeCast(vehicleAbstr().manufacturer().getValue(obj),manufacturerType());
+        var year = safeCast(vehicleAbstr().year().getValue(obj),yearType());
         String info = vehicleAbstr().getInfo().invokeOnSpecificObject(obj); // DEMO of generic type usage, no need to cast anything
         Assertions.assertThat(info)
             .withFailMessage("Method %s should return vehicle information.",

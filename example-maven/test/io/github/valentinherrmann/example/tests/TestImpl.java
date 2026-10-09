@@ -1,6 +1,6 @@
 package io.github.valentinherrmann.example.tests;
 
-import static io.github.valentinherrmann.levenshtein.Utils.saveCast;
+import static io.github.valentinherrmann.levenshtein.Utils.safeCast;
 import static io.github.valentinherrmann.example.tests.TestManager.*;
 
 import org.assertj.core.api.Assertions;
@@ -27,8 +27,8 @@ import org.assertj.core.api.Assertions;
  *   </tr>
  *   <tr>
  *     <td><b>ByteBuddy</b></td>
- *     <td>Always required ({@code useByteBuddy=true})</td>
- *     <td>Optional ({@code useByteBuddy=false} for direct instantiation)</td>
+ *     <td>Always (a Byte Buddy subclass is created automatically)</td>
+ *     <td>Never (the class's own constructor is used)</td>
  *   </tr>
  *   <tr>
  *     <td><b>Instance Creation</b></td>
@@ -329,8 +329,8 @@ public class TestImpl {
      */
     public static void testCalculateCost() {
         Object obj = carImpl().getObj(true);
-        double cost = (double)saveCast(carImpl().calculateCost().invokeOnSpecificObject(obj),double.class);
-        double val = (double)saveCast(carImpl().price().getValue(carImpl().getObj(false)),double.class);
+        double cost = (double)safeCast(carImpl().calculateCost().invokeOnSpecificObject(obj),double.class);
+        double val = (double)safeCast(carImpl().price().getValue(carImpl().getObj(false)),double.class);
         
         // Cost should be 10% of price (35000 * 0.1 = 3500)
         Assertions.assertThat(cost)

@@ -91,6 +91,35 @@ public enum Messages {
             "Existenz nicht überprüft",
             "Existence unchecked"),
 
+    /**
+     * Report of a class in ClassWrapper.toString().
+     * Placeholders: (1) intro line, (2) package name, (3) expected toString, (4) actual toString.
+     */
+    CLASS_REPORT(
+            """
+              %s im Paket %s
+              Erwartet:\t%s
+              Tatsächlich:\t%s
+              """,
+            """
+              %s in package %s
+              Expect:\t%s
+              Actual:\t%s
+              """),
+
+    /** Shown instead of the package name for the default package. */
+    DEFAULT_PACKAGE(
+            "<Standardpaket>",
+            "<default>"),
+
+    /**
+     * Shown in a structural test when checking one element failed unexpectedly.
+     * Placeholders: (1) class name, (2) expected toString, (3) cause.
+     */
+    WRAPPER_CHECK_FAILED(
+            "%s: %s konnte nicht überprüft werden: %s",
+            "%s: %s could not be checked: %s"),
+
     // -------------------------------------------------------------------------
     // ClassWrapper – verifyExistence
     // -------------------------------------------------------------------------

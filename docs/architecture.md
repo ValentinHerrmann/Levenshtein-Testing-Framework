@@ -72,7 +72,7 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 * `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
 * `LevenshteinSettings`: runtime configuration (thresholds, language)
 * `Messages`: German/English feedback
-* `Utils`: Levenshtein distance, type compatibility, `saveCast`
+* `Utils`: Levenshtein distance, type compatibility, `safeCast`
 
 **`example-maven/`** and **`example-gradle/`** (not published): the same example exercise as two standalone
 projects, one per build tool. Their `assignment/` and `test/` folders are identical (CI checks this) except
@@ -125,22 +125,22 @@ classDiagram
         ~WrapperProperty interfaceWrappers
         +getClazz() Class~T~
         +getExpectedPackage() String
-        +getObj(boolean forceNew, boolean useByteBuddy)* Object
+        +getObj(boolean forceNew)* Object
         +getObj() Object
         +newObj() Object
-        +getObj(forceNew, useByteBuddy, ConstructorWrapper ctor, Object... args) T
+        +getObj(boolean forceNew, ConstructorWrapper ctor, Object... args) T
         +setCachedObj(Object obj)
         +getDynamicSubclassObj(ConstructorWrapper ctor, Object... args) Object
         +verifySuperClass()
         +verifyInterfaces()
         +getAttributeWrappers() List~Wrapper~T~~
-        +getMethodsWrappers() List~Wrapper~T~~
+        +getMethodWrappers() List~Wrapper~T~~
         +getConstructorWrappers() List~Wrapper~T~~
         +testGetter(AttributeWrapper attribute, MethodWrapper getter)
     }
     class GenericClassWrapper~T~ {
         +GenericClassWrapper(Class~T~ clz)
-        +getObj(boolean forceNew, boolean useByteBuddy) Object
+        +getObj(boolean forceNew) Object
     }
     class AttributeWrapper["AttributeWrapper&lt;T, V&gt;"] {
         -Field field
@@ -224,7 +224,7 @@ classDiagram
         +levenshteinDistance(String s1, String s2)$ int
         +levenshteinDistancePercent(String expected, String actual)$ double
         +isNameWithinDeviation(String expected, String actual, int threshold)$ boolean
-        +saveCast(Object val, Class castTo)$ Object
+        +safeCast(Object val, Class castTo)$ Object
         +verifyType(WrapperProperty typeProperty, Class actualType)$
         +isNumericDeviation(Class expected, Class actual)$ boolean
         +canContain(Class actualType, Class expectedType)$ boolean
@@ -291,7 +291,7 @@ classDiagram
     direction BT
     class ClassWrapper~T~ {
         <<abstract, framework>>
-        +getObj(boolean forceNew, boolean useByteBuddy)* Object
+        +getObj(boolean forceNew)* Object
     }
     class DrivableWrapper~T~ {
         -AttributeWrapper maxSpeed
@@ -301,7 +301,7 @@ classDiagram
         +maxSpeed() AttributeWrapper
         +startMethod() MethodWrapper
         +getSpeedMethod() MethodWrapper
-        +getObj(boolean forceNew, boolean useByteBuddy) Object
+        +getObj(boolean forceNew) Object
     }
     class AbstrWrapper~T~ {
         -AttributeWrapper manufacturer
@@ -319,7 +319,7 @@ classDiagram
         +getYear() MethodWrapper
         +calculateCost() MethodWrapper
         +getInfo() MethodWrapper
-        +getObj(boolean forceNew, boolean useByteBuddy) T
+        +getObj(boolean forceNew) T
         +setObj(Object obj, boolean force)
     }
     class CarWrapper~T~ {
@@ -344,7 +344,7 @@ classDiagram
         +calculateCost() MethodWrapper
         +calculateCostYears() MethodWrapper
         +getInfo() MethodWrapper
-        +getObj(boolean forceNew, boolean useByteBuddy) Object
+        +getObj(boolean forceNew) Object
     }
 
     DrivableWrapper --|> ClassWrapper

@@ -7,18 +7,22 @@
 plugins {
     id 'java'
     // Weaves the Ares aspects into the compiled student classes (Maven: aspectj-maven-plugin).
-    id 'io.freefair.aspectj.post-compile-weaving' version '9.2.0'
+    id 'io.freefair.aspectj.post-compile-weaving' version '9.8.0'
 }
 
 ext {
     aresVersion = '2.2.1'
     aspectjVersion = '1.9.25.1'
     junitVersion = '6.1.3'
-    levenshteinVersion = '2000.0.0-SNAPSHOT' // use the released version as soon as it is on Maven Central
+    // The released framework from Maven Central. To test a SNAPSHOT of the framework instead, install it
+    // (./mvnw -B install -pl framework in the framework repository) and run with -PlevenshteinVersion=<snapshot>.
+    levenshteinVersion = providers.gradleProperty('levenshteinVersion').getOrElse('2000.0.0')
 }
 
 repositories {
-    mavenLocal() // only needed for a SNAPSHOT: ./mvnw -B install -pl framework in the framework repository
+    if (levenshteinVersion.endsWith('-SNAPSHOT')) {
+        mavenLocal { content { includeGroup 'io.github.valentinherrmann' } } // the installed framework SNAPSHOT
+    }
     mavenCentral()
 }
 

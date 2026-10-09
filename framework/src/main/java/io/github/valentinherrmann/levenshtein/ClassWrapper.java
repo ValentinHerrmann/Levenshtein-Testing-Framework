@@ -275,10 +275,15 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     /**
      * Verifies that the actual superclass matches or is compatible with the expected superclass.
      * Updates the superClassWrapper's existence state based on exact match, indirect inheritance, or mismatch.
+     * The implicit superclass of a record ({@link Record}) or an enum ({@link Enum}) counts as no superclass,
+     * like {@link Object}.
      */
     public void verifySuperClass() {
         Class<?> actualSuper = clazz.getSuperclass();
-        boolean hasSuper = actualSuper != null && actualSuper != Object.class;
+        boolean implicitSuper = actualSuper == Object.class
+                || (clazz.isRecord() && actualSuper == Record.class)
+                || (clazz.isEnum() && actualSuper == Enum.class);
+        boolean hasSuper = actualSuper != null && !implicitSuper;
         superClassWrapper.actual = hasSuper ? new GenericClassWrapper<>(actualSuper) : null;
 
         ClassWrapper<?> expectedWrapper = superClassWrapper.expected;
@@ -383,26 +388,16 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Returns an instance of the class represented by this ClassWrapper.
-     * Should usually be overridden in concrete wrapper subclasses by calling
-     * {@link #getObj(boolean, boolean, ConstructorWrapper, Object...)} with a default constructor and arguments.
+     * Returns the default instance of the class represented by this ClassWrapper.
+     * Concrete wrapper subclasses implement it by calling
+     * {@link #getObj(boolean, ConstructorWrapper, Object...)} with a default constructor and arguments.
+     * Abstract classes and interfaces are instantiated through a Byte Buddy subclass, concrete classes through
+     * their own constructor.
      *
-     * @param forceNew whether to force creation of a new instance instead of reusing cached obj
-     * @param useByteBuddy ignored since 2000.0.0: abstract classes and interfaces always use a Byte Buddy
-     *                     subclass, concrete classes never do
+     * @param forceNew whether to force creation of a new instance instead of reusing the cached one
      * @return an instance of the wrapped class
      */
-    public abstract Object getObj(boolean forceNew, boolean useByteBuddy);
-
-    /**
-     * Returns the (possibly cached) default instance of the class.
-     *
-     * @param useByteBuddy ignored, see {@link #getObj(boolean, boolean)}
-     * @return an instance of the wrapped class which might have been cached
-     */
-    public Object getObj(boolean useByteBuddy) {
-        return getObj(false, useByteBuddy);
-    }
+    public abstract Object getObj(boolean forceNew);
 
     /**
      * Returns the (possibly cached) default instance of the class.
@@ -410,7 +405,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * @return an instance of the wrapped class which might have been cached
      */
     public Object getObj() {
-        return getObj(false, true);
+        return getObj(false);
     }
 
     /**
@@ -419,7 +414,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * @return a new instance of the wrapped class
      */
     public Object newObj() {
-        return getObj(true, true);
+        return getObj(true);
     }
 
     /**
@@ -429,13 +424,12 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * Abstract classes and interfaces are instantiated through a Byte Buddy subclass.
      *
      * @param forceNew whether to force creation of a new instance
-     * @param useByteBuddy ignored, see {@link #getObj(boolean, boolean)}
      * @param constructorWrapper the constructor wrapper to use for instantiation (null: no-argument constructor)
      * @param constructorArgs the arguments to pass to the constructor
      * @return an instance of the wrapped class
      */
     @SuppressWarnings("unchecked")
-    public T getObj(boolean forceNew, boolean useByteBuddy, ConstructorWrapper<?> constructorWrapper, Object... constructorArgs) {
+    public T getObj(boolean forceNew, ConstructorWrapper<?> constructorWrapper, Object... constructorArgs) {
         Object[] args = constructorArgs == null ? new Object[0] : constructorArgs;
         boolean sameRequest = objPinned
                 || (objConstructor == constructorWrapper && Arrays.deepEquals(objArgs, args));
@@ -477,7 +471,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
 
     /**
      * Sets the cached default instance, e.g. to an object created in a test. It is returned by
-     * {@link #getObj(boolean, boolean, ConstructorWrapper, Object...)} until {@code forceNew} is requested.
+     * {@link #getObj(boolean, ConstructorWrapper, Object...)} until {@code forceNew} is requested.
      *
      * @param newObj the instance to cache (null clears the cache)
      */
@@ -523,33 +517,6 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Creates a dynamic subclass instance using ByteBuddy for abstract classes.
-     *
-     * @param constructorParamTypes the parameter types for the constructor to invoke
-     * @param constructorArgs the arguments to pass to the constructor
-     * @return a new instance of the dynamic subclass
-     * @deprecated use {@link #getDynamicSubclassObj(ConstructorWrapper, Object...)}, which also handles
-     *             deviating parameter types
-     */
-    @Deprecated
-    public Object getDynamicSubclassObj(Class<?>[] constructorParamTypes, Object... constructorArgs) {
-        verifyExistence(true);
-        try {
-            Class<T> base = getClazz();
-            Class<?> dynamicType = new ByteBuddy()
-                    .subclass(base)
-                    .make()
-                    .load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
-                    .getLoaded();
-            return Invocations.newInstance(dynamicType.getDeclaredConstructor(constructorParamTypes), constructorArgs);
-        }
-        catch (Throwable e) {
-            Invocations.rethrowIfCritical(e);
-            return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
-        }
-    }
-
-    /**
      * Retrieves all AttributeWrapper fields defined in this ClassWrapper subclass.
      * Uses reflection on the wrapper (not on student code) to find all fields of type AttributeWrapper.
      *
@@ -564,7 +531,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      *
      * @return a list of method wrappers for this class
      */
-    public List<Wrapper<T>> getMethodsWrappers() {
+    public List<Wrapper<T>> getMethodWrappers() {
         return wrapperFields(MethodWrapper.class);
     }
 
@@ -672,12 +639,9 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             case DEVIATES -> Messages.CLASS_DEVIATION.get();
             case MISSING -> Messages.CLASS_MISSING.get();
             default -> Messages.CLASS_UNCHECKED.get();
-        } + " in package %s".formatted(expectedPackage.isEmpty() ? "<default>" : expectedPackage);
-        return String.format("""
-                %s
-                Expect:\t%s
-                Actual:\t%s
-                """, intro, expectedToString(), actualToString());
+        };
+        String pkg = expectedPackage.isEmpty() ? Messages.DEFAULT_PACKAGE.get() : expectedPackage;
+        return Messages.CLASS_REPORT.format(intro, pkg, expectedToString(), actualToString());
     }
 
     /**

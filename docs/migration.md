@@ -12,7 +12,11 @@ the first release of the Ares 2 / Java 25 line and contains the breaking changes
 | `io.github.valentinherrmann.test.TestSettings` constants (inlined at compile time, not changeable) | `io.github.valentinherrmann.levenshtein.LevenshteinSettings` setters |
 | `io.github.valentinherrmann.test.Messages.X` (String) | `io.github.valentinherrmann.levenshtein.Messages.X.get()` / `.format(...)` |
 | `TestSettings.BASE_PACKAGE`, `variant` | in your own `Constants` |
-| `useByteBuddy=false` for private members | not needed; the parameter is ignored |
+| `getObj(boolean forceNew, boolean useByteBuddy)`, `useByteBuddy=false` for private members | `getObj(boolean forceNew)`; wrappers delegate to `getObj(forceNew, constructorWrapper, args...)`. Abstract classes and interfaces always use Byte Buddy, concrete classes never |
+| `getObj(boolean useByteBuddy)` (returned the **cached** instance) | `getObj()` (cached) or `newObj()` / `getObj(true)` (new) |
+| `getDynamicSubclassObj(Class<?>[] paramTypes, args...)` | `getDynamicSubclassObj(constructorWrapper, args...)` |
+| `Utils.saveCast(...)` | `Utils.safeCast(...)` |
+| `getMethodsWrappers()` | `getMethodWrappers()` |
 | `setObj` writes `obj` directly | `setCachedObj(obj)` |
 | Exceptions from student code: generic failure | type and message in the failure, `invokeExpectingException(...)` |
 

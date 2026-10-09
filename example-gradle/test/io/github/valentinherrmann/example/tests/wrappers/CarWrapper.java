@@ -167,8 +167,8 @@ public class CarWrapper<T> extends ClassWrapper<T> {
     }
 
     @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, useByteBuddy, constructor_full, "BMW", 2023, 30000.0);
+    public Object getObj(boolean forceNew) {
+        return getObj(forceNew, constructor_full, "BMW", 2023, 30000.0);
     }
 }
 

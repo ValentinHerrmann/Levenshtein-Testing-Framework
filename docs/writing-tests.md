@@ -15,9 +15,8 @@
   A typo throws `IllegalArgumentException` as soon as the wrapper is created.
 * **Member wrappers must be (non-static) fields** of your `ClassWrapper` subclass. That's how the
   structural tests find them.
-* **Every `ClassWrapper` subclass implements `getObj(boolean forceNew, boolean useByteBuddy)`**, which
-  defines the default instance, usually by delegating to
-  `getObj(forceNew, useByteBuddy, constructorWrapper, args...)`.
+* **Every `ClassWrapper` subclass implements `getObj(boolean forceNew)`**, which defines the default
+  instance, usually by delegating to `getObj(forceNew, constructorWrapper, args...)`.
 * Nothing is looked up when a wrapper is created. Each wrapper looks up its element **once**, on first use,
   inside a supervised test.
 
@@ -93,14 +92,14 @@ IllegalArgumentException e = carWrapper.setYear()
 | `invoke(args...)`, `getValue()`, `setValue(value)` | the cached default instance (`getObj()`), or `null` for static members |
 | `invokeOnSpecificObject(obj, args...)`, `getValue(obj)`, `setValue(obj, value)` | `obj` |
 | `getObj()` | the cached default instance. The cache is only reused for the same constructor and arguments. |
-| `newObj()` / `getObj(true, ...)` | always a new instance |
+| `newObj()` / `getObj(true)` / `getObj(true, constructorWrapper, args...)` | always a new instance |
 | `setCachedObj(obj)` | pins an object you created yourself as the default instance |
 
 * If the student's element is `MISSING`, the call fails with "... is not implemented as expected. See
   structural Tests for details".
 * An exception thrown by student code fails the test with its type and message (the original exception is
   attached as the cause). Ares security violations and assertion failures are passed through unchanged.
-* `Utils.saveCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
+* `Utils.safeCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
   message instead of producing a `ClassCastException` later.
 * Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
 
@@ -110,7 +109,6 @@ Abstract classes and interfaces are instantiated through a Byte Buddy subclass, 
 constructor (including `protected` ones). Concrete classes are **always** created with their own
 constructor, so `final` classes and `getClass()`-based `equals` work. Calling an abstract method on such
 an instance throws `AbstractMethodError`; test interface behaviour through an implementing class.
-(The `useByteBuddy` parameter of `getObj` is ignored since 2000.0.0.)
 
 ## Configuration
 

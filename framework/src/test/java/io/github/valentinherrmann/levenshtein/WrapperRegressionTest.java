@@ -32,8 +32,8 @@ class WrapperRegressionTest {
         }
 
         @Override
-        public Object getObj(boolean forceNew, boolean useByteBuddy) {
-            return getObj(forceNew, useByteBuddy, null);
+        public Object getObj(boolean forceNew) {
+            return getObj(forceNew, null);
         }
     }
 
@@ -102,6 +102,31 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void implicitSuperclassOfRecordsAndEnumsIsNoSuperclass() {
+            W<Object> point = nested("Point", "public static");
+            assertThat(point.getOverallExistence()).isEqualTo(EXACT);
+            assertThat(point.actualToString()).doesNotContain("extends");
+
+            W<Object> color = nested("Color", "public static");
+            assertThat(color.getOverallExistence()).isEqualTo(EXACT);
+            assertThat(color.actualToString()).doesNotContain("extends");
+
+            W<Object> base = nested("Base", "public static");
+            W<Object> pointWithSuper = new W<>("Fixtures$Point", base, null, "public", "static");
+            assertThat(pointWithSuper.getOverallExistence()).isEqualTo(MISSING);
+        }
+
+        @Test
+        void classReportIsLocalized() {
+            W<Object> w = nested("DoesNotExist", "public");
+            assertThat(w.toString()).contains("FEHLT").contains("im Paket " + PKG)
+                    .contains("Erwartet:").contains("Tatsächlich:").doesNotContain("Expect:");
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            assertThat(w.toString()).contains("MISSING").contains("in package " + PKG)
+                    .contains("Expect:").contains("Actual:");
+        }
+
+        @Test
         void missingClassIsStillUsableForMessages() {
             W<Object> w = nested("DoesNotExist", "public");
             assertThat(w.getOverallExistence()).isEqualTo(MISSING);
@@ -133,7 +158,7 @@ class WrapperRegressionTest {
         void defaultPackageDeviationsAreFound() { // #10.1
             ClassWrapper<Object> w = new ClassWrapper<>("DefaultPackageFixtur", "", "public") {
                 @Override
-                public Object getObj(boolean forceNew, boolean useByteBuddy) {
+                public Object getObj(boolean forceNew) {
                     return null;
                 }
             };
@@ -144,28 +169,39 @@ class WrapperRegressionTest {
         @Test
         void finalConcreteClassIsInstantiatedWithoutByteBuddy() { // H8
             W<Object> w = nested("FinalCar", "public static final");
-            Object car = w.getObj(false, true);
+            Object car = w.getObj(false);
             assertThat(car).isInstanceOf(Fixtures.FinalCar.class);
             assertThat(car.getClass()).isEqualTo(Fixtures.FinalCar.class);
             assertThat(car).isEqualTo(new Fixtures.FinalCar());
         }
 
         @Test
+        void forceNewCreatesANewDefaultInstance() { // #15.1: getObj(true) is a new instance, not the cached one
+            W<Object> w = nested("FinalCar", "public static final");
+            Object first = w.getObj(false);
+            assertThat(w.getObj(false)).isSameAs(first);
+            assertThat(w.getObj()).isSameAs(first);
+            Object fresh = w.getObj(true);
+            assertThat(fresh).isNotSameAs(first);
+            assertThat(w.newObj()).isNotSameAs(fresh);
+        }
+
+        @Test
         void cacheRespectsConstructorAndArguments() { // #11.4
             W<Object> w = nested("FinalCar", "public static final");
             ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "public");
-            Object bmw = w.getObj(false, true, ctor, "BMW");
-            assertThat(w.getObj(false, true, ctor, "BMW")).isSameAs(bmw);
-            Object audi = w.getObj(false, true, ctor, "Audi");
+            Object bmw = w.getObj(false, ctor, "BMW");
+            assertThat(w.getObj(false, ctor, "BMW")).isSameAs(bmw);
+            Object audi = w.getObj(false, ctor, "Audi");
             assertThat(((Fixtures.FinalCar) audi).getBrand()).isEqualTo("Audi");
-            assertThat(w.getObj(true, true, ctor, "Audi")).isNotSameAs(audi);
+            assertThat(w.getObj(true, ctor, "Audi")).isNotSameAs(audi);
         }
 
         @Test
         void internalFieldsAreNoMemberWrappers() {
             W<Object> w = nested("FinalCar", "public static final");
             ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "public");
-            w.getObj(false, true, ctor, "BMW"); // fills the internal cache key
+            w.getObj(false, ctor, "BMW"); // fills the internal cache key
             assertThat(w.getConstructorWrappers()).isEmpty();
         }
 
@@ -336,7 +372,7 @@ class WrapperRegressionTest {
         @Test
         void interfaceInstanceCanBeCreated() { // #9 part 2
             W<Object> drivable = nested("Drivable", "public static abstract interface");
-            assertThat(drivable.getObj(true, true)).isInstanceOf(Fixtures.Drivable.class);
+            assertThat(drivable.getObj(true)).isInstanceOf(Fixtures.Drivable.class);
         }
     }
 
@@ -359,7 +395,7 @@ class WrapperRegressionTest {
         void structuralTemplateReportsMissingMembers() {
             Members members = new Members();
             Members.SpeedWrapper w = members.new SpeedWrapper();
-            assertThatThrownBy(() -> StructuralLevenshtein.structuralTestTemplate(w.getMethodsWrappers()))
+            assertThatThrownBy(() -> StructuralLevenshtein.structuralTestTemplate(w.getMethodWrappers()))
                     .isInstanceOf(AssertionError.class)
                     .hasMessageContaining("getMaxSpeed");
         }
@@ -375,10 +411,10 @@ class WrapperRegressionTest {
         }
 
         @Test
-        void saveCastFailsClearly() { // #15.5
-            assertThat(Utils.saveCast(3, double.class)).isEqualTo(3.0);
-            assertThat(Utils.saveCast('a', int.class)).isEqualTo(97);
-            assertThatThrownBy(() -> Utils.saveCast("text", Integer.class))
+        void safeCastFailsClearly() { // #15.5
+            assertThat(Utils.safeCast(3, double.class)).isEqualTo(3.0);
+            assertThat(Utils.safeCast('a', int.class)).isEqualTo(97);
+            assertThatThrownBy(() -> Utils.safeCast("text", Integer.class))
                     .isInstanceOf(AssertionError.class).hasMessageContaining("String");
         }
 

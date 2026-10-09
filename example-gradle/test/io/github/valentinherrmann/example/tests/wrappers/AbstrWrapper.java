@@ -113,8 +113,8 @@ public class AbstrWrapper<T> extends ClassWrapper<T> {
     }
 
     @Override
-    public T getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, useByteBuddy, constructor(), "BMW", 2023);
+    public T getObj(boolean forceNew) {
+        return getObj(forceNew, constructor(), "BMW", 2023);
     }
 
     /**

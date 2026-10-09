@@ -382,7 +382,7 @@ public class TestManager {
      *   <li>{@code ONE_FOR_EVERYTHING} - Single test for all classes (less detail)</li>
      *   <li>{@code ONE_PER_CLASS} - One test per class (moderate detail)</li>
      *   <li>{@code ONE_PER_MEMBER_CATEGORY} - Separate tests for constructors/attributes/methods (high detail, recommended)</li>
-     *   <li>{@code ONE_PER_MEMBER} - Individual test per member (very high detail, not yet implemented)</li>
+     *   <li>{@code ONE_PER_MEMBER} - Individual test per member (very high detail)</li>
      * </ul>
      *
      * @return list of dynamically generated JUnit tests
