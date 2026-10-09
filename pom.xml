@@ -1,231 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Aggregator only: builds the framework and the example exercise together.
+  It is deliberately NOT the parent of the modules, so the published framework POM
+  is self-contained and this POM never has to be deployed.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.valentinherrmann</groupId>
-    <artifactId>levenshtein-testing-framework</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <artifactId>levenshtein-testing-framework-build</artifactId>
+    <version>2000.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Levenshtein Testing Framework (build aggregator)</name>
+
+    <modules>
+        <module>framework</module>
+        <module>example</module>
+    </modules>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.18.0</version>
-        </dependency>
-        <dependency>
-            <groupId>de.tum.in.ase</groupId>
-            <artifactId>artemis-java-test-sandbox</artifactId>
-            <version>1.15.0</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <sourceDirectory>code_example_01/src</sourceDirectory>
-        <testSourceDirectory>test</testSourceDirectory>
-
-        <plugins>
-            <!-- Main jar plugin: build from test-classes instead of classes -->
-            <!-- This ensures the main JAR contains only test classes, not production code -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
-                <executions>
-                    <!-- Main jar built from test-classes (not default-compile output) -->
-                    <execution>
-                        <id>default-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <classesDirectory>${project.build.testOutputDirectory}</classesDirectory>
-                        </configuration>
-                    </execution>
-                    <!-- Test-jar built from test-classes (normal behavior) -->
-                    <execution>
-                        <id>test-jar</id>
-                        <goals>
-                            <goal>test-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Delete unwanted classes from test-classes before packaging -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>clean-unwanted-classes</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <delete dir="${project.build.testOutputDirectory}/io/github/valentinherrmann/wrappers"/>
-                                <delete file="${project.build.testOutputDirectory}/io/github/valentinherrmann/test/TestAbstr.class"/>
-                                <delete file="${project.build.testOutputDirectory}/io/github/valentinherrmann/test/TestImpl.class"/>
-                                <delete file="${project.build.testOutputDirectory}/io/github/valentinherrmann/test/TestInterface.class"/>
-                                <delete file="${project.build.testOutputDirectory}/io/github/valentinherrmann/test/TestManager.class"/>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Surefire plugin for tests with JUnit Platform -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
-                <configuration>
-                    <useModulePath>false</useModulePath>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.junit.platform</groupId>
-                        <artifactId>junit-platform-launcher</artifactId>
-                        <version>1.12.1</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-<!-- ********************************************************************************************** -->
-<!-- Maven Central Publishing Plugins -->
-<!-- ********************************************************************************************** -->
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.9.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                    <tokenAuth>true</tokenAuth>
-                </configuration>
-            </plugin>
-
-
-            <!-- maven-source-plugin: attaches production sources from code_example_01/src -->
-            <!-- Tests still compile and run against production code during `mvn test` -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.0</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Generates Javadoc Jars -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.6.3</version>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Signs the artifacts with GPG -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                        <configuration>
-                            <!-- Use GPG_PASSPHRASE environment variable -->
-                            <passphrase>${env.GPG_PASSPHRASE}</passphrase>
-                            <!-- Prevent gpg from using pinentry programs -->
-                            <gpgArguments>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Automates deployment to Sonatype and releases to Maven Central -->
-            <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.13</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <serverId>ossrh</serverId>
-                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl> <!-- Note: Newer accounts use s01 -->
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.1</version>
-                <configuration>
-                    <mainClass>B2J_Graphics_Main</mainClass>
-                    <classpathScope>compile</classpathScope>
-                </configuration>
-            </plugin>
-<!-- ********************************************************************************************** -->
-<!-- ********************************************************************************************** -->
-        </plugins>
-    </build>
-<!-- ********************************************************************************************** -->
-<!-- Metadata -->
-<!-- ********************************************************************************************** -->
-    <name>Levenshtein Name Deviation Pattern</name>
-    <description>Testing framework based on Levenshtein distance patterns</description>
-    <url>https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework</url>
-    <scm>
-        <url>https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework</url>
-        <connection>scm:git:git://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git</connection>
-        <developerConnection>scm:git:git@github.com:ValentinHerrmann/Levenshtein-Testing-Framework.git</developerConnection>
-        <tag>HEAD</tag>
-    </scm>
-    <licenses>
-        <license>
-            <name>GNU General Public License v3.0</name>
-            <url>https://www.gnu.org/licenses/gpl-3.0.html</url>
-        </license>
-    </licenses>
-    <developers>
-        <developer>
-            <id>ValentinHerrmann</id>
-            <name>Valentin Herrmann</name>
-            <email>mail@valentin-herrmann.com</email>
-        </developer>
-    </developers>
-<!-- ********************************************************************************************** -->
-<!-- ********************************************************************************************** -->
-
 </project>

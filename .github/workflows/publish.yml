@@ -1,18 +1,16 @@
-name: Publish Tests Package
+name: Publish
 
 on:
   release:
     types: [published]
   workflow_dispatch:
-  #push:
 
 permissions:
   contents: read
-  packages: write
 
-jobs:        
+jobs:
   publish_maven:
-    name: Publish to Maven Central
+    name: Publish framework to Maven Central
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,46 +19,26 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17' # Adjust to your Java version if needed
+          java-version: '25'
           distribution: 'temurin'
-          server-id: central 
+          cache: maven
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          # name of the environment variable holding the passphrase (read by maven-gpg-plugin)
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-          # --- DIAGNOSTIC STEP ---
-      - name: Verify Secrets are Loaded
-        env:
-          U: ${{ secrets.OSSRH_USER }}
-          P: ${{ secrets.OSSRH_TOKEN }}
+      - name: Build and test everything
+        run: ./mvnw -B verify
+
+      - name: Set release version from tag
+        if: github.event_name == 'release'
         run: |
-          echo "Username length: ${#U}"
-          echo "Token length: ${#P}"
-          if [ -z "$U" ] || [ -z "$P" ]; then
-            echo "::error::Secrets are empty! Check your repository settings."
-            exit 1
-          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./mvnw -B -f framework/pom.xml versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
 
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            # Release trigger: use the tag version
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            # workflow_dispatch or other triggers: use SNAPSHOT version with run number
-            echo "version=0.9.1-${GITHUB_RUN_NUMBER}-SNAPSHOT" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update version in pom.xml
-        run: mvn -B versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
-
+      # A manual run publishes the current (SNAPSHOT) version of framework/pom.xml.
       - name: Publish package
         env:
-          # Mapping your specific GitHub Secrets to the variables Maven expects
-          OSSRH_USER: ${{ secrets.OSSRH_USER }} 
-          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }} 
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          # 2. Run the deploy command, passing the GPG passphrase directly
-          mvn clean deploy -B -DskipTests -Dgpg.passphrase="${GPG_PASSPHRASE}" -s .mvn/settings.xml
+          OSSRH_USER: ${{ secrets.OSSRH_USER }}
+          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: ./mvnw -B -f framework/pom.xml -P release -s .mvn/settings.xml clean deploy -DskipTests
