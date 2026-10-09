@@ -69,3 +69,40 @@ jobs:
           cp -r example-gradle "$RUNNER_TEMP/example-gradle"
           cd "$RUNNER_TEMP/example-gradle"
           ./gradlew --no-daemon --warning-mode all test -PlevenshteinVersion="$FRAMEWORK_VERSION"
+
+  # The steps of publish.yml with the release version of this SNAPSHOT, but without GPG and without the upload:
+  # problems of the release profile (sources, javadoc, the version change) show up here, before a tag exists.
+  release-dry-run:
+    name: Release dry run (no signing, no upload)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set the release version (as publish.yml does from the tag)
+        run: |
+          SNAPSHOT=$(./mvnw -B -q -f framework/pom.xml org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
+            -Dexpression=project.version -DforceStdout | tail -n 1)
+          RELEASE="${SNAPSHOT%-SNAPSHOT}"
+          test -n "$RELEASE" || { echo "::error::Could not determine the framework version"; exit 1; }
+          echo "RELEASE_VERSION=$RELEASE" >> "$GITHUB_ENV"
+          ./mvnw -B -f framework/pom.xml versions:set -DnewVersion="$RELEASE" -DgenerateBackupPoms=false
+          git diff --stat
+
+      - name: Build the release artifacts
+        run: ./mvnw -B -f framework/pom.xml -P release -Dgpg.skip -DskipTests verify
+
+      - name: Check the release artifacts
+        run: |
+          for suffix in "" -sources -javadoc; do
+            jar="framework/target/levenshtein-testing-framework-${RELEASE_VERSION}${suffix}.jar"
+            test -s "$jar" || { echo "::error::$jar is missing"; exit 1; }
+            echo "found $jar"
+          done

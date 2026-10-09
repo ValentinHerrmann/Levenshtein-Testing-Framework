@@ -43,7 +43,8 @@ student loses the structural point, not the behavioural ones.
 ## Limitations
 
 * Thresholds are global per element kind, not per wrapper.
-* Records and enums can be wrapped like classes (their implicit superclass is ignored), but record components,
+* Records and enums are checked structurally like classes (their implicit superclass is ignored). An enum cannot
+  be instantiated, so the `getObj` of its wrapper returns `null` or one of its constants. Record components,
   enum constants, `sealed`/`permits`, generic type parameters and annotations are not verified.
 * **JavaFX / EOS exercises are untested.** The framework needs Ares 2 on the test classpath:
   `@LevenshteinTest` composes Ares 2 annotations, and the wrappers call student code through Ares 2's

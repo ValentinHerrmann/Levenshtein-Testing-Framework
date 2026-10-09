@@ -1,0 +1,48 @@
+name: Smoke test
+
+# Runs both templates the way an exam author copies them, against a framework that is already on Maven Central:
+# after a release candidate (input: e.g. 2000.0.0-RC1) or a release (no input: the version pinned in the templates).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Framework version on Maven Central (empty: the version pinned in the templates)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Templates against Maven Central (JDK 25)
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # No dependency cache and no locally installed framework: the framework can only come from Maven Central.
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-disabled: true
+
+      - name: Gradle template
+        run: |
+          cp -r example-gradle "$RUNNER_TEMP/example-gradle"
+          cd "$RUNNER_TEMP/example-gradle"
+          ./gradlew --no-daemon test ${VERSION:+"-PlevenshteinVersion=$VERSION"}
+
+      - name: Maven template
+        run: |
+          cp -r example-maven "$RUNNER_TEMP/example-maven"
+          cd "$RUNNER_TEMP/example-maven"
+          ./mvnw -B verify ${VERSION:+"-Dlevenshtein.version=$VERSION"}

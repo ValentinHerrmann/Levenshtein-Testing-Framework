@@ -80,9 +80,12 @@ The framework is built and published with Maven only (publishing with Gradle is 
 The Gradle module is a consumer of it, like an exam repository.
 
 Releases are published to Maven Central by the `Publish` workflow on a GitHub release
-(`-P release -pl framework deploy`; the version comes from the tag). Afterwards, bump `pom.xml`,
-`framework/pom.xml` and `.mvn/maven.config` to the next SNAPSHOT (CI checks that the last two match), and the
-release version in both examples.
+(`-P release -pl framework deploy`; the version comes from the tag). CI's `release-dry-run` job builds the
+release artifacts for every change. A version on Maven Central can never be changed, so publish a release
+candidate first (e.g. `2000.0.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
+version: it runs both templates against Maven Central. Afterwards, bump `pom.xml`, `framework/pom.xml` and
+`.mvn/maven.config` to the next SNAPSHOT (CI checks that the last two match), and the release version in both
+examples.
 
 ## References
 

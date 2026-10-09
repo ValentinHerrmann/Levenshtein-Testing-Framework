@@ -5,6 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.tum.cit.ase.ares.api.MirrorOutput;
+import de.tum.cit.ase.ares.api.StrictTimeout;
+import de.tum.cit.ase.ares.api.jupiter.Hidden;
+import de.tum.cit.ase.ares.api.jupiter.Public;
 import io.github.valentinherrmann.levenshtein.fixtures.Fixtures;
 
 import java.util.List;
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.support.AnnotationSupport;
 
 /**
  * Regression tests for the issues found in the review (GitHub issues #6-#15 and the additional findings).
@@ -39,6 +44,15 @@ class WrapperRegressionTest {
 
     static <T> W<T> nested(String simpleName, String... modifiers) {
         return new W<>("Fixtures$" + simpleName, modifiers);
+    }
+
+    /** Carriers of the composed annotations; without test methods, so they never run (and never start Ares). */
+    @LevenshteinTest
+    static class PublicProbe {
+    }
+
+    @HiddenLevenshteinTest
+    static class HiddenProbe {
     }
 
     @AfterEach
@@ -438,6 +452,28 @@ class WrapperRegressionTest {
             assertThat(WrapperProperty.Existence.worst(DEVIATES, UNCHECKED)).isEqualTo(DEVIATES);
             assertThat(WrapperProperty.Existence.worst(DEVIATES, MISSING)).isEqualTo(MISSING);
             assertThat(WrapperProperty.Existence.worst(UNCHECKED, UNCHECKED)).isEqualTo(UNCHECKED);
+        }
+    }
+
+    @Nested
+    class ComposedAnnotations {
+
+        @Test
+        void levenshteinTestIsAPublicAresTest() {
+            assertThat(AnnotationSupport.findAnnotation(PublicProbe.class, Public.class)).isPresent();
+            assertThat(AnnotationSupport.findAnnotation(PublicProbe.class, Hidden.class)).isEmpty();
+            assertThat(AnnotationSupport.findAnnotation(PublicProbe.class, StrictTimeout.class))
+                    .hasValueSatisfying(timeout -> assertThat(timeout.value()).isEqualTo(5));
+            assertThat(AnnotationSupport.findAnnotation(PublicProbe.class, MirrorOutput.class)).isPresent();
+        }
+
+        @Test
+        void hiddenLevenshteinTestIsAHiddenAresTest() {
+            assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, Hidden.class)).isPresent();
+            assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, Public.class)).isEmpty();
+            assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, StrictTimeout.class))
+                    .hasValueSatisfying(timeout -> assertThat(timeout.value()).isEqualTo(5));
+            assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, MirrorOutput.class)).isPresent();
         }
     }
 }
