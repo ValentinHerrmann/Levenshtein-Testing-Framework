@@ -86,12 +86,12 @@ Types are graded for attributes (their type) and methods (their return type), in
 | the same type | `EXACT` | `double` → `double` |
 | primitive ⇄ its wrapper | `DEVIATES` | `int` → `Integer`, `Integer` → `int` |
 | the actual type is a supertype of the expected one | `DEVIATES` | `String` → `Object` |
-| the actual numeric type is wider | `DEVIATES` | `int` → `long`, `float` → `double` |
-| anything else | `MISSING` | `String` → `int`, **`long` → `int`**, **`double` → `int`** |
+| another numeric type, wider or narrower | `DEVIATES` | `int` → `long`, `long` → `int`, `double` → `int` |
+| anything else | `MISSING` | `String` → `int`, `boolean` → `int` |
 
-The direction matters: a student who stores an `int` where you expected a `long` loses information, so it is
-`MISSING`; the other way round it is `DEVIATES`. Parameter types of methods and constructors follow a
-stricter rule, see below.
+Numeric types (`byte`, `short`, `char`, `int`, `long`, `float`, `double` and their wrappers) deviate in
+both directions; `boolean` never mixes with them. Parameter types of methods and constructors follow the
+rule below.
 
 ## Modifiers
 
@@ -117,7 +117,7 @@ created.
 
 ```
 expected  private double price      student  private double prize     -> DEVIATES (name)
-expected  private long   count      student  private int    count     -> MISSING  (int is narrower than long)
+expected  private long   count      student  private int    count     -> DEVIATES (int is narrower than long)
 expected  private int    total      student  private long   total     -> DEVIATES (long is wider than int)
 expected  private String label      student  private Object label     -> DEVIATES (Object is a supertype)
 ```
@@ -146,20 +146,20 @@ flowchart TD
 ### The parameter rule
 
 The candidate must have the **same number** of parameters, and each parameter must be the same type or
-differ only between a primitive and its wrapper:
+differ only between a primitive and its wrapper, or between two numeric types:
 
 | Expected parameters | Student's parameters | Parameters part | Result |
 |---|---|---|---|
 | `(int)` | `(int)` | `EXACT` | found |
 | `(int)` | `(Integer)` | `DEVIATES` | found |
-| `(int)` | `(long)` | not a candidate | `MISSING` |
+| `(int)` | `(long)` | `DEVIATES` | found, but an exact or wrapper-only overload wins at equal name distance |
 | `(int, String)` | `(String, int)` (swapped) | not a candidate | `MISSING` |
 | `(int, int)` | `(int, int, int)` (extra) | not a candidate | `MISSING` |
 | `(int, int)` | `(int)` (missing) | not a candidate | `MISSING` |
 
-Parameters are stricter than return types and attribute types on purpose: `long` for `int` is accepted as a
-*type* (`DEVIATES`), but a method taking a `long` is a different method and cannot be called the way your test
-calls it.
+Among candidates at the same name distance, the closest parameters win: identical types, then primitive/wrapper
+differences, then numeric differences. A numeric parameter deviation may still not be callable the way your
+test calls it (e.g. `long` arguments passed to an `int` parameter), so such a result is always `DEVIATES`.
 
 ### Overloads
 

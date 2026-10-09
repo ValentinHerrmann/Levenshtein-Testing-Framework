@@ -234,6 +234,31 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void narrowerActualReturnTypeDeviates() {
+            MethodWrapper<Object, Long> m = new MethodWrapper<>(typos, "total", long.class, new Class<?>[]{}, "public");
+            assertThat(m.getOverallExistence()).isEqualTo(DEVIATES);
+        }
+
+        @Test
+        void widerActualReturnTypeDeviates() {
+            MethodWrapper<Object, Integer> m = new MethodWrapper<>(typos, "scale", int.class, new Class<?>[]{int.class}, "public");
+            assertThat(m.getOverallExistence()).isEqualTo(DEVIATES);
+        }
+
+        @Test
+        void booleanIsNotANumericDeviation() {
+            MethodWrapper<Object, Integer> m = new MethodWrapper<>(typos, "flag", int.class, new Class<?>[]{}, "public");
+            assertThat(m.getOverallExistence()).isEqualTo(MISSING);
+        }
+
+        @Test
+        void numericParameterTypesDeviate() {
+            MethodWrapper<Object, Long> m = new MethodWrapper<>(typos, "scale", long.class, new Class<?>[]{long.class}, "public");
+            assertThat(m.getOverallExistence()).isEqualTo(DEVIATES);
+            assertThat(m.actualToString()).contains("scale(int)");
+        }
+
+        @Test
         void unexpectedStaticIsReported() { // M2
             AttributeWrapper<Object, Integer> a = new AttributeWrapper<>(typos, "counter", int.class, "private");
             assertThat(a.getOverallExistence()).isEqualTo(DEVIATES);
@@ -287,7 +312,7 @@ class WrapperRegressionTest {
 
         @Test
         void missingConstructorIsMissingNotThrown() { // review H5
-            ConstructorWrapper<Object> c = new ConstructorWrapper<>(ctors, new Class<?>[]{double.class}, "public");
+            ConstructorWrapper<Object> c = new ConstructorWrapper<>(ctors, new Class<?>[]{boolean.class}, "public");
             assertThatCode(c::getOverallExistence).doesNotThrowAnyException();
             assertThat(c.getOverallExistence()).isEqualTo(MISSING);
         }
