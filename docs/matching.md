@@ -131,17 +131,23 @@ A method is identified by its **name and its parameter types together**. This is
 
 ```mermaid
 flowchart TD
-    A([MethodWrapper]) --> B{"declared method with exactly<br/>this name and these<br/>parameter types?"}
-    B -- yes --> X[/"found: name EXACT, parameters EXACT"/]
-    B -- no --> C["candidates = declared methods that are<br/>• not synthetic or bridge<br/>• not claimed by another MethodWrapper<br/>• same number of parameters<br/>• parameter types equal, or only int⇄Integer style<br/>• name within the method threshold"]
-    C --> D{any candidate?}
+    B{"Exact name and<br/>parameters exist?"} -- yes --> X[/"name EXACT<br/>parameters EXACT"/]
+    B -- no --> D{"Candidate found?<br/>(rules below)"}
     D -- no --> M[/"MISSING"/]
-    D -- yes --> E["smallest name distance wins;<br/>tie: exact parameters before int⇄Integer;<br/>tie: alphabetical"]
-    E --> F[/"found: name DEVIATES"/]
-    X --> G["grade return type and modifiers"]
+    D -- yes --> F[/"closest candidate<br/>name DEVIATES"/]
+    X --> G["Grade return type and modifiers<br/>Verdict = worst part"]
     F --> G
-    G --> H(["verdict = worst of<br/>name, parameters, return type, modifiers"])
 ```
+
+A **candidate** is a declared method that
+
+- is not synthetic or a bridge method,
+- is not claimed by another `MethodWrapper` of the class,
+- has the same number of parameters, each equal, a primitive/wrapper pair (`int`/`Integer`) or two numeric types,
+- has a name within the method threshold.
+
+The **closest** candidate wins by, in this order: smallest name distance, then closest parameters
+(identical, then primitive/wrapper, then numeric), then alphabetical name.
 
 ### The parameter rule
 
