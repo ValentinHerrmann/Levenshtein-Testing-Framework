@@ -1,10 +1,94 @@
-# Class Diagrams
+# Architecture
 
-Detailed class diagrams of the Levenshtein Testing Framework. The architecture overview is in the
-[README](../README.md#architecture). The diagrams are [Mermaid](https://mermaid.js.org/) and render
-directly on GitHub; keep them in sync with the code when public signatures change.
+[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · **Architecture** · [Migration](migration.md) · [FAQ](faq.md)
 
-## Framework: wrappers (`io.github.valentinherrmann.levenshtein`)
+```mermaid
+flowchart TB
+    subgraph EX["Example exercise (example/test)"]
+        direction LR
+        TM["TestManager<br/>@LevenshteinTest + @Policy"]
+        POL[("SecurityPolicy.yaml")]
+        subgraph WR["wrappers"]
+            direction TB
+            DW[DrivableWrapper]
+            AW[AbstrWrapper]
+            CRW[CarWrapper]
+        end
+        TM -- uses --> WR
+        TM -. "@Policy" .-> POL
+    end
+
+    subgraph FW["Framework (framework/, published)"]
+        direction LR
+        LT["@LevenshteinTest<br/>@HiddenLevenshteinTest"]
+        SL[StructuralLevenshtein]
+        CW["ClassWrapper&lt;T&gt;"]
+        MW["AttributeWrapper<br/>MethodWrapper<br/>ConstructorWrapper"]
+        W["Wrapper&lt;T&gt;"]
+        WP["WrapperProperty&lt;T&gt;"]
+        U["Utils · LevenshteinSettings<br/>Messages"]
+        CW --> W
+        MW --> W
+        W --> WP
+    end
+
+    subgraph ST["Student code (example/assignment/src), supervised by Ares 2"]
+        direction LR
+        D["«interface»<br/>Driveable"]
+        AV["«abstract»<br/>AbstractVehicle"]
+        C[Car]
+        C -- extends --> AV
+        C -. implements .-> D
+    end
+
+    TM -. annotated with .-> LT
+    TM -- generates tests --> SL
+    WR -- extend --> CW
+    WR == "verify (fuzzy)" ==> ST
+
+    classDef fw fill:#2C3E50,stroke:#1a252f,color:#ffffff
+    classDef ex fill:#27AE60,stroke:#1e8449,color:#ffffff
+    classDef tests fill:#F39C12,stroke:#b9770e,color:#000000
+    classDef student fill:#E74C3C,stroke:#a93226,color:#ffffff
+    class LT,SL,W,CW,MW,WP,U fw
+    class DW,AW,CRW ex
+    class TM,POL tests
+    class D,AV,C student
+```
+
+Every expected class of the student code has a wrapper (a `ClassWrapper` subclass) that describes it and
+finds the student's actual class and members, even with small naming deviations. `TestManager` generates
+the structural tests from the wrappers and uses them for the behavioural tests, under Ares 2 supervision
+(`@LevenshteinTest` + `@Policy`). Detailed class diagrams of the framework and of the example wrappers follow
+[below](#class-diagrams).
+
+**`io.github.valentinherrmann.levenshtein`** (framework, published)
+* `Wrapper<T>`: base of all wrappers (name, modifiers, existence, messages)
+* `ClassWrapper<T>`: classes, abstract classes and interfaces, including superclass, interfaces and instantiation
+* `AttributeWrapper<T,V>`, `MethodWrapper<T,R>`, `ConstructorWrapper<T>`: members
+* `GenericClassWrapper<T>`: wraps an already loaded class (actual superclass and interfaces)
+* `WrapperProperty<T>`: expected vs. actual value plus existence
+* `StructuralLevenshtein`: JUnit `DynamicTest` factory
+* `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
+* `LevenshteinSettings`: runtime configuration (thresholds, language)
+* `Messages`: German/English feedback
+* `Utils`: Levenshtein distance, type compatibility, `saveCast`
+
+**`example-gradle/`** (not published): the Gradle build of the same exercise (`build.gradle`, wrapper,
+`test/SecurityPolicy.yaml`); it reads the Java sources of `example/`.
+
+**`example/`** (not published)
+* `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`), explained
+  in [`SIMPLIFIED_CONCEPTS.md`](../example/SIMPLIFIED_CONCEPTS.md)
+* `test/.../tests`: `TestManager` (tests), `TestAbstr`/`TestImpl`/`TestInterface` (test logic),
+  `Constants` (Exercise Variants), `wrappers/*`, `SecurityPolicy.yaml`
+
+## Class diagrams
+
+The diagrams are [Mermaid](https://mermaid.js.org/) and render directly on GitHub; keep them in sync
+with the code when public signatures change.
+
+### Framework: wrappers (`io.github.valentinherrmann.levenshtein`)
 
 Every wrapper describes one expected element of the student code and looks it up once, on first use.
 `WrapperProperty` stores the expected and the actual value of each part (name, modifiers, types, ...) and
@@ -119,7 +203,7 @@ classDiagram
     Wrapper --> ClassWrapper : parentClassWrapper
 ```
 
-## Framework: test generation, configuration and annotations
+### Framework: test generation, configuration and annotations
 
 ```mermaid
 classDiagram
@@ -195,7 +279,7 @@ classDiagram
     note for HiddenLevenshteinTest "= @Hidden + @StrictTimeout(5) + @MirrorOutput"
 ```
 
-## Example exercise: wrappers (`io.github.valentinherrmann.example.tests.wrappers`)
+### Example exercise: wrappers (`io.github.valentinherrmann.example.tests.wrappers`)
 
 One wrapper per expected class of the student code. Each wrapper declares its members as
 `AttributeWrapper`, `MethodWrapper` and `ConstructorWrapper` fields (found by `ClassWrapper` via
@@ -275,4 +359,4 @@ classDiagram
 ```
 
 Each wrapper verifies existence, names, types and modifiers of its class with Levenshtein distance
-tolerance; see [How It Works](../README.md#how-it-works).
+tolerance; see [How Matching Works](matching.md).

@@ -31,3 +31,15 @@ jobs:
       # (including the sandbox and timeout self-checks).
       - name: Build and test
         run: ./mvnw -B verify
+
+      # The Gradle twin of the example, protected by Ares 2 in the same way. It uses the framework from
+      # ~/.m2, so install it first.
+      - name: Install the framework locally
+        run: ./mvnw -B install -pl framework -DskipTests
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test the Gradle example
+        run: ./gradlew --no-daemon test
+        working-directory: example-gradle

@@ -80,11 +80,11 @@ import java.util.List;
  * }
  *
  * // This generates tests like:
- * // - structClass[Driveable]
- * // - structAttributes[Driveable]
- * // - structMethods[Driveable]
- * // - structClass[AbstractVehicle]
- * // - structConstructors[AbstractVehicle]
+ * // - Class[Driveable]
+ * // - Attributes[Driveable]
+ * // - Methods[Driveable]
+ * // - Class[AbstractVehicle]
+ * // - Constructors[AbstractVehicle]
  * // ... and so on
  * }</pre>
  *
@@ -190,7 +190,7 @@ import java.util.List;
  *
  * <h4>Testing Methods:</h4>
  * <pre>{@code
- * double cost = carImpl().calculateCost().invoke();
+ * Object cost = carImpl().calculateCost().invoke();
  * assertThat(cost).isEqualTo(expectedCost);
  * }</pre>
  *
@@ -367,14 +367,14 @@ public class TestManager {
      *
      * <p><b>Example output in test runner:</b></p>
      * <pre>
-     * ✓ structClass[Driveable]
-     * ✓ structAttributes[Driveable]
-     * ✓ structMethods[Driveable]
-     * ✓ structClass[AbstractVehicle]
-     * ✓ structConstructors[AbstractVehicle]
-     * ✓ structAttributes[AbstractVehicle]
-     * ✓ structMethods[AbstractVehicle]
-     * ✗ structAttributes[Car] - "price" expected but found "pric" (DEVIATES)
+     * ✓ Class[Driveable]
+     * ✓ Attributes[Driveable]
+     * ✓ Methods[Driveable]
+     * ✓ Class[AbstractVehicle]
+     * ✓ Constructors[AbstractVehicle]
+     * ✓ Attributes[AbstractVehicle]
+     * ✓ Methods[AbstractVehicle]
+     * ✗ Attributes[Car] - "price" expected but found "pric" (DEVIATES)
      * </pre>
      *
      * <p><b>Detail Level Options:</b></p>
