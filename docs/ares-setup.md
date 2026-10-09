@@ -4,9 +4,17 @@
 
 The templates [`example-gradle/build.gradle`](../example-gradle/build.gradle) (Gradle) and
 [`example/pom.xml`](../example/pom.xml) (Maven), together with the `test/` folder, already contain everything
-below. This page explains it, so you know what you may not remove. Both builds do the same four things.
-Gradle needs Gradle 9.1+ to run on JDK 25 (Gradle 8.14 cannot even read the build script on JDK 25); the
-template ships a wrapper for 9.2.
+below. This page explains it, so you know what you may not remove. Both builds run the same pipeline:
+
+```mermaid
+flowchart LR
+    A["Compile student code<br/>+ weave Ares aspects"] --> B["Reserved-package<br/>guard"]
+    B --> C["Compile tests"]
+    C --> D["Run tests with<br/>the Ares agent"]
+```
+
+Gradle needs version 9.1+ to run on JDK 25 (8.14 cannot even read the build script); the template ships a
+wrapper for 9.2.
 
 **1. Dependencies.** Ares must be visible to the student sources (the weaver needs it there) *and* to the
 tests. In Maven that is the scope `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
@@ -21,20 +29,24 @@ repositories {
 }
 
 configurations {
-    aresAgent { transitive = false }                // just the agent JAR, see 2.
-    testImplementation.extendsFrom compileOnly      // Maven's "provided": Ares is also on the test classpath
+    aresAgent { transitive = false }   // just the agent JAR, see 2.
+    // Maven's "provided": Ares is also on the test classpath
+    testImplementation.extendsFrom compileOnly
 }
 
 dependencies {
     compileOnly "de.tum.cit.ase:ares:2.2.1"
-    aspect "de.tum.cit.ase:ares:2.2.1"              // the aspect library the weaver applies to the student classes
+    // the aspect library the weaver applies to the student classes
+    aspect "de.tum.cit.ase:ares:2.2.1"
     implementation "org.aspectj:aspectjrt:1.9.25.1"
     aresAgent "de.tum.cit.ase:ares:2.2.1:agent"
 
-    testImplementation "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0"
+    testImplementation(
+        "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0")
     testImplementation platform("org.junit:junit-bom:6.1.3")
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.junit.platform:junit-platform-testkit'   // only the example's TimeoutControlTest needs it
+    // only the example's TimeoutControlTest needs it
+    testImplementation 'org.junit.platform:junit-platform-testkit'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 ```
@@ -94,7 +106,8 @@ would replace the framework, and with it every structural test. The guard theref
 
 ```java
 @LevenshteinTest   // = @Public + @StrictTimeout(5) + @MirrorOutput
-@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+@Policy(value = "test/SecurityPolicy.yaml",
+        withinPath = "classes/org/example/exam")
 class ExamTest {
     // @Test, @TestFactory ... (plain JUnit annotations)
 }

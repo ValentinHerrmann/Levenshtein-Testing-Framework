@@ -30,7 +30,7 @@ case, see [Ares 2 behaviour worth knowing](ares-setup.md#ares-2-behaviour-worth-
 
 **A similar name is not found.** Work through the checklist in
 [Debugging a non-match](matching.md#debugging-a-non-match): the name percentage, the parameters of a method
-(same number and order; `long` is not `int`), claiming by other wrappers, and inherited vs. declared methods.
+(same number and order), claiming by other wrappers, and inherited vs. declared methods.
 
 **A structural test fails although the behavioural tests pass.** Intended: the element `DEVIATES`. The
 student loses the structural point, not the behavioural ones.
@@ -44,4 +44,5 @@ student loses the structural point, not the behavioural ones.
 
 * Thresholds are global per element kind, not per wrapper.
 * No verification of generic type parameters, enums, record components or annotations.
-* Method parameter types must match (up to primitive ⇄ wrapper); reordered parameters are `MISSING`.
+* Method parameter types must match (up to primitive ⇄ wrapper or numeric type); reordered parameters are
+  `MISSING`.

@@ -2,10 +2,16 @@
 
 [README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · **Matching** · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
 
-A wrapper says what you *expect*. This page explains how the framework finds the student's *actual* element
-and how it turns the differences into one verdict. Skim [The big picture](#the-big-picture); the sections
-after it are the reference for each kind of element, from the simple (attributes) to the complex (methods
-with overloads).
+**In short**
+
+* A name matches if at most **20 %** (default) of the longer name differs (Levenshtein distance). The closest
+  name wins.
+* `int`/`Integer` and two numeric types (`int`/`long`/`double`, ...) **deviate**; other types do not match.
+* Methods are found by name **and** parameters; return type and modifiers are only graded afterwards.
+* Every part is `EXACT`, `DEVIATES` or `MISSING`; the **worst** part is the verdict.
+* `DEVIATES` fails the structural test, but behavioural tests still run on the student's element.
+
+The rest of this page is the reference for each kind of element.
 
 * [The big picture](#the-big-picture)
 * [Name matching](#name-matching)
@@ -56,18 +62,17 @@ the class itself* are considered, not inherited ones (see [Methods](#methods)).
 A name matches when its deviation is within the threshold. The deviation is the Levenshtein distance
 (number of single-character inserts, deletes and replacements) as a percentage of the **longer** name:
 
-```
+```text
 distance * 100 / max(expected.length(), actual.length())  <=  threshold
 ```
 
-```
-threshold 20:  "price" vs "pric"                   -> 20.0 %  DEVIATES
-               "calculateCost" vs "calculateCots"  -> 15.4 %  DEVIATES
-               "start" vs "strat"                  -> 40.0 %  MISSING   (a swap is two edits)
-               "Car" vs "Cra"                      -> 66.7 %  MISSING
-               "car" vs "Car"                      -> 33.3 %  MISSING   (a case slip is one edit)
-               "myCar" vs "MyCar"                  -> 20.0 %  DEVIATES
-```
+| Expected | Actual | Deviation | At 20 % |
+|---|---|---|---|
+| `price` | `pric` | 20.0 % | `DEVIATES` |
+| `calculateCost` | `calculateCots` | 15.4 % | `DEVIATES` |
+| `myCar` | `MyCar` | 20.0 % | `DEVIATES` |
+| `start` | `strat` | 40.0 % (a swap is two edits) | `MISSING` |
+| `Car` | `car` | 33.3 % (a case slip is one edit) | `MISSING` |
 
 * The default is 20 %, separately for classes, methods and attributes. Change it with
   [`LevenshteinSettings`](writing-tests.md#configuration).
@@ -91,7 +96,7 @@ Types are graded for attributes (their type) and methods (their return type), in
 
 Numeric types (`byte`, `short`, `char`, `int`, `long`, `float`, `double` and their wrappers) deviate in
 both directions; `boolean` never mixes with them. Parameter types of methods and constructors follow the
-rule below.
+[parameter rule](#how-the-candidate-is-chosen).
 
 ## Modifiers
 
@@ -115,12 +120,12 @@ created.
    fields whose name another attribute wrapper of the same class expects ([claiming](#claiming)).
 3. The **type** and the **modifiers** of the found field are graded.
 
-```
-expected  private double price      student  private double prize     -> DEVIATES (name)
-expected  private long   count      student  private int    count     -> DEVIATES (int is narrower than long)
-expected  private int    total      student  private long   total     -> DEVIATES (long is wider than int)
-expected  private String label      student  private Object label     -> DEVIATES (Object is a supertype)
-```
+| Expected | Student | Verdict |
+|---|---|---|
+| `private double price` | `private double prize` | `DEVIATES` (name) |
+| `private long count` | `private int count` | `DEVIATES` (numeric) |
+| `private String label` | `private Object label` | `DEVIATES` (supertype) |
+| `private int count` | `private boolean count` | `MISSING` (type) |
 
 ## Methods
 
@@ -134,46 +139,41 @@ flowchart TD
     B{"Exact name and<br/>parameters exist?"} -- yes --> X[/"name EXACT<br/>parameters EXACT"/]
     B -- no --> D{"Candidate found?<br/>(rules below)"}
     D -- no --> M[/"MISSING"/]
-    D -- yes --> F[/"closest candidate<br/>name DEVIATES"/]
+    D -- yes --> F[/"closest candidate<br/>DEVIATES"/]
     X --> G["Grade return type and modifiers<br/>Verdict = worst part"]
     F --> G
 ```
 
-A **candidate** is a declared method that
+A **candidate** is a method declared in the class that
 
 - is not synthetic or a bridge method,
-- is not claimed by another `MethodWrapper` of the class,
-- has the same number of parameters, each equal, a primitive/wrapper pair (`int`/`Integer`) or two numeric types,
-- has a name within the method threshold.
+- is not [claimed](#claiming) by another `MethodWrapper` of the class,
+- has a name within the method threshold,
+- has matching parameters: the same number, in the same order, each one equal, a primitive/wrapper pair
+  or two numeric types:
 
-The **closest** candidate wins by, in this order: smallest name distance, then closest parameters
-(identical, then primitive/wrapper, then numeric), then alphabetical name.
+| Expected | Student | Parameters |
+|---|---|---|
+| `(int)` | `(int)` | `EXACT` |
+| `(int)` | `(Integer)` | `DEVIATES` |
+| `(int)` | `(long)` | `DEVIATES` |
+| `(int, String)` | `(String, int)` | not a candidate (swapped) |
+| `(int, int)` | `(int, int, int)` or `(int)` | not a candidate (count) |
 
-### The parameter rule
-
-The candidate must have the **same number** of parameters, and each parameter must be the same type or
-differ only between a primitive and its wrapper, or between two numeric types:
-
-| Expected parameters | Student's parameters | Parameters part | Result |
-|---|---|---|---|
-| `(int)` | `(int)` | `EXACT` | found |
-| `(int)` | `(Integer)` | `DEVIATES` | found |
-| `(int)` | `(long)` | `DEVIATES` | found, but an exact or wrapper-only overload wins at equal name distance |
-| `(int, String)` | `(String, int)` (swapped) | not a candidate | `MISSING` |
-| `(int, int)` | `(int, int, int)` (extra) | not a candidate | `MISSING` |
-| `(int, int)` | `(int)` (missing) | not a candidate | `MISSING` |
-
-Among candidates at the same name distance, the closest parameters win: identical types, then primitive/wrapper
-differences, then numeric differences. A numeric parameter deviation may still not be callable the way your
-test calls it (e.g. `long` arguments passed to an `int` parameter), so such a result is always `DEVIATES`.
+The **closest** candidate wins: smallest name distance, then closest parameters (identical, then
+primitive/wrapper, then numeric), then alphabetical name.
 
 ### Overloads
 
 Overloads are told apart by their parameters, so each overload gets its own wrapper:
 
 ```java
-calculateCost   = new MethodWrapper<>(this, "calculateCost", double.class, "public");                       // ()
-calculateCostYears = new MethodWrapper<>(this, "calculateCost", double.class, new Class<?>[]{int.class}, "public"); // (int)
+// calculateCost()
+calculateCost = new MethodWrapper<>(this, "calculateCost", double.class,
+        "public");
+// calculateCost(int)
+calculateCostYears = new MethodWrapper<>(this, "calculateCost", double.class,
+        new Class<?>[]{int.class}, "public");
 ```
 
 Suppose the student wrote `calculateCost()` correctly but misspelled the overload as `calculateCots(int)`:
@@ -188,12 +188,13 @@ A method that another `MethodWrapper` of the same class expects **exactly** (sam
 is *claimed* and is never offered as a candidate to the other wrappers. Without this, a missing method
 would silently be replaced by a similarly named one:
 
-```
-wrappers   getMinSpeed()   getMaxSpeed()
-student    getMinSpeed()   (no getMaxSpeed)
+```text
+wrappers:  getMinSpeed()  getMaxSpeed()
+student:   getMinSpeed()
 
 getMinSpeed  ->  EXACT
-getMaxSpeed  ->  MISSING     (getMinSpeed is 18.2 % away, but it belongs to the other wrapper)
+getMaxSpeed  ->  MISSING  (getMinSpeed is only 18.2 % away,
+                           but it belongs to the other wrapper)
 ```
 
 Attribute wrappers claim by name in the same way.
@@ -206,7 +207,8 @@ other [modifiers](#modifiers). `void` is just another return type:
 | Expected | Student's method | Verdict |
 |---|---|---|
 | `public int getCount()` | `public long getCount()` | `DEVIATES` (wider) |
-| `public double getPrice()` | `public int getPrice()` | `MISSING` (narrower) |
+| `public double getPrice()` | `public int getPrice()` | `DEVIATES` (narrower) |
+| `public int getCount()` | `public String getCount()` | `MISSING` |
 | `public void util()` | `public static void util()` | `DEVIATES` (unexpected `static`) |
 | `public static void util()` | `public void util()` | `MISSING` (`static` missing) |
 | `public void packagePrivate()` | `void packagePrivate()` | `DEVIATES` (weaker visibility) |
@@ -216,7 +218,7 @@ other [modifiers](#modifiers). `void` is just another return type:
 Only methods **declared in the class itself** are looked at. A method the student inherits from a superclass
 is not found by the wrapper of the subclass:
 
-```
+```text
 class Base  { public void inheritedOnly() }
 class Garage extends Base
 
@@ -232,22 +234,22 @@ This is also why the superclass is checked separately.
 A constructor has no name, so only its **parameter types** identify it. There is no distance measure:
 
 1. **Exact:** the declared constructor with exactly these parameter types (any visibility).
-2. **Otherwise** the first non-synthetic constructor whose parameters differ from the expected ones only
-   between a primitive and its wrapper: `DEVIATES`.
+2. **Otherwise** the closest non-synthetic constructor whose parameters match by the
+   [method parameter rule](#how-the-candidate-is-chosen) (identical, then primitive/wrapper, then
+   numeric): `DEVIATES`.
 3. **Otherwise** `MISSING`.
 4. The modifiers of the found constructor are graded (a `protected` constructor where `public` was expected is
    `DEVIATES`).
 
-```
-student has   Garage(int, String)     Garage(Integer)
+Student has `Garage(int, String)` and `Garage(Integer)`:
 
-expected (int, String)       ->  EXACT
-expected (Integer, String)   ->  DEVIATES   (finds Garage(int, String))
-expected (int)               ->  DEVIATES   (finds Garage(Integer))
-expected (long)              ->  MISSING
-expected (String, int)       ->  MISSING    (swapped parameters)
-expected ()                  ->  MISSING
-```
+| Expected | Verdict | Found |
+|---|---|---|
+| `(int, String)` | `EXACT` | `Garage(int, String)` |
+| `(Integer, String)` | `DEVIATES` | `Garage(int, String)` |
+| `(int)` | `DEVIATES` | `Garage(Integer)` |
+| `(long)` | `DEVIATES` | `Garage(Integer)` |
+| `(boolean)`, `(String, int)`, `()` | `MISSING` | |
 
 Constructors are *not* claimed. If your wrappers expect both `(int)` and `(Integer)` and the student wrote
 only one of them, both wrappers resolve to that constructor.
@@ -258,11 +260,13 @@ A class wrapper finds the student's class by name inside the expected package:
 
 1. **Exact:** the class `package.Name` is loaded **without initialisation**, so student static initialisers
    never run during the structural check.
-2. **Otherwise** the compiled classes of that package are scanned, plus a list of generated spellings of the
-   expected name (plural/singular, other case of the first letter, one character removed, two neighbouring
-   characters swapped). Candidates must be within the class threshold; nested classes (`Outer$Inner`) are
-   ignored unless a nested class was expected. The smallest distance wins, ties alphabetically.
-   A case slip such as `vehicle` for `Vehicle` (14.3 %) is found, `car` for `Car` (33.3 %) is not.
+2. **Otherwise** the closest class within the class threshold (ties alphabetically). Looked at are:
+   * the compiled classes of that package,
+   * generated spellings of the name: plural/singular, other case of the first letter, one character
+     removed, two neighbouring characters swapped.
+
+   Nested classes (`Outer$Inner`) are ignored unless a nested class was expected. A case slip such as
+   `vehicle` for `Vehicle` (14.3 %) is found, `car` for `Car` (33.3 %) is not.
 3. The **modifiers**, **superclass** and **interfaces** of the found class are graded.
 
 ### Superclass
@@ -312,12 +316,12 @@ If a wrapper reports `MISSING` although the student "obviously" has the element:
 
 1. **Name.** Compute `distance * 100 / maxLength` and compare it with the threshold. Remember that a swap of
    two letters is two edits.
-2. **Parameters (methods and constructors).** Same number of parameters? Same order? A `long` where you
-   expect an `int` makes it a different method.
+2. **Parameters (methods and constructors).** Same number of parameters? Same order? A `String` where you
+   expect an `int` makes it a different method (`long` for `int` only deviates).
 3. **Claiming.** Does another wrapper of the same class expect this exact signature (or, for attributes,
    this exact name)? Then it is not available to this wrapper.
 4. **Declared in this class?** An inherited method belongs to the wrapper of the class that declares it.
 5. **Static.** An expected `static` that is missing makes the element `MISSING`, an unexpected `static` only
    `DEVIATES`.
-6. **Type direction.** Narrower than expected (`int` for `long`, `int` for `double`) is `MISSING`, wider is
-   `DEVIATES`.
+6. **Type.** Numeric types deviate into each other; `boolean`, `String` and other unrelated types are
+   `MISSING`.

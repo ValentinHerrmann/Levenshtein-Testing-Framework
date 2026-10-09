@@ -227,6 +227,7 @@ classDiagram
         +isNameWithinDeviation(String expected, String actual, int threshold)$ boolean
         +saveCast(Object val, Class castTo)$ Object
         +verifyType(WrapperProperty typeProperty, Class actualType)$
+        +isNumericDeviation(Class expected, Class actual)$ boolean
         +canContain(Class actualType, Class expectedType)$ boolean
         +unwrapPrimitive(Class type)$ Class
         +toWrapperType(Class type)$ Class

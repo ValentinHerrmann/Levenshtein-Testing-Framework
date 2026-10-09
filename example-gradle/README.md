@@ -9,6 +9,6 @@ To keep one exercise, the Java sources are shared with `example/` (see `sourceSe
 exam repository they live in `assignment/src` and `test` next to `build.gradle`.
 
 ```bash
-./mvnw -B install -pl framework            # once: puts the framework (SNAPSHOT) into ~/.m2
-cd example-gradle && ./gradlew test        # JDK 25
+./mvnw -B install -pl framework       # once: the framework SNAPSHOT into ~/.m2
+cd example-gradle && ./gradlew test   # JDK 25
 ```
