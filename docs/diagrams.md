@@ -275,4 +275,4 @@ classDiagram
 ```
 
 Each wrapper verifies existence, names, types and modifiers of its class with Levenshtein distance
-tolerance; see [How It Works](../README.md#how-it-works).
+tolerance; see [How Matching Works](../README.md#how-matching-works).

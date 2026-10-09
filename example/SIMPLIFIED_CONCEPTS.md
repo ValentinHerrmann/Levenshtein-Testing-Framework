@@ -1,15 +1,21 @@
 # Levenshtein - Code Example 01
 
 ## Overview
-This code example demonstrates several key object-oriented programming concepts in Java, including interface constants, interface implementation, abstract super classes, super-class inheritance, method overriding, method overloading, and constructor overloading. The example uses a simple vehicle hierarchy with a `Driveable` interface and an `AbstractVehicle` abstract class, along with a concrete `Car` class that implements and extends these structures.
+This is the "student" side of the example exercise: the reference solution in
+[`assignment/src`](assignment/src/io/github/valentinherrmann/example/vehicles) that the instructor tests in
+[`test/`](test/io/github/valentinherrmann/example/tests) run against. Each class has a wrapper in
+[`test/.../wrappers`](test/io/github/valentinherrmann/example/tests/wrappers) that describes it for the
+Levenshtein Testing Framework; see the [README](../README.md) for how the tests work.
 
-It is designed to demonstrate the Levenshtein name deviation by providing clear and distinct names for each concept while maintaining a coherent structure.
+The code demonstrates several key object-oriented programming concepts in Java: interface constants, interface implementation, abstract super classes, super-class inheritance, method overriding, method overloading and constructor overloading. It uses a simple vehicle hierarchy with a `Driveable` interface and an `AbstractVehicle` abstract class, along with a concrete `Car` class that implements and extends these structures.
+
+Each concept has its own clearly named element, so every kind of naming deviation can be demonstrated on it while the structure stays coherent.
 
 
 ## Concepts Demonstrated
 
 ### 1. ✅ Interface-Constants
-**Datei**: `Driveable.java`
+**File**: `Driveable.java`
 ```java
 public interface Driveable {
     double MAX_SPEED = 200.0;  // Interface constant (public static final)
@@ -18,7 +24,7 @@ public interface Driveable {
 ```
 
 ### 2. ✅ Interface-Implementation
-**Datei**: `Car.java`
+**File**: `Car.java`
 ```java
 public class Car extends AbstractVehicle implements Driveable {
     @Override
@@ -30,7 +36,7 @@ public class Car extends AbstractVehicle implements Driveable {
 ```
 
 ### 3. ✅ Abstract Super Class
-**Datei**: `AbstractVehicle.java`
+**File**: `AbstractVehicle.java`
 ```java
 public abstract class AbstractVehicle {
     protected String manufacturer;
@@ -41,7 +47,7 @@ public abstract class AbstractVehicle {
 ```
 
 ### 4. ✅ Super-Class Inheritance
-**Datei**: `Car.java`
+**File**: `Car.java`
 ```java
 public class Car extends AbstractVehicle implements Driveable {
     public Car(String manufacturer, int year, double price) {
@@ -52,7 +58,7 @@ public class Car extends AbstractVehicle implements Driveable {
 ```
 
 ### 5. ✅ Method Overriding
-**Datei**: `Car.java`
+**File**: `Car.java`
 
 **a) Overriding abstract method:**
 ```java
@@ -80,7 +86,7 @@ public double getSpeed() { ... }
 ```
 
 ### 6. ✅ Method Overloading
-**Datei**: `Car.java`
+**File**: `Car.java`
 ```java
 // Same method name, different parameters
 public double calculateCost() {
@@ -93,7 +99,7 @@ public double calculateCost(int years) {
 ```
 
 ### 7. ✅ Constructor Overloading
-**Datei**: `Car.java`
+**File**: `Car.java`
 ```java
 // Constructor 1 - with all parameters
 public Car(String manufacturer, int year, double price) {
@@ -108,7 +114,7 @@ public Car(String manufacturer, int year) {
 }
 ```
 
-## Struktur-Übersicht
+## Structure Overview
 
 ```mermaid
 classDiagram
@@ -150,18 +156,18 @@ classDiagram
 ```
 
 
-## Verwendung
+## Usage
 
-### Beispiel 1: Constructor Overloading
+### Example 1: Constructor Overloading
 ```java
-// Mit allen Parametern
+// With all parameters
 Car car1 = new Car("BMW", 2023, 35000.0);
 
-// Mit Default-Preis
+// With the default price
 Car car2 = new Car("Toyota", 2022);  // price = 20000.0
 ```
 
-### Beispiel 2: Method Overloading
+### Example 2: Method Overloading
 ```java
 Car car = new Car("BMW", 2023, 30000.0);
 
@@ -169,7 +175,7 @@ double annual = car.calculateCost();      // 3000.0 (10% of price)
 double total = car.calculateCost(5);      // 15000.0 (5 years)
 ```
 
-### Beispiel 3: Method Overriding
+### Example 3: Method Overriding
 ```java
 Car car = new Car("BMW", 2023, 30000.0);
 
@@ -177,7 +183,7 @@ Car car = new Car("BMW", 2023, 30000.0);
 String info = car.getInfo();  // "BMW (2023) - $30000.0"
 ```
 
-### Beispiel 4: Interface Usage
+### Example 4: Interface Usage
 ```java
 Car car = new Car("BMW", 2023, 30000.0);
 
