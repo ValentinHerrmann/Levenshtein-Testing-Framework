@@ -278,6 +278,9 @@ A class wrapper finds the student's class by name inside the expected package:
 | no superclass (`null`) | extends something other than `Object` | `DEVIATES` |
 | a superclass | extends something unrelated, or only `Object` | `MISSING` |
 
+A record extends `java.lang.Record` and an enum `java.lang.Enum` implicitly. Like `Object`, these count as
+**no superclass**, so a record or enum wrapper expects `null` as its superclass.
+
 The superclass is compared by the **class the superclass wrapper found**. If the student misspelled the
 name of the superclass, the superclass wrapper reports `DEVIATES` for itself, while the subclass is still
 `EXACT` here.

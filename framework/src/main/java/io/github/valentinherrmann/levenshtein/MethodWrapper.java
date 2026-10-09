@@ -124,7 +124,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * expects exactly (so e.g. a missing {@code getMaxSpeed()} cannot take {@code getMinSpeed()}).
      */
     private void findClosestCandidate(Class<T> clazz) {
-        Set<String> claimedByOthers = getParentClassWrapper().getMethodsWrappers().stream()
+        Set<String> claimedByOthers = getParentClassWrapper().getMethodWrappers().stream()
                 .filter(w -> w != this && w instanceof MethodWrapper<?, ?>)
                 .map(w -> ((MethodWrapper<?, ?>) w).expectedSignatureKey())
                 .collect(Collectors.toSet());
@@ -228,7 +228,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
         if (val == null || returnType.expected == null || returnType.expected == void.class) {
             return (R) val;
         }
-        return (R) saveCast(val, returnType.expected, true);
+        return (R) safeCast(val, returnType.expected, true);
     }
 
     /**

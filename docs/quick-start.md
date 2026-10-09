@@ -2,19 +2,19 @@
 
 [README](../README.md) · **Quick Start** · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
 
-**Requirements:** JDK 25 and either **Gradle 9.1+** (the template ships a wrapper, so just `./gradlew`) or
-Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
+**Requirements:** JDK 25 and either **Gradle** (the template ships a 9.8.0 wrapper, so just `./gradlew`;
+9.1+ works) or Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
 
 ## Step 1: Run the example
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
-cd Levenshtein-Testing-Framework
-./mvnw -B install -pl framework       # the framework SNAPSHOT into ~/.m2
-cd example-gradle && ./gradlew test   # the example exercise under Ares 2
+cd Levenshtein-Testing-Framework/example-gradle
+./gradlew test   # the example exercise under Ares 2
 ```
 
-`./mvnw -B verify` in the repository root builds the framework and the Maven example instead.
+The example takes the framework `2000.0.0` from Maven Central. `./mvnw -B verify` in the repository root
+builds the framework of the checkout and the Maven example instead.
 
 The repository contains three modules:
 
@@ -38,14 +38,14 @@ Then adapt:
 
 | Where | What to change |
 |---|---|
-| `assignment/src/`, `test/io/`, `test/sandbox/` | Delete the example's student code, tests and sandbox file. |
+| `assignment/src/`, `test/io/`, `test/sandbox/` | Delete the example's student code, tests and sandbox file, including the self-checks `SecurityControlTest`, `TimeoutControlTest` and `SandboxControl`. |
+| Dependencies: `build.gradle` / `pom.xml` | Remove `junit-platform-testkit`: only `TimeoutControlTest` needs it. Add only libraries your course allows. |
 | Reserved-package guard: `build.gradle` → `verifyAresReservedPackages`, `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
 | `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep the programming language configuration. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
 
-The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) stays
-`2000.0.0-SNAPSHOT` until `2000.0.0` is on Maven Central; until then run `./mvnw -B install -pl framework`
-once in a clone of this repository.
+The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) is the
+release `2000.0.0` from Maven Central, so the copy builds on Artemis as it is.
 
 > [!IMPORTANT]
 > The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).
@@ -117,8 +117,8 @@ public class CarWrapper<T> extends ClassWrapper<T> {
 
     // The default instance used by newObj(), getObj() and invoke()
     @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, useByteBuddy, constructor, 30000.0);
+    public Object getObj(boolean forceNew) {
+        return getObj(forceNew, constructor, 30000.0);
     }
 }
 ```

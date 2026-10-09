@@ -43,6 +43,13 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <!-- ReflectionSupport (finding the member wrapper fields) -->
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-commons</artifactId>
+            <version>${junit.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
@@ -169,6 +176,8 @@
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
+                            <!-- The credentials are a Central Portal user token (as for 1000.0.0). -->
+                            <tokenAuth>true</tokenAuth>
                             <autoPublish>true</autoPublish>
                         </configuration>
                     </plugin>

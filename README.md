@@ -30,13 +30,12 @@ Expect:	public void start()
 
 ## Get started
 
-**Requirements:** JDK 25, and Gradle 9.1+ (wrapper included) or Maven 3.9+.
+**Requirements:** JDK 25, and Gradle (the template ships a 9.8.0 wrapper; 9.1+ works) or Maven 3.9+.
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
-cd Levenshtein-Testing-Framework
-./mvnw -B install -pl framework       # until 2000.0.0 is on Maven Central
-cd example-gradle && ./gradlew test   # the example exercise under Ares 2
+cd Levenshtein-Testing-Framework/example-gradle
+./gradlew test   # the example exercise under Ares 2, framework 2000.0.0 from Maven Central
 ```
 
 Then follow the **[Quick Start](docs/quick-start.md)**: copy the [Gradle](example-gradle) (or
@@ -58,24 +57,35 @@ results.
 ## Development
 
 ```bash
-# framework unit tests + Maven example under Ares 2
+# framework unit tests + Maven example under Ares 2, against the framework of this checkout
 ./mvnw -B verify
 
-# install the framework into ~/.m2 (needed by the Gradle example and your exam)
+# install the framework SNAPSHOT into ~/.m2
 ./mvnw -B install -pl framework
 
-# Gradle example under Ares 2
-(cd example-gradle && ./gradlew test)
+# Gradle example under Ares 2, against the installed SNAPSHOT
+(cd example-gradle && ./gradlew test \
+    -PlevenshteinVersion=$(sed -n 's/^-Dlevenshtein.version=//p' ../.mvn/maven.config))
 
 # + sources, javadoc, GPG signature (needs a key)
 ./mvnw -B -P release -pl framework verify
 ```
 
+The examples are exam templates, so on their own they use the **released** framework from Maven Central
+(`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`). Inside this repository the root
+build passes the SNAPSHOT through [`.mvn/maven.config`](.mvn/maven.config), and CI passes it to standalone
+copies of both examples.
+
 The framework is built and published with Maven only (publishing with Gradle is more trouble than it is worth).
 The Gradle module is a consumer of it, like an exam repository.
 
 Releases are published to Maven Central by the `Publish` workflow on a GitHub release
-(`-P release -pl framework deploy`).
+(`-P release -pl framework deploy`; the version comes from the tag). CI's `release-dry-run` job builds the
+release artifacts for every change. A version on Maven Central can never be changed, so publish a release
+candidate first (e.g. `2000.0.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
+version: it runs both templates against Maven Central. Afterwards, bump `pom.xml`, `framework/pom.xml` and
+`.mvn/maven.config` to the next SNAPSHOT (CI checks that the last two match), and the release version in both
+examples.
 
 ## References
 

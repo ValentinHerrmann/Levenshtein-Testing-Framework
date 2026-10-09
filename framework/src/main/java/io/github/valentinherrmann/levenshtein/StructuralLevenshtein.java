@@ -51,8 +51,8 @@ public final class StructuralLevenshtein {
                 }
             }
             catch (RuntimeException | LinkageError e) {
-                msg.add(wrap.getParentClassWrapper().getExpectedName() + ": " + wrap.expectedToString()
-                        + " could not be checked: " + Invocations.describe(e));
+                msg.add(Messages.WRAPPER_CHECK_FAILED.format(wrap.getParentClassWrapper().getExpectedName(),
+                        wrap.expectedToString(), Invocations.describe(e)));
             }
         }
         Assertions.assertThat(msg).withFailMessage("\n"+String.join("\n", msg)+"\n").isEmpty();
@@ -87,7 +87,7 @@ public final class StructuralLevenshtein {
                     put(wrappers, "Class" + key, List.of(classWrap));
                     put(wrappers, "Constructors" + key, new ArrayList<>(classWrap.getConstructorWrappers()));
                     put(wrappers, "Attributes" + key, new ArrayList<>(classWrap.getAttributeWrappers()));
-                    put(wrappers, "Methods" + key, new ArrayList<>(classWrap.getMethodsWrappers()));
+                    put(wrappers, "Methods" + key, new ArrayList<>(classWrap.getMethodWrappers()));
                 }
             }
             case ONE_PER_MEMBER -> {
@@ -100,7 +100,7 @@ public final class StructuralLevenshtein {
                     for (Wrapper<?> attribute : classWrap.getAttributeWrappers()) {
                         put(wrappers, "Attribute[" + cls + "." + attribute.getExpectedName() + "]", List.of(attribute));
                     }
-                    for (Wrapper<?> method : classWrap.getMethodsWrappers()) {
+                    for (Wrapper<?> method : classWrap.getMethodWrappers()) {
                         put(wrappers, "Method[" + cls + "." + method.expectedToString() + "]", List.of(method));
                     }
                 }
@@ -121,7 +121,7 @@ public final class StructuralLevenshtein {
         list.add(classWrap);
         list.addAll(classWrap.getConstructorWrappers());
         list.addAll(classWrap.getAttributeWrappers());
-        list.addAll(classWrap.getMethodsWrappers());
+        list.addAll(classWrap.getMethodWrappers());
         return list;
     }
 

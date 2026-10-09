@@ -25,11 +25,10 @@ public class GenericClassWrapper<T> extends ClassWrapper<T> {
      * This method is not supported for GenericClassWrapper as it only wraps existing classes.
      *
      * @param forceNew ignored
-     * @param useByteBuddy ignored
      * @return always null
      */
     @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
+    public Object getObj(boolean forceNew) {
         return null;
     }
 }

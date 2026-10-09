@@ -1,6 +1,6 @@
 package io.github.valentinherrmann.example.tests;
 
-import static io.github.valentinherrmann.levenshtein.Utils.saveCast;
+import static io.github.valentinherrmann.levenshtein.Utils.safeCast;
 import static io.github.valentinherrmann.example.tests.TestManager.*;
 
 import org.assertj.core.api.Assertions;
@@ -62,7 +62,7 @@ import org.assertj.core.api.Assertions;
  * //                                                         ^^^^ null for static
  *
  * // Step 3: Verify the value
- * double value = (double) saveCast(maxSpeed, double.class);
+ * double value = (double) safeCast(maxSpeed, double.class);
  * assertThat(value).isEqualTo(200.0);
  * }</pre>
  *
@@ -149,8 +149,8 @@ public class TestInterface {
      * // null because MAX_SPEED is static (no instance needed)
      *
      * // Step 3: Safe cast and verify
-     * double dMaxSpeed = (double)saveCast(maxSpeed, double.class);
-     * // saveCast() handles:
+     * double dMaxSpeed = (double)safeCast(maxSpeed, double.class);
+     * // safeCast() handles:
      * // - Null checking
      * // - Type compatibility (e.g., int → double widening)
      * // - Clear error messages
@@ -180,7 +180,7 @@ public class TestInterface {
         driveableInterface().maxSpeed().verifyExistence(true);
 
         Object maxSpeed = driveableInterface().maxSpeed().getValue(null);
-        double dMaxSpeed = (double)saveCast(maxSpeed, double.class);
+        double dMaxSpeed = (double)safeCast(maxSpeed, double.class);
         Assertions.assertThat(dMaxSpeed)
             .withFailMessage("Interface constant %s should be 200.0",
                            driveableInterface().maxSpeed().getExpectedName())

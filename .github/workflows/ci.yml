@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
@@ -26,6 +26,18 @@ jobs:
 
       - name: Show Java version
         run: java -version
+
+      # The examples default to the released framework from Maven Central; CI tests them against the framework of
+      # this commit instead. The root build gets the version from .mvn/maven.config, which must not drift.
+      - name: Determine the framework version
+        run: |
+          VERSION=$(./mvnw -B -q -f framework/pom.xml org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
+            -Dexpression=project.version -DforceStdout | tail -n 1)
+          test -n "$VERSION" || { echo "::error::Could not determine the framework version"; exit 1; }
+          echo "Framework version: $VERSION"
+          grep -qxF -- "-Dlevenshtein.version=$VERSION" .mvn/maven.config \
+            || { echo "::error::.mvn/maven.config must contain -Dlevenshtein.version=$VERSION"; exit 1; }
+          echo "FRAMEWORK_VERSION=$VERSION" >> "$GITHUB_ENV"
 
       # Framework unit tests + the example exercise under active Ares 2 supervision
       # (including the sandbox and timeout self-checks).
@@ -39,7 +51,7 @@ jobs:
           diff -r example-maven/assignment example-gradle/assignment
           diff -r -x SecurityPolicy.yaml example-maven/test example-gradle/test
 
-      # Both examples must work when copied out of the repository. They use the framework from ~/.m2,
+      # Both examples must work when copied out of the repository. They take the framework SNAPSHOT from ~/.m2,
       # so install it first.
       - name: Install the framework locally
         run: ./mvnw -B install -pl framework -DskipTests
@@ -47,12 +59,50 @@ jobs:
       - name: Build and test a copy of the Maven example
         run: |
           cp -r example-maven "$RUNNER_TEMP/example-maven"
-          cd "$RUNNER_TEMP/example-maven" && ./mvnw -B verify
+          cd "$RUNNER_TEMP/example-maven" && ./mvnw -B verify -Dlevenshtein.version="$FRAMEWORK_VERSION"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Build and test a copy of the Gradle example
         run: |
           cp -r example-gradle "$RUNNER_TEMP/example-gradle"
-          cd "$RUNNER_TEMP/example-gradle" && ./gradlew --no-daemon test
+          cd "$RUNNER_TEMP/example-gradle"
+          ./gradlew --no-daemon --warning-mode all test -PlevenshteinVersion="$FRAMEWORK_VERSION"
+
+  # The steps of publish.yml with the release version of this SNAPSHOT, but without GPG and without the upload:
+  # problems of the release profile (sources, javadoc, the version change) show up here, before a tag exists.
+  release-dry-run:
+    name: Release dry run (no signing, no upload)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set the release version (as publish.yml does from the tag)
+        run: |
+          SNAPSHOT=$(./mvnw -B -q -f framework/pom.xml org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
+            -Dexpression=project.version -DforceStdout | tail -n 1)
+          RELEASE="${SNAPSHOT%-SNAPSHOT}"
+          test -n "$RELEASE" || { echo "::error::Could not determine the framework version"; exit 1; }
+          echo "RELEASE_VERSION=$RELEASE" >> "$GITHUB_ENV"
+          ./mvnw -B -f framework/pom.xml versions:set -DnewVersion="$RELEASE" -DgenerateBackupPoms=false
+          git diff --stat
+
+      - name: Build the release artifacts
+        run: ./mvnw -B -f framework/pom.xml -P release -Dgpg.skip -DskipTests verify
+
+      - name: Check the release artifacts
+        run: |
+          for suffix in "" -sources -javadoc; do
+            jar="framework/target/levenshtein-testing-framework-${RELEASE_VERSION}${suffix}.jar"
+            test -s "$jar" || { echo "::error::$jar is missing"; exit 1; }
+            echo "found $jar"
+          done

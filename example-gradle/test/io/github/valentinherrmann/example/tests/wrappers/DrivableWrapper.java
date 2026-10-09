@@ -63,11 +63,10 @@ public class DrivableWrapper<T> extends ClassWrapper<T> {
      * Test interface behavior through an implementing class (e.g. {@code CarWrapper}) instead.
      *
      * @param forceNew force to create a new object even if member already holds one.
-     * @param useByteBuddy ignored
      * @return an instance implementing the interface
      */
     @Override
-    public Object getObj(boolean forceNew, boolean useByteBuddy) {
-        return getObj(forceNew, true, null);
+    public Object getObj(boolean forceNew) {
+        return getObj(forceNew, null);
     }
 }

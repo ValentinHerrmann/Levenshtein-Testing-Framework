@@ -14,7 +14,7 @@ flowchart LR
 ```
 
 Gradle needs version 9.1+ to run on JDK 25 (8.14 cannot even read the build script); the template ships a
-wrapper for 9.2.
+wrapper for 9.8.0.
 
 **1. Dependencies.** Ares must be visible to the student sources (the weaver needs it there) *and* to the
 tests. In Maven that is the scope `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
@@ -24,7 +24,6 @@ tests. In Maven that is the scope `provided`, *not* `test`: with test scope Aspe
 
 ```groovy
 repositories {
-    mavenLocal()      // only for a SNAPSHOT of the framework
     mavenCentral()
 }
 
@@ -45,7 +44,7 @@ dependencies {
         "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0")
     testImplementation platform("org.junit:junit-bom:6.1.3")
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    // only the example's TimeoutControlTest needs it
+    // only the example's TimeoutControlTest needs it: remove it in an exam
     testImplementation 'org.junit.platform:junit-platform-testkit'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

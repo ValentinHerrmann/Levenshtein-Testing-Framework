@@ -8,9 +8,13 @@ same exercise built with Maven.
 ./gradlew test   # JDK 25
 ```
 
-The framework `2000.0.0-SNAPSHOT` is not on Maven Central yet. Until it is, install it once on your machine:
-run `./mvnw -B install -pl framework` in a clone of the
-[framework repository](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework).
+It uses the framework `2000.0.0` from Maven Central, so a copy also builds on Artemis. To try a SNAPSHOT of the
+framework instead, run `./mvnw -B install -pl framework` in a clone of the
+[framework repository](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework) and then
+`./gradlew test -PlevenshteinVersion=<snapshot>`.
+
+For a real exam, delete the self-checks `SecurityControlTest`, `TimeoutControlTest` and `SandboxControl` and the
+`junit-platform-testkit` dependency (only `TimeoutControlTest` needs it).
 
 | Path | Content |
 |---|---|
