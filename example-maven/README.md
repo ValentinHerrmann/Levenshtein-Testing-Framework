@@ -1,11 +1,11 @@
-# Gradle example and template
+# Maven example and template
 
-The example exercise, protected by Ares 2 and built with Gradle. The folder is standalone: copy it anywhere
-(or use it as the start of your exam repository) and run it. [`example-maven/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-maven) is the
-same exercise built with Maven.
+The example exercise, protected by Ares 2 and built with Maven. The folder is standalone: copy it anywhere
+(or use it as the start of your exam repository) and run it. [`example-gradle/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-gradle) is the
+same exercise built with Gradle.
 
 ```bash
-./gradlew test   # JDK 25
+./mvnw -B verify   # JDK 25
 ```
 
 The framework `2000.0.0-SNAPSHOT` is not on Maven Central yet. Until it is, install it once on your machine:
@@ -16,7 +16,7 @@ run `./mvnw -B install -pl framework` in a clone of the
 |---|---|
 | `assignment/src` | student code (supervised by Ares, woven by AspectJ) |
 | `test/` | instructor tests, wrappers, `SecurityPolicy.yaml` |
-| `build.gradle` | Ares 2 wiring, reserved-package guard |
+| `pom.xml` | Ares 2 wiring, reserved-package guard |
 
 Setting up your own exam from it: [Quick Start](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/quick-start.md). Why every setting exists:
 [Ares 2 Setup in Detail](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/ares-setup.md).

@@ -1,6 +1,6 @@
 /*
- * Gradle twin of example/pom.xml: the same exercise (sources and tests are shared with example/) protected by
- * Ares 2 in Postcompile mode (AspectJ). Copy this file as the template for a Gradle exam repository:
+ * Example exercise protected by Ares 2 in Postcompile mode (AspectJ), built with Gradle. Standalone: copy this
+ * folder as the template for a Gradle exam repository (Maven twin: example-maven/pom.xml).
  *   assignment/src  student code (supervised, woven by AspectJ)
  *   test/           instructor tests, wrappers and SecurityPolicy.yaml
  */
@@ -18,7 +18,7 @@ ext {
 }
 
 repositories {
-    mavenLocal() // only needed for a SNAPSHOT: ./mvnw -B install -pl framework
+    mavenLocal() // only needed for a SNAPSHOT: ./mvnw -B install -pl framework in the framework repository
     mavenCentral()
 }
 
@@ -27,17 +27,13 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
-// Standard Artemis layout: assignment/src (student code) and test/ (instructor tests, policy) below the exercise
-// directory. This template runs the exercise of the Maven example next door, so that both builds test the very
-// same sources. In your own exam repository the exercise is the project itself: set it to '.'.
-def exercise = '../example'
-
+// Standard Artemis layout: assignment/src (student code) and test/ (instructor tests, policy).
 sourceSets {
     main {
-        java.srcDirs = ["${exercise}/assignment/src"]
+        java.srcDirs = ['assignment/src']
     }
     test {
-        java.srcDirs = ["${exercise}/test"]
+        java.srcDirs = ['test']
     }
 }
 

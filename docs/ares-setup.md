@@ -3,7 +3,7 @@
 [README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · **Ares 2 Setup** · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
 
 The templates [`example-gradle/build.gradle`](../example-gradle/build.gradle) (Gradle) and
-[`example/pom.xml`](../example/pom.xml) (Maven), together with the `test/` folder, already contain everything
+[`example-maven/pom.xml`](../example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
 below. This page explains it, so you know what you may not remove. Both builds run the same pipeline:
 
 ```mermaid
@@ -88,7 +88,7 @@ Ares agent where the test JVM can find it, and start the tests with `-javaagent`
   * `exclude '**/*$*'` keeps nested classes out of the test run. Surefire skips them by default, Gradle does
     not, and the example's `TimeoutControlTest$TimeoutProbe` deliberately halts its JVM.
 * **Maven:** `aspectj-maven-plugin` (weaves), `maven-dependency-plugin` (copies the agent) and Surefire. Copy
-  the plugin blocks from [`example/pom.xml`](../example/pom.xml); they follow the Ares guide
+  the plugin blocks from [`example-maven/pom.xml`](../example-maven/pom.xml); they follow the Ares guide
   "[transform an Ares 1 protected project into an Ares 2 protected project](https://ls1intum.github.io/Ares2/instructor/transform-ares-1-into-ares-2/)"
   (Postcompile, Maven).
 
@@ -100,7 +100,7 @@ would replace the framework, and with it every structural test. The guard theref
 
 * **Gradle:** the task `verifyAresReservedPackages` in `build.gradle`. It runs right after the student code
   is compiled and before the tests are compiled, and fails with the offending class files.
-* **Maven:** the antrun execution `verify-ares-reserved-packages-v2` in `example/pom.xml`.
+* **Maven:** the antrun execution `verify-ares-reserved-packages-v2` in `example-maven/pom.xml`.
 
 **4. Security policy and annotations.**
 
@@ -118,7 +118,7 @@ class ExamTest {
 * `@Policy` is exam specific and therefore not part of `@LevenshteinTest`. The nearest `@Policy` wins;
   policies are never merged.
 * `SecurityPolicy.yaml`: see [`example-gradle/test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
-  (Gradle) or [`example/test/SecurityPolicy.yaml`](../example/test/SecurityPolicy.yaml) (Maven). The two files
+  (Gradle) or [`example-maven/test/SecurityPolicy.yaml`](../example-maven/test/SecurityPolicy.yaml) (Maven). The two files
   differ in one line only.
   - Use `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ` with Gradle and `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`
     with Maven. Ares uses it to find the build output. With the Gradle setting Ares reads the `build.gradle`
@@ -150,8 +150,8 @@ class ExamTest {
   classes that declare records.
 * The examples contain self-checks that fail if the sandbox is not active (for example when the weaving
   is missing):
-  [`SecurityControlTest`](../example/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
+  [`SecurityControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
   (permitted/forbidden file read) and
-  [`TimeoutControlTest`](../example/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
+  [`TimeoutControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
   (deadline). They need the `SandboxControl` class in the student sources, so do not copy them into a
   real exam. Use them to validate your setup once.

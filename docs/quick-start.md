@@ -14,55 +14,38 @@ cd Levenshtein-Testing-Framework
 cd example-gradle && ./gradlew test   # the example exercise under Ares 2
 ```
 
-`./mvnw -B verify` in the repository root builds everything with Maven instead (framework tests and the
-Maven example).
+`./mvnw -B verify` in the repository root builds the framework and the Maven example instead.
 
 The repository contains three modules:
 
 | Module | Content |
 |---|---|
 | [`framework/`](../framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` (built with Maven) |
-| [`example-gradle/`](../example-gradle) | **The Gradle template for your exam repository:** `build.gradle`, wrapper and policy for the example exercise, protected by Ares 2. |
-| [`example/`](../example) | The example exercise in the Artemis layout (`assignment/src` = student code, `test/` = instructor tests) and its **Maven template** (`pom.xml`). |
+| [`example-gradle/`](../example-gradle) | The example exercise as a standalone **Gradle** project: your exam template |
+| [`example-maven/`](../example-maven) | The same exercise as a standalone **Maven** project: your exam template |
+
+Both examples use the Artemis layout: `assignment/src` = student code, `test/` = instructor tests and policy.
 
 ## Step 2: Create your exam repository from the template
 
-Pick the template that matches your build tool. In this walkthrough the student package is `org.example.exam`
-and the test package is `org.example.tests`. The student package must not be a prefix of the test package
-(`org.example.exam` and `org.example.exam.tests` would be wrong).
+Copy the whole [`example-gradle/`](../example-gradle) (or [`example-maven/`](../example-maven)) folder as
+your exam repository. It runs as it is, so you can check your machine first with `./gradlew test`
+(`./mvnw -B verify`).
 
-### Gradle
-
-Copy `build.gradle`, `settings.gradle`, `gradlew`, `gradlew.bat` and `gradle/` from
-[`example-gradle/`](../example-gradle) and the policy [`test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
-into your exam repository, next to your `assignment/src` and `test/` folders. Then adapt:
+In this walkthrough the student package is `org.example.exam` and the test package is `org.example.tests`.
+The student package must not be a prefix of the test package (`org.example.exam.tests` would be wrong).
+Then adapt:
 
 | Where | What to change |
 |---|---|
-| `build.gradle` → `exercise` | `def exercise = '.'`: the exercise is the repository itself (the template points to the example next door). |
-| `build.gradle` → `levenshteinVersion` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT` (`mavenLocal()` is already in the template). |
-| `build.gradle` → `verifyAresReservedPackages` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
-| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ`. |
-| Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
-
-Do **not** copy the example's `SandboxControl`, `SecurityControlTest`, `TimeoutControlTest` and
-`test/sandbox/`: they only exist to prove that the sandbox is active (use them once to validate your setup).
-
-<details>
-<summary><b>Maven</b></summary>
-
-Copy the contents of [`example/`](../example) (`pom.xml`, `assignment/`, `test/`) into your exam repository.
-Copy `mvnw`, `mvnw.cmd` and `.mvn/wrapper/` as well if you want the Maven wrapper. Then adapt:
-
-| Where | What to change |
-|---|---|
-| `pom.xml` → `levenshtein.version` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT`. |
-| `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
 | `assignment/src/`, `test/io/`, `test/sandbox/` | Delete the example's student code, tests and sandbox file. |
-| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`. |
+| Reserved-package guard: `build.gradle` → `verifyAresReservedPackages`, `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
+| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep the programming language configuration. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
 
-</details>
+The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) stays
+`2000.0.0-SNAPSHOT` until `2000.0.0` is on Maven Central; until then run `./mvnw -B install -pl framework`
+once in a clone of this repository.
 
 > [!IMPORTANT]
 > The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).
@@ -220,5 +203,5 @@ With the solution above, all 6 tests pass. Every expected element ends up in one
 The exact rules are in [How Matching Works](matching.md).
 
 That's it. Next: describe more classes ([Writing Tests](writing-tests.md)) and look at the full example in
-[`example/test`](../example/test/io/github/valentinherrmann/example/tests), which covers an interface, an
+[`example-maven/test`](../example-maven/test/io/github/valentinherrmann/example/tests), which covers an interface, an
 abstract class, inheritance, overloading and Exercise Variants.

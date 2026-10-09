@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TB
-    subgraph EX["Example exercise (example/test)"]
+    subgraph EX["Example exercise (test/)"]
         direction LR
         TM["TestManager<br/>@LevenshteinTest + @Policy"]
         POL[("SecurityPolicy.yaml")]
@@ -32,7 +32,7 @@ flowchart TB
         W --> WP
     end
 
-    subgraph ST["Student code (example/assignment/src), supervised by Ares 2"]
+    subgraph ST["Student code (assignment/src), supervised by Ares 2"]
         direction LR
         D["«interface»<br/>Driveable"]
         AV["«abstract»<br/>AbstractVehicle"]
@@ -74,12 +74,11 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 * `Messages`: German/English feedback
 * `Utils`: Levenshtein distance, type compatibility, `saveCast`
 
-**`example-gradle/`** (not published): the Gradle build of the same exercise (`build.gradle`, wrapper,
-`test/SecurityPolicy.yaml`); it reads the Java sources of `example/`.
-
-**`example/`** (not published)
+**`example-maven/`** and **`example-gradle/`** (not published): the same example exercise as two standalone
+projects, one per build tool. Their `assignment/` and `test/` folders are identical (CI checks this) except
+for one line in `SecurityPolicy.yaml`.
 * `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`), explained
-  in [`SIMPLIFIED_CONCEPTS.md`](../example/SIMPLIFIED_CONCEPTS.md)
+  in [`SIMPLIFIED_CONCEPTS.md`](../example-maven/SIMPLIFIED_CONCEPTS.md)
 * `test/.../tests`: `TestManager` (tests), `TestAbstr`/`TestImpl`/`TestInterface` (test logic),
   `Constants` (Exercise Variants), `wrappers/*`, `SecurityPolicy.yaml`
 

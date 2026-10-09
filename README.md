@@ -40,7 +40,7 @@ cd example-gradle && ./gradlew test   # the example exercise under Ares 2
 ```
 
 Then follow the **[Quick Start](docs/quick-start.md)**: copy the [Gradle](example-gradle) (or
-[Maven](example)) template into your exam repository, write your first wrapper and test, and read the
+[Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 
 ## Documentation
