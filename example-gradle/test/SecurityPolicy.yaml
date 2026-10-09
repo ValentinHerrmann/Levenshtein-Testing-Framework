@@ -1,4 +1,4 @@
-# Ares 2 security policy of the example exercise (Gradle build; identical to example/test/SecurityPolicy.yaml
+# Ares 2 security policy of the example exercise (Gradle build; identical to example-maven/test/SecurityPolicy.yaml
 # except for the programming language configuration, which Ares uses to find the build output).
 # Referenced by @Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/io/github/valentinherrmann/example/vehicles")
 # on every test class. The nearest @Policy wins; policies are never merged.

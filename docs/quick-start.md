@@ -5,66 +5,47 @@
 **Requirements:** JDK 25 and either **Gradle 9.1+** (the template ships a wrapper, so just `./gradlew`) or
 Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
 
-> [!NOTE]
-> The framework itself is built and published with Maven. That does not matter for you: it is a plain
-> artifact on Maven Central that you use from Gradle or Maven alike. Gradle is the primary path in this
-> guide; every build step has a Maven counterpart.
-
 ## Step 1: Run the example
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
 cd Levenshtein-Testing-Framework
-./mvnw -B install -pl framework          # puts the framework (a SNAPSHOT for now) into ~/.m2
-cd example-gradle && ./gradlew test      # runs the example exercise under Ares 2 with Gradle
+./mvnw -B install -pl framework       # the framework SNAPSHOT into ~/.m2
+cd example-gradle && ./gradlew test   # the example exercise under Ares 2
 ```
 
-`./mvnw -B verify` in the repository root builds everything with Maven instead (framework tests and the
-Maven example).
+`./mvnw -B verify` in the repository root builds the framework and the Maven example instead.
 
 The repository contains three modules:
 
 | Module | Content |
 |---|---|
 | [`framework/`](../framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` (built with Maven) |
-| [`example-gradle/`](../example-gradle) | **The Gradle template for your exam repository:** `build.gradle`, wrapper and policy for the example exercise, protected by Ares 2. |
-| [`example/`](../example) | The example exercise in the Artemis layout (`assignment/src` = student code, `test/` = instructor tests) and its **Maven template** (`pom.xml`). |
+| [`example-gradle/`](../example-gradle) | The example exercise as a standalone **Gradle** project: your exam template |
+| [`example-maven/`](../example-maven) | The same exercise as a standalone **Maven** project: your exam template |
+
+Both examples use the Artemis layout: `assignment/src` = student code, `test/` = instructor tests and policy.
 
 ## Step 2: Create your exam repository from the template
 
-Pick the template that matches your build tool. In this walkthrough the student package is `org.example.exam`
-and the test package is `org.example.tests`. The student package must not be a prefix of the test package
-(`org.example.exam` and `org.example.exam.tests` would be wrong).
+Copy the whole [`example-gradle/`](../example-gradle) (or [`example-maven/`](../example-maven)) folder as
+your exam repository. It runs as it is, so you can check your machine first with `./gradlew test`
+(`./mvnw -B verify`).
 
-### Gradle
-
-Copy `build.gradle`, `settings.gradle`, `gradlew`, `gradlew.bat` and `gradle/` from
-[`example-gradle/`](../example-gradle) and the policy [`test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
-into your exam repository, next to your `assignment/src` and `test/` folders. Then adapt:
+In this walkthrough the student package is `org.example.exam` and the test package is `org.example.tests`.
+The student package must not be a prefix of the test package (`org.example.exam.tests` would be wrong).
+Then adapt:
 
 | Where | What to change |
 |---|---|
-| `build.gradle` → `exercise` | `def exercise = '.'`: the exercise is the repository itself (the template points to the example next door). |
-| `build.gradle` → `levenshteinVersion` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT` (`mavenLocal()` is already in the template). |
-| `build.gradle` → `verifyAresReservedPackages` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
-| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ`. |
-| Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
-
-Do **not** copy the example's `SandboxControl`, `SecurityControlTest`, `TimeoutControlTest` and
-`test/sandbox/`: they only exist to prove that the sandbox is active (use them once to validate your setup).
-
-### Maven
-
-Copy the contents of [`example/`](../example) (`pom.xml`, `assignment/`, `test/`) into your exam repository.
-Copy `mvnw`, `mvnw.cmd` and `.mvn/wrapper/` as well if you want the Maven wrapper. Then adapt:
-
-| Where | What to change |
-|---|---|
-| `pom.xml` → `levenshtein.version` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT`. |
-| `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
 | `assignment/src/`, `test/io/`, `test/sandbox/` | Delete the example's student code, tests and sandbox file. |
-| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`. |
+| Reserved-package guard: `build.gradle` → `verifyAresReservedPackages`, `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
+| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep the programming language configuration. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
+
+The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) stays
+`2000.0.0-SNAPSHOT` until `2000.0.0` is on Maven Central; until then run `./mvnw -B install -pl framework`
+once in a clone of this repository.
 
 > [!IMPORTANT]
 > The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).
@@ -108,9 +89,9 @@ package org.example.tests;
 
 import io.github.valentinherrmann.levenshtein.*;
 
-/** Describes the expected class: public class Car in package org.example.exam. */
+/** Expected: public class Car in package org.example.exam. */
 public class CarWrapper<T> extends ClassWrapper<T> {
-    // One field per expected member; the structural tests find them via reflection.
+    // One field per expected member (found via reflection).
     private final AttributeWrapper<T, Double> price;
     private final AttributeWrapper<T, Double> speed;
     private final ConstructorWrapper<T> constructor;
@@ -121,9 +102,11 @@ public class CarWrapper<T> extends ClassWrapper<T> {
         super("Car", "org.example.exam", "public");
         price = new AttributeWrapper<>(this, "price", double.class, "private");
         speed = new AttributeWrapper<>(this, "speed", double.class, "private");
-        constructor = new ConstructorWrapper<>(this, new Class<?>[]{double.class}, "public");
+        constructor = new ConstructorWrapper<>(this,
+                new Class<?>[]{double.class}, "public");
         start = new MethodWrapper<>(this, "start", void.class, "public");
-        getPrice = new MethodWrapper<>(this, "getPrice", double.class, "public");
+        getPrice = new MethodWrapper<>(this, "getPrice", double.class,
+                "public");
     }
 
     // Accessors for the behavioural tests
@@ -160,11 +143,13 @@ import io.github.valentinherrmann.levenshtein.StructuralLevenshtein;
 import io.github.valentinherrmann.levenshtein.StructuralLevenshtein.DetailLevel;
 
 @LevenshteinTest
-@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+@Policy(value = "test/SecurityPolicy.yaml",
+        withinPath = "classes/org/example/exam")
 class CarTest {
 
     static {
-        LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH); // default: German
+        // feedback language, default: DEUTSCH
+        LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
     }
 
     static final CarWrapper<?> car = new CarWrapper<>();
@@ -172,7 +157,8 @@ class CarTest {
     // Structure: Class[Car], Constructors[Car], Attributes[Car], Methods[Car]
     @TestFactory
     List<DynamicTest> structure() {
-        return StructuralLevenshtein.structuralTestFactory(DetailLevel.ONE_PER_MEMBER_CATEGORY, car);
+        return StructuralLevenshtein.structuralTestFactory(
+                DetailLevel.ONE_PER_MEMBER_CATEGORY, car);
     }
 
     // Behaviour: still runs if the student wrote "prize" instead of "price"
@@ -208,14 +194,14 @@ The matching `SecurityPolicy.yaml` lists the two test classes:
 
 With the solution above, all 6 tests pass. Every expected element ends up in one of three states:
 
-* **`EXACT`**: matches the specification. ✅
-* **`DEVIATES`**: found with small differences, e.g. `prize` for `price` (20 % of the name length is
-  tolerated by default). The **structural test fails** with a `DEVIATION` message, but the **behavioural
-  tests use the student's element** and can still pass.
-* **`MISSING`**: not found, e.g. `strat()` for `start()` (a swap of two letters counts as 2 edits = 40 %).
-  The structural test fails, and so does every behavioural test that needs the element:
-  `Method public void start() in class Car is not implemented as expected.`
+| State | Example | Structural test | Behavioural tests |
+|---|---|---|---|
+| `EXACT` ✅ | `price` | passes | run |
+| `DEVIATES` ⚠️ | `prize` for `price` (≤ 20 % of the name may differ) | fails | **still run** on `prize` |
+| `MISSING` ❌ | `strat()` for `start()` (a swap is 2 edits = 40 %) | fails | fail: "... is not implemented as expected" |
+
+The exact rules are in [How Matching Works](matching.md).
 
 That's it. Next: describe more classes ([Writing Tests](writing-tests.md)) and look at the full example in
-[`example/test`](../example/test/io/github/valentinherrmann/example/tests), which covers an interface, an
+[`example-maven/test`](../example-maven/test/io/github/valentinherrmann/example/tests), which covers an interface, an
 abstract class, inheritance, overloading and Exercise Variants.

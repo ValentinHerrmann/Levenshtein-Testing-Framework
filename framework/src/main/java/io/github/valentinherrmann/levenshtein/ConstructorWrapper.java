@@ -4,7 +4,7 @@ package io.github.valentinherrmann.levenshtein;
 import org.assertj.core.api.Assertions;
 
 import static io.github.valentinherrmann.levenshtein.Utils.toWrapperType;
-import static io.github.valentinherrmann.levenshtein.Utils.unwrapPrimitive;
+import static io.github.valentinherrmann.levenshtein.Utils.isNumericDeviation;
 import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence.*;
 
 import java.lang.reflect.Constructor;
@@ -81,11 +81,13 @@ public class ConstructorWrapper<T> extends Wrapper<T>
             }
             catch (NoSuchMethodException | LinkageError e) {
                 try {
+                    int bestScore = Integer.MAX_VALUE;
                     for (Constructor<?> candidate : clazz.getDeclaredConstructors()) {
-                        if (!candidate.isSynthetic() && equivalentParameters(candidate.getParameterTypes())) {
+                        int score = candidate.isSynthetic() ? -1 : parameterDeviation(candidate.getParameterTypes());
+                        if (score >= 0 && score < bestScore) {
+                            bestScore = score;
                             constructor = (Constructor<T>) candidate;
                             params.existence = DEVIATES;
-                            break;
                         }
                     }
                 }
@@ -103,17 +105,30 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         }
     }
 
-    private boolean equivalentParameters(Class<?>[] actual) {
+    /**
+     * @return -1 if the parameters cannot match, otherwise a score where lower is closer: 0 for identical types,
+     *         1 per primitive/wrapper difference and 2 per numeric difference (e.g. {@code long} vs. {@code int})
+     */
+    private int parameterDeviation(Class<?>[] actual) {
         if (actual.length != paramTypes.length) {
-            return false;
+            return -1;
         }
+        int score = 0;
         for (int i = 0; i < actual.length; i++) {
-            if (!toWrapperType(actual[i]).equals(toWrapperType(paramTypes[i]))
-                    && !unwrapPrimitive(actual[i]).equals(unwrapPrimitive(paramTypes[i]))) {
-                return false;
+            if (actual[i].equals(paramTypes[i])) {
+                continue;
+            }
+            if (toWrapperType(actual[i]).equals(toWrapperType(paramTypes[i]))) {
+                score += 1;
+            }
+            else if (isNumericDeviation(paramTypes[i], actual[i])) {
+                score += 2;
+            }
+            else {
+                return -1;
             }
         }
-        return true;
+        return score;
     }
 
 

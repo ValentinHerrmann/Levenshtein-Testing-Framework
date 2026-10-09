@@ -32,14 +32,27 @@ jobs:
       - name: Build and test
         run: ./mvnw -B verify
 
-      # The Gradle twin of the example, protected by Ares 2 in the same way. It uses the framework from
-      # ~/.m2, so install it first.
+      # The two examples are standalone copies of one exercise: keep them identical (the policies differ
+      # in the programming language configuration only).
+      - name: Check that both examples contain the same exercise
+        run: |
+          diff -r example-maven/assignment example-gradle/assignment
+          diff -r -x SecurityPolicy.yaml example-maven/test example-gradle/test
+
+      # Both examples must work when copied out of the repository. They use the framework from ~/.m2,
+      # so install it first.
       - name: Install the framework locally
         run: ./mvnw -B install -pl framework -DskipTests
+
+      - name: Build and test a copy of the Maven example
+        run: |
+          cp -r example-maven "$RUNNER_TEMP/example-maven"
+          cd "$RUNNER_TEMP/example-maven" && ./mvnw -B verify
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and test the Gradle example
-        run: ./gradlew --no-daemon test
-        working-directory: example-gradle
+      - name: Build and test a copy of the Gradle example
+        run: |
+          cp -r example-gradle "$RUNNER_TEMP/example-gradle"
+          cd "$RUNNER_TEMP/example-gradle" && ./gradlew --no-daemon test

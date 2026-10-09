@@ -34,6 +34,9 @@ public final class Fixtures {
         public int add(Integer a, Integer b) { return a + b; }
         public String getNothing() { return nothing; }
         public int divide(int a, int b) { return a / b; }
+        public int total() { return 7; }
+        public long scale(int factor) { return factor; }
+        public boolean flag() { return true; }
         public void fail(String why) { throw new IllegalArgumentException(why); }
     }
 

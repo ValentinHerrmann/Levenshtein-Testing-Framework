@@ -141,7 +141,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
                 .filter(m -> parametersMatch(m.getParameterTypes()) != MISSING)
                 .filter(m -> isNameWithinDeviation(name.expected, m.getName(), LevenshteinSettings.getMethodNameDeviationThreshold()))
                 .min(Comparator.<Method>comparingInt(m -> levenshteinDistance(name.expected, m.getName()))
-                        .thenComparing(m -> parametersMatch(m.getParameterTypes()) == EXACT ? 0 : 1)
+                        .thenComparingInt(m -> parameterDeviation(m.getParameterTypes()))
                         .thenComparing(Method::getName))
                 .orElse(null);
         if (best != null) {
@@ -157,22 +157,33 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      *         (e.g. {@code int} vs. {@code Integer}), MISSING otherwise
      */
     private WrapperProperty.Existence parametersMatch(Class<?>[] actualParams) {
+        return parameterDeviation(actualParams) < 0 ? MISSING : parameterDeviation(actualParams) == 0 ? EXACT : DEVIATES;
+    }
+
+    /**
+     * @return -1 if the parameters cannot match, otherwise a score where lower is closer: 0 for identical types,
+     *         1 per primitive/wrapper difference and 2 per numeric difference (e.g. {@code long} vs. {@code int})
+     */
+    private int parameterDeviation(Class<?>[] actualParams) {
         if (actualParams.length != paramTypes.length) {
-            return MISSING;
+            return -1;
         }
-        WrapperProperty.Existence result = EXACT;
+        int score = 0;
         for (int i = 0; i < paramTypes.length; i++) {
             if (actualParams[i].equals(paramTypes[i])) {
                 continue;
             }
             if (toWrapperType(actualParams[i]).equals(toWrapperType(paramTypes[i]))) {
-                result = DEVIATES;
+                score += 1;
+            }
+            else if (isNumericDeviation(paramTypes[i], actualParams[i])) {
+                score += 2;
             }
             else {
-                return MISSING;
+                return -1;
             }
         }
-        return result;
+        return score;
     }
 
     @Override

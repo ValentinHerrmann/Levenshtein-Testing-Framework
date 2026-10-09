@@ -3,10 +3,18 @@
 [README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · **Ares 2 Setup** · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
 
 The templates [`example-gradle/build.gradle`](../example-gradle/build.gradle) (Gradle) and
-[`example/pom.xml`](../example/pom.xml) (Maven), together with the `test/` folder, already contain everything
-below. This page explains it, so you know what you may not remove. Both builds do the same four things.
-Gradle needs Gradle 9.1+ to run on JDK 25 (Gradle 8.14 cannot even read the build script on JDK 25); the
-template ships a wrapper for 9.2.
+[`example-maven/pom.xml`](../example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
+below. This page explains it, so you know what you may not remove. Both builds run the same pipeline:
+
+```mermaid
+flowchart LR
+    A["Compile student code<br/>+ weave Ares aspects"] --> B["Reserved-package<br/>guard"]
+    B --> C["Compile tests"]
+    C --> D["Run tests with<br/>the Ares agent"]
+```
+
+Gradle needs version 9.1+ to run on JDK 25 (8.14 cannot even read the build script); the template ships a
+wrapper for 9.2.
 
 **1. Dependencies.** Ares must be visible to the student sources (the weaver needs it there) *and* to the
 tests. In Maven that is the scope `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
@@ -21,20 +29,24 @@ repositories {
 }
 
 configurations {
-    aresAgent { transitive = false }                // just the agent JAR, see 2.
-    testImplementation.extendsFrom compileOnly      // Maven's "provided": Ares is also on the test classpath
+    aresAgent { transitive = false }   // just the agent JAR, see 2.
+    // Maven's "provided": Ares is also on the test classpath
+    testImplementation.extendsFrom compileOnly
 }
 
 dependencies {
     compileOnly "de.tum.cit.ase:ares:2.2.1"
-    aspect "de.tum.cit.ase:ares:2.2.1"              // the aspect library the weaver applies to the student classes
+    // the aspect library the weaver applies to the student classes
+    aspect "de.tum.cit.ase:ares:2.2.1"
     implementation "org.aspectj:aspectjrt:1.9.25.1"
     aresAgent "de.tum.cit.ase:ares:2.2.1:agent"
 
-    testImplementation "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0"
+    testImplementation(
+        "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0")
     testImplementation platform("org.junit:junit-bom:6.1.3")
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.junit.platform:junit-platform-testkit'   // only the example's TimeoutControlTest needs it
+    // only the example's TimeoutControlTest needs it
+    testImplementation 'org.junit.platform:junit-platform-testkit'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 ```
@@ -76,7 +88,7 @@ Ares agent where the test JVM can find it, and start the tests with `-javaagent`
   * `exclude '**/*$*'` keeps nested classes out of the test run. Surefire skips them by default, Gradle does
     not, and the example's `TimeoutControlTest$TimeoutProbe` deliberately halts its JVM.
 * **Maven:** `aspectj-maven-plugin` (weaves), `maven-dependency-plugin` (copies the agent) and Surefire. Copy
-  the plugin blocks from [`example/pom.xml`](../example/pom.xml); they follow the Ares guide
+  the plugin blocks from [`example-maven/pom.xml`](../example-maven/pom.xml); they follow the Ares guide
   "[transform an Ares 1 protected project into an Ares 2 protected project](https://ls1intum.github.io/Ares2/instructor/transform-ares-1-into-ares-2/)"
   (Postcompile, Maven).
 
@@ -88,13 +100,14 @@ would replace the framework, and with it every structural test. The guard theref
 
 * **Gradle:** the task `verifyAresReservedPackages` in `build.gradle`. It runs right after the student code
   is compiled and before the tests are compiled, and fails with the offending class files.
-* **Maven:** the antrun execution `verify-ares-reserved-packages-v2` in `example/pom.xml`.
+* **Maven:** the antrun execution `verify-ares-reserved-packages-v2` in `example-maven/pom.xml`.
 
 **4. Security policy and annotations.**
 
 ```java
 @LevenshteinTest   // = @Public + @StrictTimeout(5) + @MirrorOutput
-@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+@Policy(value = "test/SecurityPolicy.yaml",
+        withinPath = "classes/org/example/exam")
 class ExamTest {
     // @Test, @TestFactory ... (plain JUnit annotations)
 }
@@ -105,7 +118,7 @@ class ExamTest {
 * `@Policy` is exam specific and therefore not part of `@LevenshteinTest`. The nearest `@Policy` wins;
   policies are never merged.
 * `SecurityPolicy.yaml`: see [`example-gradle/test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
-  (Gradle) or [`example/test/SecurityPolicy.yaml`](../example/test/SecurityPolicy.yaml) (Maven). The two files
+  (Gradle) or [`example-maven/test/SecurityPolicy.yaml`](../example-maven/test/SecurityPolicy.yaml) (Maven). The two files
   differ in one line only.
   - Use `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ` with Gradle and `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`
     with Maven. Ares uses it to find the build output. With the Gradle setting Ares reads the `build.gradle`
@@ -137,8 +150,8 @@ class ExamTest {
   classes that declare records.
 * The examples contain self-checks that fail if the sandbox is not active (for example when the weaving
   is missing):
-  [`SecurityControlTest`](../example/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
+  [`SecurityControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
   (permitted/forbidden file read) and
-  [`TimeoutControlTest`](../example/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
+  [`TimeoutControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
   (deadline). They need the `SandboxControl` class in the student sources, so do not copy them into a
   real exam. Use them to validate your setup once.

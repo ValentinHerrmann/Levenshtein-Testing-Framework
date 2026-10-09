@@ -160,12 +160,28 @@ public final class Utils
         else if (actualType.isAssignableFrom(expected)) {
             typeWrapperProperty.existence = DEVIATES;
         }
-        else if (canContain(actualType, expected)) {
+        else if (canContain(actualType, expected) || isNumericDeviation(expected, actualType)) {
             typeWrapperProperty.existence = DEVIATES;
         }
         else {
             typeWrapperProperty.existence = MISSING;
         }
+    }
+
+    /**
+     * Checks whether two types are different numeric types in either direction (e.g. {@code long} vs.
+     * {@code int}, {@code Integer} vs. {@code double}). {@code boolean} and non-primitive types never qualify.
+     *
+     * @param expected the expected type
+     * @param actual the actual type
+     * @return true if both unwrap to numeric primitives (byte, short, char, int, long, float, double)
+     */
+    public static boolean isNumericDeviation(Class<?> expected, Class<?> actual) {
+        Class<?> e = unwrapPrimitive(expected);
+        Class<?> a = unwrapPrimitive(actual);
+        return e.isPrimitive() && a.isPrimitive()
+                && e != boolean.class && a != boolean.class
+                && e != void.class && a != void.class;
     }
 
 

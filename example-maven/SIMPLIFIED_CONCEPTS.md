@@ -5,7 +5,7 @@ This is the "student" side of the example exercise: the reference solution in
 [`assignment/src`](assignment/src/io/github/valentinherrmann/example/vehicles) that the instructor tests in
 [`test/`](test/io/github/valentinherrmann/example/tests) run against. Each class has a wrapper in
 [`test/.../wrappers`](test/io/github/valentinherrmann/example/tests/wrappers) that describes it for the
-Levenshtein Testing Framework; see the [Quick Start](../docs/quick-start.md) and [Writing Tests](../docs/writing-tests.md) for how the tests work.
+Levenshtein Testing Framework; see the [Quick Start](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/quick-start.md) and [Writing Tests](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/writing-tests.md) for how the tests work.
 
 The code demonstrates several key object-oriented programming concepts in Java: interface constants, interface implementation, abstract super classes, super-class inheritance, method overriding, method overloading and constructor overloading. It uses a simple vehicle hierarchy with a `Driveable` interface and an `AbstractVehicle` abstract class, along with a concrete `Car` class that implements and extends these structures.
 
