@@ -74,6 +74,9 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 * `Messages`: German/English feedback
 * `Utils`: Levenshtein distance, type compatibility, `saveCast`
 
+**`example-gradle/`** (not published): the Gradle build of the same exercise (`build.gradle`, wrapper,
+`test/SecurityPolicy.yaml`); it reads the Java sources of `example/`.
+
 **`example/`** (not published)
 * `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`), explained
   in [`SIMPLIFIED_CONCEPTS.md`](../example/SIMPLIFIED_CONCEPTS.md)

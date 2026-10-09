@@ -2,42 +2,74 @@
 
 [README](../README.md) · **Quick Start** · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
 
-**Requirements:** JDK 25 and Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the
-example's `pom.xml`.
+**Requirements:** JDK 25 and either **Gradle 9.1+** (the template ships a wrapper, so just `./gradlew`) or
+Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
+
+> [!NOTE]
+> The framework itself is built and published with Maven. That does not matter for you: it is a plain
+> artifact on Maven Central that you use from Gradle or Maven alike. Gradle is the primary path in this
+> guide; every build step has a Maven counterpart.
 
 ## Step 1: Run the example
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
 cd Levenshtein-Testing-Framework
-./mvnw -B verify        # builds the framework and runs the example exercise under Ares 2
+./mvnw -B install -pl framework          # puts the framework (a SNAPSHOT for now) into ~/.m2
+cd example-gradle && ./gradlew test      # runs the example exercise under Ares 2 with Gradle
 ```
 
-The repository contains two modules:
+`./mvnw -B verify` in the repository root builds everything with Maven instead (framework tests and the
+Maven example).
+
+The repository contains three modules:
 
 | Module | Content |
 |---|---|
-| [`framework/`](../framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` |
-| [`example/`](../example) | A complete reference exercise in the Artemis layout (`assignment/src` = student code, `test/` = instructor tests) protected by Ares 2. **This is the template for your exam repository.** |
+| [`framework/`](../framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` (built with Maven) |
+| [`example-gradle/`](../example-gradle) | **The Gradle template for your exam repository:** `build.gradle`, wrapper and policy for the example exercise, protected by Ares 2. |
+| [`example/`](../example) | The example exercise in the Artemis layout (`assignment/src` = student code, `test/` = instructor tests) and its **Maven template** (`pom.xml`). |
 
-## Step 2: Create your exam repository from `example/`
+## Step 2: Create your exam repository from the template
 
-Copy the contents of `example/` (`pom.xml`, `assignment/`, `test/`) into your exam repository. Copy
-`mvnw`, `mvnw.cmd` and `.mvn/wrapper/` as well if you want the Maven wrapper. Then adapt it. In this
-walkthrough the student package is `org.example.exam` and the test package is `org.example.tests`:
+Pick the template that matches your build tool. In this walkthrough the student package is `org.example.exam`
+and the test package is `org.example.tests`. The student package must not be a prefix of the test package
+(`org.example.exam` and `org.example.exam.tests` would be wrong).
+
+### Gradle
+
+Copy `build.gradle`, `settings.gradle`, `gradlew`, `gradlew.bat` and `gradle/` from
+[`example-gradle/`](../example-gradle) and the policy [`test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
+into your exam repository, next to your `assignment/src` and `test/` folders. Then adapt:
+
+| Where | What to change |
+|---|---|
+| `build.gradle` → `exercise` | `def exercise = '.'`: the exercise is the repository itself (the template points to the example next door). |
+| `build.gradle` → `levenshteinVersion` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT` (`mavenLocal()` is already in the template). |
+| `build.gradle` → `verifyAresReservedPackages` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
+| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ`. |
+| Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
+
+Do **not** copy the example's `SandboxControl`, `SecurityControlTest`, `TimeoutControlTest` and
+`test/sandbox/`: they only exist to prove that the sandbox is active (use them once to validate your setup).
+
+### Maven
+
+Copy the contents of [`example/`](../example) (`pom.xml`, `assignment/`, `test/`) into your exam repository.
+Copy `mvnw`, `mvnw.cmd` and `.mvn/wrapper/` as well if you want the Maven wrapper. Then adapt:
 
 | Where | What to change |
 |---|---|
 | `pom.xml` → `levenshtein.version` | The framework version. `2000.0.0` is not on Maven Central yet: until it is, run `./mvnw -B install -pl framework` in this repository and keep `2000.0.0-SNAPSHOT`. |
 | `pom.xml` → antrun `verify-ares-reserved-packages-v2` | Replace `io/github/valentinherrmann/example/tests/**` with your test package, e.g. `org/example/tests/**`. |
 | `assignment/src/`, `test/io/`, `test/sandbox/` | Delete the example's student code, tests and sandbox file. |
-| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. |
+| `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
 
 > [!IMPORTANT]
-> The student package must not be a prefix of the test package (`org.example.exam` and
-> `org.example.exam.tests` would be wrong). The reasons for every setting are in
-> [Ares 2 Setup in Detail](ares-setup.md).
+> The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).
+> Do not remove the reserved-package guard or the weaving: without them the sandbox is silently inactive
+> or can be replaced by the student.
 
 ## Step 3: Write your first wrapper and test
 
@@ -171,7 +203,7 @@ The matching `SecurityPolicy.yaml` lists the two test classes:
 ## Step 4: Run it and read the results
 
 ```bash
-./mvnw -B verify
+./gradlew test        # or, with Maven: ./mvnw -B verify
 ```
 
 With the solution above, all 6 tests pass. Every expected element ends up in one of three states:

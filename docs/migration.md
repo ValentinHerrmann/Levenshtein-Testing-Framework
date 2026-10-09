@@ -15,3 +15,9 @@ the first release of the Ares 2 / Java 25 line and contains the breaking changes
 | `useByteBuddy=false` for private members | not needed; the parameter is ignored |
 | `setObj` writes `obj` directly | `setCachedObj(obj)` |
 | Exceptions from student code: generic failure | type and message in the failure, `invokeExpectingException(...)` |
+
+**Gradle or Maven?** Both work with 2000.0.0. The coordinates are unchanged
+(`io.github.valentinherrmann:levenshtein-testing-framework`), but a 1000.x exam repository also needs the
+Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
+[Gradle](../example-gradle/build.gradle) or [Maven](../example/pom.xml) template and see
+[Ares 2 Setup in Detail](ares-setup.md).

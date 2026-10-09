@@ -1,0 +1,134 @@
+/*
+ * Gradle twin of example/pom.xml: the same exercise (sources and tests are shared with example/) protected by
+ * Ares 2 in Postcompile mode (AspectJ). Copy this file as the template for a Gradle exam repository:
+ *   assignment/src  student code (supervised, woven by AspectJ)
+ *   test/           instructor tests, wrappers and SecurityPolicy.yaml
+ */
+plugins {
+    id 'java'
+    // Weaves the Ares aspects into the compiled student classes (Maven: aspectj-maven-plugin).
+    id 'io.freefair.aspectj.post-compile-weaving' version '9.2.0'
+}
+
+ext {
+    aresVersion = '2.2.1'
+    aspectjVersion = '1.9.25.1'
+    junitVersion = '6.1.3'
+    levenshteinVersion = '2000.0.0-SNAPSHOT' // use the released version as soon as it is on Maven Central
+}
+
+repositories {
+    mavenLocal() // only needed for a SNAPSHOT: ./mvnw -B install -pl framework
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+// Standard Artemis layout: assignment/src (student code) and test/ (instructor tests, policy) below the exercise
+// directory. This template runs the exercise of the Maven example next door, so that both builds test the very
+// same sources. In your own exam repository the exercise is the project itself: set it to '.'.
+def exercise = '../example'
+
+sourceSets {
+    main {
+        java.srcDirs = ["${exercise}/assignment/src"]
+    }
+    test {
+        java.srcDirs = ["${exercise}/test"]
+    }
+}
+
+configurations {
+    aresAgent { transitive = false } // just the agent JAR
+    // Ares must be visible to the main source set (the weaver needs it) and to the tests.
+    // Maven calls this scope "provided".
+    testImplementation.extendsFrom compileOnly
+}
+
+dependencies {
+    compileOnly "de.tum.cit.ase:ares:${aresVersion}"
+    aspect "de.tum.cit.ase:ares:${aresVersion}" // the aspect library to weave
+    implementation "org.aspectj:aspectjrt:${aspectjVersion}"
+    aresAgent "de.tum.cit.ase:ares:${aresVersion}:agent"
+
+    testImplementation "io.github.valentinherrmann:levenshtein-testing-framework:${levenshteinVersion}"
+    testImplementation platform("org.junit:junit-bom:${junitVersion}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.platform:junit-platform-testkit'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Reserved-package guard (mandatory in every exam repository, see docs/ares-setup.md): student classes come
+// before every dependency JAR on the test classpath, so a student class in one of these packages would
+// replace Ares, JUnit or this framework. Extended by the framework and the instructor test package.
+tasks.register('verifyAresReservedPackages') {
+    dependsOn tasks.named('classes')
+    def reserved = [
+            'java/**', 'javax/**', 'sun/**', 'jdk/**', 'com/sun/**',
+            'de/tum/cit/ase/ares/api/**', 'net/bytebuddy/**', 'org/aspectj/**', 'com/ibm/wala/**',
+            'com/tngtech/archunit/**', 'anonymous/toolclasses/**', 'metatest/**',
+            // Levenshtein Testing Framework and the instructor test package.
+            'io/github/valentinherrmann/levenshtein/**', 'io/github/valentinherrmann/example/tests/**',
+            'org/junit/**', 'org/assertj/**', 'org/opentest4j/**'
+    ]
+    def studentClasses = sourceSets.main.output.classesDirs
+    outputs.upToDateWhen { false } // cheap, and a guard must never be skipped
+    inputs.files(studentClasses)
+    doLast {
+        def offending = fileTree(studentClasses.singleFile) { include reserved }.files
+        if (!offending.isEmpty()) {
+            throw new GradleException("Ares reserved-package validation rejected student output. No bypass flag is supported.\n  "
+                    + offending.collect { studentClasses.singleFile.toPath().relativize(it.toPath()) }.join('\n  '))
+        }
+    }
+}
+
+// Put the Ares agent where the test JVM expects it.
+tasks.register('copyAresRuntimeJars', Copy) {
+    from(configurations.aresAgent) { rename { 'ares-agent.jar' } }
+    from(configurations.runtimeClasspath.filter { it.name.startsWith('aspectjrt') }) { rename { 'aspectjrt.jar' } }
+    into layout.buildDirectory.dir('ares')
+}
+
+// Maven runs the guard right after compiling the student code; do the same, before the tests are compiled.
+tasks.named('compileTestJava') { dependsOn 'verifyAresReservedPackages' }
+
+tasks.named('test', Test) {
+    dependsOn 'verifyAresReservedPackages', 'copyAresRuntimeJars'
+    useJUnitPlatform()
+    // Like Surefire, do not run nested classes as stand-alone tests (TimeoutControlTest$TimeoutProbe must only
+    // run in the probe JVM that TimeoutControlTest starts).
+    exclude '**/*$*'
+    // Ares reads build.gradle from the working directory (the project directory, which is the default) and the
+    // policy paths (test/SecurityPolicy.yaml, test/sandbox/...) are relative to it.
+    // A fresh JVM per test class: Ares 2 halts the JVM (exit code 124) when timed-out student code ignores the
+    // interrupt, so only the tests of that one class are lost. (Maven: reuseForks=false)
+    forkEvery = 1
+    maxParallelForks = 1
+    def ares = layout.buildDirectory.dir('ares').get().asFile
+    jvmArgs = [
+            "-javaagent:${ares}/ares-agent.jar".toString(),
+            "-Xbootclasspath/a:${ares}/aspectjrt.jar".toString(),
+            '--add-exports', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.io=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.net=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.nio.channels=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util.concurrent.locks=ALL-UNNAMED',
+            '--add-opens', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.net.www.protocol.http=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.net.www.protocol.https=ALL-UNNAMED',
+            '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED',
+            '--add-opens', 'jdk.unsupported/sun.misc=ALL-UNNAMED'
+    ]
+    testLogging { events 'passed', 'failed', 'skipped'; exceptionFormat = 'full' }
+}
