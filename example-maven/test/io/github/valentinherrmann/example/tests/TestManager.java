@@ -599,6 +599,16 @@ public class TestManager {
         TestImpl.testGetPrice();
     }
 
+    /**
+     * Tests getPrice() and setPrice(double), including that negative prices are not stored.
+     *
+     * @see TestImpl#testPriceGettersSetters()
+     */
+    @Test
+    void testImplPriceGettersSetters() {
+        TestImpl.testPriceGettersSetters();
+    }
+
     // ============================================================================
     // Interface Tests (1 test)
     // ============================================================================

@@ -138,6 +138,29 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         return null;
     }
 
+    /**
+     * @return the expected type of the attribute
+     */
+    public Class<?> getExpectedType() {
+        return type.expected;
+    }
+
+    /**
+     * @return the type of the student's field, or {@code null} if the attribute is missing
+     */
+    Class<?> actualFieldType() {
+        ensureChecked();
+        return field == null ? null : field.getType();
+    }
+
+    /**
+     * @return whether the student's field exists and is {@code final}
+     */
+    boolean isFinal() {
+        ensureChecked();
+        return field != null && Modifier.isFinal(field.getModifiers());
+    }
+
     private Object resolveTarget(Object obj) {
         if (Modifier.isStatic(field.getModifiers())) {
             return null;

@@ -43,6 +43,49 @@ public final class Fixtures {
         public void fail(String why) { throw new IllegalArgumentException(why); }
     }
 
+    /** Getters and setters, correct ones and typical student mistakes. */
+    public static class GettersSetters {
+        private double price;
+        private int count;
+        private String name;
+        private String label = "start";
+        private String title = "start";
+        private String tag = "start";
+        private int amount;
+        private final int fixed = 3;
+        private int other;
+        private Object box;
+
+        public double getPrice() { return price; }
+        public void setPrice(double price) { this.price = price; }
+
+        public int getCount() { return 42; }
+        public void setCount(int count) { this.count = count; }
+
+        public String getName() { return name; }
+        public void setName(String name) { }
+
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = java.util.Objects.requireNonNull(label); }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { if (title != null) { this.title = title; } }
+
+        public String getTag() { return tag; }
+        public void setTag(String tag) { this.tag = tag; }
+
+        public Integer getAmount() { return amount; }
+        public void setAmount(Integer amount) { this.amount = amount; }
+
+        public int getFixed() { return fixed; }
+
+        public int getWrong() { return count; }
+        public void setOther(int other) { this.other = other; }
+
+        public Object getBox() { return box; }
+        public void setBox(Object box) { this.box = box; }
+    }
+
     public static class Ctors {
         public final String how;
         protected Ctors(String how) { this.how = how; }

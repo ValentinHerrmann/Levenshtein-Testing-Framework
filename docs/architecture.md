@@ -137,6 +137,10 @@ classDiagram
         +getMethodWrappers() List~Wrapper~T~~
         +getConstructorWrappers() List~Wrapper~T~~
         +testGetter(AttributeWrapper attribute, MethodWrapper getter)
+        +testGettersSetters(AttributeWrapper attribute, MethodWrapper... gettersSetters)
+        +testGettersSetters(AttributeWrapper attribute, Predicate setterCondition, MethodWrapper... gettersSetters)
+        +testGettersSetters(AttributeWrapper attribute, List sampleValues, MethodWrapper... gettersSetters)
+        +testGettersSetters(AttributeWrapper attribute, List sampleValues, Predicate setterCondition, MethodWrapper... gettersSetters)
     }
     class GenericClassWrapper~T~ {
         +GenericClassWrapper(Class~T~ clz)

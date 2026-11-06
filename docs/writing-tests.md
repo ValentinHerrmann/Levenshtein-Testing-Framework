@@ -79,8 +79,8 @@ carWrapper.speed().setValue(car, 0.0);
 double cost = carWrapper.calculateCost().invoke(); // on the default instance
 Object other = carWrapper.constructor().invoke(25000.0);
 
-// attribute == getter
-carWrapper.testGetter(carWrapper.price(), carWrapper.getPrice());
+// getter and setter (see "Getters and setters" below)
+carWrapper.testGettersSetters(carWrapper.price(), carWrapper.getPrice(), carWrapper.setPrice());
 
 // expected exception (a MethodWrapper for "void setYear(int)")
 IllegalArgumentException e = carWrapper.setYear()
@@ -102,6 +102,46 @@ IllegalArgumentException e = carWrapper.setYear()
 * `Utils.safeCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
   message instead of producing a `ClassCastException` later.
 * Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
+
+## Getters and setters
+
+`testGettersSetters` tests the getter and/or setter of an attribute; you only pass the wrappers. Call it in
+your own test method:
+
+```java
+@Test
+void priceGettersSetters() {
+    car.testGettersSetters(car.price(), car.getPrice(), car.setPrice());          // getter and setter
+    car.testGettersSetters(car.price(), car.getPrice());                           // getter only (= testGetter)
+    car.testGettersSetters(car.price(), car.setPrice());                           // setter only
+    car.testGettersSetters(car.price(), (Double p) -> p >= 0, car.getPrice(), car.setPrice()); // setter condition
+    car.testGettersSetters(car.price(), List.of(1.5, 99.0, 0.0), car.setPrice());  // own sample values
+}
+```
+
+* A method wrapper without parameters is the getter, one with one parameter the setter (any order).
+* Up to three subtests run, each on a new instance: **setter -> attribute** (the setter stores the value),
+  **attribute -> getter** (a value written into the attribute via reflection is returned; for a `final`
+  attribute only the current value is compared) and **setter -> getter**. Subtests whose getter or setter
+  was not given are reported as "not tested". The cached default instance (`getObj()`) is not changed.
+* Sample values are generated for primitives, their wrappers, `String` and enums: five different values (so
+  hard-coded getters and setters ignoring their argument fail), plus `null` for reference types if no
+  primitive is involved. Other types need own sample values.
+* **Setter condition** (`Predicate`, e.g. `v -> v != null`): values that satisfy it must be stored; for other
+  values the setter must keep the old value or throw an exception. A condition that throws itself (e.g. a
+  `NullPointerException` for `null`) marks the value invalid. Only setters are checked; more complex rules
+  need a behavioural test of your own.
+* If a subtest fails, the test fails with one message about all three subtests:
+
+```text
+Getter/setter test for attribute price in class Car:
+✅ setter -> attribute: passed
+❌ attribute -> getter: attribute price has the value 2.5, but getPrice() returns 30000.0
+❌ setter -> getter: after setPrice(2.5), getPrice() yields 30000.0, expected: 2.5
+```
+
+* Wrong use (two getters, a method with two parameters, a condition without setter, no sample values for an
+  unsupported type) throws an `IllegalArgumentException`.
 
 ## Abstract classes and interfaces (Byte Buddy)
 
