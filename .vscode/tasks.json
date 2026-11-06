@@ -2,11 +2,26 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "publishToMavenLocal (levenshtein_name_deviation)",
+			"label": "Build and test (mvn verify)",
 			"type": "shell",
-			"command": "./gradlew",
+			"command": "./mvnw",
 			"args": [
-				"publishToMavenLocal"
+				"-B",
+				"verify"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Install framework to local Maven repository",
+			"type": "shell",
+			"command": "./mvnw",
+			"args": [
+				"-B",
+				"install",
+				"-pl",
+				"framework"
 			],
 			"isBackground": false,
 			"problemMatcher": [],

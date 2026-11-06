@@ -1,0 +1,43 @@
+# Ares 2 security policy of the example exercise.
+# Referenced by @Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/io/github/valentinherrmann/example/vehicles")
+# on every test class. The nearest @Policy wins; policies are never merged.
+thisPolicyFileCompliesToThePolicyVersion: 1
+regardingTheSupervisedCode:
+  # ArchUnit (static) + AspectJ (runtime, woven at compile time by aspectj-maven-plugin).
+  # Do not switch to *_INSTRUMENTATION with Ares 2.2.1: its Byte Buddy agent fails to transform
+  # student classes that declare records ("Failed to transform class ...; instrumentation cannot
+  # continue safely"), independent of the Java version.
+  theFollowingProgrammingLanguageConfigurationIsUsed: JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ
+  # The student package. It must not be a prefix of the framework or test packages.
+  theSupervisedCodeUsesTheFollowingPackage: "io.github.valentinherrmann.example.vehicles"
+  theMainClassInsideThisPackageIs: "Car"
+  # Exact fully qualified names of instructor-owned classes only (nested classes are covered via "$").
+  # These classes are exempt from all checks: never list a class students can edit, never a package name.
+  theFollowingClassesAreTestClasses:
+    - "io.github.valentinherrmann.example.tests.TestManager"
+    - "io.github.valentinherrmann.example.tests.TestAbstr"
+    - "io.github.valentinherrmann.example.tests.TestImpl"
+    - "io.github.valentinherrmann.example.tests.TestInterface"
+    - "io.github.valentinherrmann.example.tests.Constants"
+    - "io.github.valentinherrmann.example.tests.SecurityControlTest"
+    - "io.github.valentinherrmann.example.tests.TimeoutControlTest"
+    - "io.github.valentinherrmann.example.tests.wrappers.AbstrWrapper"
+    - "io.github.valentinherrmann.example.tests.wrappers.CarWrapper"
+    - "io.github.valentinherrmann.example.tests.wrappers.DrivableWrapper"
+  theFollowingResourceAccessesArePermitted:
+    # EXAMPLE ONLY: exactly one readable file, so that SecurityControlTest can prove that the runtime layer
+    # enforces (with no allowance at all, the static analysis rejects every file access up front).
+    # A real exam normally keeps this list empty - and has no SandboxControl class in the student code.
+    regardingFileSystemInteractions:
+      - onThisPathAndAllPathsBelow: "test/sandbox/allowed.txt"
+        readAllFiles: true
+        overwriteAllFiles: false
+        createAllFiles: false
+        executeAllFiles: false
+        deleteAllFiles: false
+    regardingNetworkConnections: [ ]
+    regardingCommandExecutions: [ ]
+    regardingThreadCreations: [ ]
+    regardingPackageImports: [ ]
+    # Not enforced by Ares 2.2.1 (Phobos stage not dispatched); deadlines come from @StrictTimeout.
+    regardingTimeouts: [ ]
