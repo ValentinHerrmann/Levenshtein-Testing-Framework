@@ -108,7 +108,7 @@ void testCarBehavior() {
 
 ## Architecture Overview
 
-![ARCHITECTURE](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/ARCHITECTURE.puml)
+![ARCHITECTURE](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/puml/ARCHITECTURE.puml)
 
 
 ### Package Structure
@@ -618,11 +618,11 @@ car.verifyInterfaces();   // Checks implements Driveable
 
 ### Core Framework (levenshtein package)
 
-![Levenshtein Framework](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/io.github.valentinherrmann.levenshtein.puml)
+![Levenshtein Framework](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/puml/io.github.valentinherrmann.levenshtein.puml)
 
 
 ### Test Implementation (wrappers package)
-![Wrappers](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/develop/puml/io.github.valentinherrmann.wrappers.puml)
+![Wrappers](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/ValentinHerrmann/Levenshtein-Testing-Framework/refs/heads/main/puml/io.github.valentinherrmann.wrappers.puml)
 
 
 ---
