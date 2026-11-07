@@ -1,6 +1,6 @@
 # Writing Tests
 
-[README](../README.md) · [Quick Start](quick-start.md) · **Writing Tests** · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
+[README](../README.md) · [Quick Start](quick-start.md) · **Writing Tests** · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
 
 ## Wrapper cheat sheet
 

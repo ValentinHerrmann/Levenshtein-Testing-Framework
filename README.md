@@ -53,6 +53,7 @@ results.
 | [Architecture](docs/architecture.md) | Module overview and class diagrams |
 | [Versions and Migrating from 1000.x](docs/migration.md) | Version history and breaking changes in 2000.0.0 |
 | [FAQ & Troubleshooting](docs/faq.md) | Common problems and known limitations |
+| [Releasing](docs/releasing.md) | Step checklist for publishing a release to Maven Central |
 
 ## Development
 
@@ -81,7 +82,8 @@ Releases are published to Maven Central by the `Publish` workflow on a GitHub re
 release artifacts for every change. A version on Maven Central can never be changed, so publish a release
 candidate first (e.g. `2026.11.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
 version: it runs both templates against Maven Central. Afterwards, bump the `<version>` in `framework/pom.xml`
-to the next SNAPSHOT; it is the only place that holds the framework version.
+to the next SNAPSHOT; it is the only place that holds the framework version. The full step list is the
+[release checklist](docs/releasing.md).
 
 ## References
 

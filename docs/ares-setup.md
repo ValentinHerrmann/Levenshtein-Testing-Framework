@@ -1,6 +1,6 @@
 # Ares 2 Setup in Detail
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · **Ares 2 Setup** · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md)
+[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · **Ares 2 Setup** · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
 
 The templates [`example-gradle/build.gradle`](../example-gradle/build.gradle) (Gradle) and
 [`example-maven/pom.xml`](../example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything

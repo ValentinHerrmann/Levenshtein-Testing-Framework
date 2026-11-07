@@ -1,6 +1,6 @@
 # Architecture
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · **Architecture** · [Migration](migration.md) · [FAQ](faq.md)
+[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · **Architecture** · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
 
 ```mermaid
 flowchart TB

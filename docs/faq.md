@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · **FAQ**
+[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · **FAQ** · [Releasing](releasing.md)
 
 **Does it work with Gradle?** Yes, and Gradle is the primary path of the [Quick Start](quick-start.md). The
 template is [`example-gradle/`](../example-gradle) and CI runs it next to the Maven build. The framework itself
