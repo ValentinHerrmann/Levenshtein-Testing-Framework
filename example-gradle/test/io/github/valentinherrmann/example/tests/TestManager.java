@@ -56,7 +56,7 @@ import java.util.List;
  * import static io.github.valentinherrmann.example.tests.TestManager.*;
  *
  * public static void testGetManufacturer() {
- *     vehicleAbstr().testGetter(
+ *     vehicleAbstr().testGettersSetters(
  *         vehicleAbstr().manufacturer(),
  *         vehicleAbstr().getManufacturer()
  *     );
@@ -139,7 +139,7 @@ import java.util.List;
  *   <li>{@link #testImplCalculateCost()} - Abstract method implementation</li>
  *   <li>{@link #testImplCalculateCostWithYears()} - Method overloading</li>
  *   <li>{@link #testImplGetInfo()} - Method overriding</li>
- *   <li>{@link #testImplGetPrice()} - Getter method</li>
+ *   <li>{@link #testImplPriceGettersSetters()} - Getter and setter methods</li>
  * </ul>
  *
  * <h4>Interface Tests (1 test)</h4>
@@ -194,9 +194,13 @@ import java.util.List;
  * assertThat(cost).isEqualTo(expectedCost);
  * }</pre>
  *
- * <h4>Testing Getters:</h4>
+ * <h4>Testing Getters and Setters:</h4>
  * <pre>{@code
- * carImpl().testGetter(carImpl().price(), carImpl().getPrice());
+ * carImpl().testGettersSetters(
+ *     carImpl().price(),
+ *     carImpl().getPrice(),
+ *     carImpl().setPrice()
+ * );
  * }</pre>
  *
  * @see io.github.valentinherrmann.example.tests.wrappers.CarWrapper
@@ -409,7 +413,6 @@ public class TestManager {
      * <ul>
      *   <li>Constructor accepts manufacturer parameter</li>
      *   <li>Manufacturer value is stored in the attribute</li>
-     *   <li>Value can be retrieved via getter method</li>
      * </ul>
      *
      * <p><b>Example:</b> {@code new AbstractVehicle("Toyota", 2022)} should set manufacturer to "Toyota".</p>
@@ -418,7 +421,12 @@ public class TestManager {
      */
     @Test
     void testAbstrConstructorManufacturer() {
-        TestAbstr.testConstructorManufacturer();
+        try {
+            TestAbstr.testConstructorManufacturer();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -435,33 +443,48 @@ public class TestManager {
      */
     @Test
     void testAbstrConstructorYear() {
-        TestAbstr.testConstructorYear();
+        try {
+            TestAbstr.testConstructorYear();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
      * Tests that the getManufacturer() method returns the actual manufacturer attribute value.
      *
-     * <p>Uses {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGetter} to verify
+     * <p>Uses {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGettersSetters} to verify
      * getter-attribute consistency.</p>
      *
      * @see TestAbstr#testGetManufacturer()
      */
     @Test
     void testAbstrGetManufacturer() {
-        TestAbstr.testGetManufacturer();
+        try {
+            TestAbstr.testGetManufacturer();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
      * Tests that the getYear() method returns the actual year attribute value.
      *
-     * <p>Uses {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGetter} to verify
+     * <p>Uses {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGettersSetters} to verify
      * getter-attribute consistency.</p>
      *
      * @see TestAbstr#testGetYear()
      */
     @Test
     void testAbstrGetYear() {
-        TestAbstr.testGetYear();
+        try {
+            TestAbstr.testGetYear();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -474,7 +497,12 @@ public class TestManager {
      */
     @Test
     void testAbstrGetInfo() {
-        TestAbstr.testGetInfo();
+        try {
+            TestAbstr.testGetInfo();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     // ============================================================================
@@ -497,7 +525,12 @@ public class TestManager {
      */
     @Test
     void testImplConstructorFull() {
-        TestImpl.testConstructorFull();
+        try {
+            TestImpl.testConstructorFull();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -512,7 +545,12 @@ public class TestManager {
      */
     @Test
     void testImplConstructorDefault() {
-        TestImpl.testConstructorDefault();
+        try {
+            TestImpl.testConstructorDefault();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -526,7 +564,12 @@ public class TestManager {
      */
     @Test
     void testImplStart() {
-        TestImpl.testStart();
+        try {
+            TestImpl.testStart();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -538,7 +581,12 @@ public class TestManager {
      */
     @Test
     void testImplGetSpeed() {
-        TestImpl.testGetSpeed();
+        try {
+            TestImpl.testGetSpeed();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -553,7 +601,12 @@ public class TestManager {
      */
     @Test
     void testImplCalculateCost() {
-        TestImpl.testCalculateCost();
+        try {
+            TestImpl.testCalculateCost();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -569,7 +622,12 @@ public class TestManager {
      */
     @Test
     void testImplCalculateCostWithYears() {
-        TestImpl.testCalculateCostWithYears();
+        try {
+            TestImpl.testCalculateCostWithYears();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -584,19 +642,12 @@ public class TestManager {
      */
     @Test
     void testImplGetInfo() {
-        TestImpl.testGetInfo();
-    }
-
-    /**
-     * Tests the getPrice() method.
-     *
-     * <p>Verifies that the getter returns the actual price attribute value.</p>
-     *
-     * @see TestImpl#testGetPrice()
-     */
-    @Test
-    void testImplGetPrice() {
-        TestImpl.testGetPrice();
+        try {
+            TestImpl.testGetInfo();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     /**
@@ -608,7 +659,8 @@ public class TestManager {
     void testImplPriceGettersSetters() {
         try {
             TestImpl.testPriceGettersSetters();
-        } catch (AssertionError e) {
+        }
+        catch (AssertionError e) {
             fail(e.getMessage());
         }
     }
@@ -629,7 +681,12 @@ public class TestManager {
      */
     @Test
     void testInterfaceMaxSpeedConstant() {
-        TestInterface.testMaxSpeedConstant();
+        try {
+            TestInterface.testMaxSpeedConstant();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 }
 

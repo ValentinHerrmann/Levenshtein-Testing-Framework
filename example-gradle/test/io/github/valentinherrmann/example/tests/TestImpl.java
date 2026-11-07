@@ -44,7 +44,7 @@ import org.assertj.core.api.Assertions;
  *
  * <h3>2. Test Coverage for Car Implementation</h3>
  *
- * <p>This class provides 9 tests covering all OOP concepts:</p>
+ * <p>This class provides 8 tests covering all OOP concepts:</p>
  *
  * <h4>Constructor Testing (2 tests)</h4>
  * <ul>
@@ -65,9 +65,8 @@ import org.assertj.core.api.Assertions;
  *   <li>{@link #testGetInfo()} - <b>Method overriding</b> (overrides concrete method)</li>
  * </ul>
  *
- * <h4>Getter/Setter Testing (2 tests)</h4>
+ * <h4>Getter/Setter Testing (1 test)</h4>
  * <ul>
- *   <li>{@link #testGetPrice()} - Simple getter test using {@code testGetter()}</li>
  *   <li>{@link #testPriceGettersSetters()} - Getter and setter with a setter condition using {@code testGettersSetters()}</li>
  * </ul>
  *
@@ -316,10 +315,13 @@ public class TestImpl {
     
     /**
      * Tests getSpeed() method - another interface implementation.
-     * Uses {@code testGetter()} for getter-attribute consistency check.
+     * Uses {@code testGettersSetters()} for getter-attribute consistency check.
      */
     public static void testGetSpeed() {
-        carImpl().testGetter(carImpl().speed(), carImpl().getSpeed());
+        carImpl().testGettersSetters(
+            carImpl().speed(),
+            carImpl().getSpeed()
+        );
     }
 
     /**
@@ -392,23 +394,15 @@ public class TestImpl {
     }
     
     /**
-     * Tests getPrice() method using the testGetter() utility.
-     * Verifies getter returns the actual price attribute value.
-     */
-    public static void testGetPrice() {
-        carImpl().testGetter(carImpl().price(), carImpl().getPrice());
-    }
-
-    /**
      * Tests getPrice() and setPrice(double) together with the testGettersSetters() utility:
      * setter -> attribute, attribute -> getter and setter -> getter, each with several values.
      * The condition demands that setPrice ignores (or rejects with an exception) negative prices.
      */
     public static void testPriceGettersSetters() {
         carImpl().testGettersSetters(
-            carImpl().price(), 
+            carImpl().price(),
             (Double price) -> price >= 0,
-            carImpl().getPrice(), 
+            carImpl().getPrice(),
             carImpl().setPrice()
         );
     }

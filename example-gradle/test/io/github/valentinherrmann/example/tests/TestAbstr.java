@@ -68,22 +68,20 @@ import org.assertj.core.api.Assertions;
  * Object obj = vehicleAbstr().constructor().invoke("Toyota", 2022);
  *
  * // Verify attribute was set correctly
- * var manufacturer = vehicleAbstr().getManufacturer().invokeOnSpecificObject(obj);
+ * var manufacturer = vehicleAbstr().manufacturer().getValue(obj);
  * assertThat(manufacturer).isEqualTo("Toyota");
  * }</pre>
  *
- * <h4>Pattern B: Testing Getters with testGetter()</h4>
+ * <h4>Pattern B: Testing Getters and Setters with testGettersSetters()</h4>
  * <pre>{@code
- * // This helper method verifies getter-attribute consistency:
- * vehicleAbstr().testGetter(
+ * // This helper method verifies getter/setter-attribute consistency:
+ * vehicleAbstr().testGettersSetters(
  *     vehicleAbstr().manufacturer(),      // AttributeWrapper
- *     vehicleAbstr().getManufacturer()    // MethodWrapper
+ *     vehicleAbstr().getManufacturer()    // MethodWrapper(s): getter and/or setter
  * );
  *
- * // Internally, it:
- * // 1. Gets attribute value directly
- * // 2. Calls getter method
- * // 3. Asserts they match
+ * // Internally, it runs every applicable subtest with several sample values:
+ * // setter -> attribute, attribute -> getter and setter -> getter
  * }</pre>
  *
  * <h4>Pattern C: Testing Business Logic Methods</h4>
@@ -160,10 +158,10 @@ public class TestAbstr {
      * // Step 1: Create instance via ByteBuddy
      * Object obj = vehicleAbstr().constructor().invoke("Toyota", 2022);
      *
-     * // Step 2: Call getter on the specific instance
+     * // Step 2: Read the attribute of the specific instance
      * var manufacturer = vehicleAbstr()
-     *     .getManufacturer()                    // Get MethodWrapper
-     *     .invokeOnSpecificObject(obj);         // Invoke on our instance
+     *     .manufacturer()                       // Get AttributeWrapper
+     *     .getValue(obj);                       // Read from our instance
      *
      * // Step 3: Cast and verify
      * var manufacturerStr = safeCast(manufacturer, manufacturerType());
@@ -179,7 +177,7 @@ public class TestAbstr {
         try {
             Object obj = vehicleAbstr().constructor().invoke("Toyota", 2022);
 
-            var manufacturer = safeCast(vehicleAbstr().getManufacturer().invokeOnSpecificObject(obj), manufacturerType());
+            var manufacturer = safeCast(vehicleAbstr().manufacturer().getValue(obj), manufacturerType());
             Assertions.assertThat(manufacturer)
                 .withFailMessage("Value of attribute %s must be equal to the value passed in constructor.",
                                vehicleAbstr().manufacturer().getExpectedName())
@@ -228,56 +226,53 @@ public class TestAbstr {
     /**
      * Tests that the getManufacturer() method returns the same value as the manufacturer attribute.
      *
-     * <p><b>The testGetter() Utility:</b></p>
-     * <p>This test uses the {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGetter} helper method,
+     * <p><b>The testGettersSetters() Utility:</b></p>
+     * <p>This test uses the {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGettersSetters} helper method,
      * which is one of the most convenient features of the framework.</p>
      *
-     * <p><b>What testGetter() does:</b></p>
+     * <p><b>What testGettersSetters() does:</b></p>
      * <pre>{@code
-     * vehicleAbstr().testGetter(
+     * vehicleAbstr().testGettersSetters(
      *     vehicleAbstr().manufacturer(),      // AttributeWrapper - the field
-     *     vehicleAbstr().getManufacturer()    // MethodWrapper - the getter
+     *     vehicleAbstr().getManufacturer()    // MethodWrapper(s) - getter and/or setter
      * );
      *
-     * // Internally performs:
-     * // 1. Object instance = getObj();
-     * // 2. Object attributeValue = manufacturer.getValue(instance);
-     * // 3. Object getterValue = getManufacturer().invoke();
-     * // 4. assertThat(attributeValue).isEqualTo(getterValue);
+     * // Internally runs every applicable subtest with several sample values:
+     * // 1. setter -> attribute   (only if a setter is passed)
+     * // 2. attribute -> getter   (only if a getter is passed)
+     * // 3. setter -> getter      (only if both are passed)
      * }</pre>
      *
-     * <p><b>Why use testGetter():</b></p>
+     * <p><b>Why use testGettersSetters():</b></p>
      * <ul>
-     *   <li>Automatically creates and uses the same instance for both checks</li>
+     *   <li>Several sample values catch hard-coded getters and setters</li>
      *   <li>Handles type casting automatically</li>
-     *   <li>Provides clear error messages if values don't match</li>
+     *   <li>Reports all failing subtests together in one message</li>
      *   <li>Reduces boilerplate code</li>
      * </ul>
      *
-     * <p><b>Example error message:</b></p>
-     * <pre>
-     * Getter 'getManufacturer()' does not return the attribute's value.
-     * Expected: BMW
-     * Actual: toyota
-     * </pre>
-     *
-     * <p><b>Best Practice:</b> Use {@code testGetter()} for all simple getter tests.
-     * Only write custom tests when getters have additional logic beyond returning the attribute.</p>
+     * <p><b>Best Practice:</b> Use {@code testGettersSetters()} for all getter and setter tests.</p>
      */
     public static void testGetManufacturer() {
-        vehicleAbstr().testGetter(vehicleAbstr().manufacturer(), vehicleAbstr().getManufacturer());
+        vehicleAbstr().testGettersSetters(
+            vehicleAbstr().manufacturer(),
+            vehicleAbstr().getManufacturer()
+        );
     }
     
     /**
      * Tests that the getYear() method returns the same value as the year attribute.
      *
-     * <p>Uses the {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGetter} utility
+     * <p>Uses the {@link io.github.valentinherrmann.levenshtein.ClassWrapper#testGettersSetters} utility
      * method for automatic getter-attribute consistency verification.</p>
      *
-     * @see #testGetManufacturer() for detailed explanation of testGetter()
+     * @see #testGetManufacturer() for detailed explanation of testGettersSetters()
      */
     public static void testGetYear() {
-        vehicleAbstr().testGetter(vehicleAbstr().year(), vehicleAbstr().getYear());
+        vehicleAbstr().testGettersSetters(
+            vehicleAbstr().year(),
+            vehicleAbstr().getYear()
+        );
     }
     
     /**

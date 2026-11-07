@@ -172,7 +172,7 @@ class CarTest {
 
     @Test
     void getPriceReturnsPrice() {
-        car.testGetter(car.price(), car.getPrice());
+        car.testGettersSetters(car.price(), car.getPrice());
     }
 }
 ```
