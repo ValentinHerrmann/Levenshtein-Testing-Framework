@@ -35,3 +35,5 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 * A wrong number of arguments for `invoke(...)`, `ConstructorWrapper.invoke(...)` or `getObj(forceNew,
   constructorWrapper, args...)` is now an `IllegalArgumentException` (an error in the test) instead of a
   failed test. Pass a single array argument as `(Object) array`.
+* New: `ClassWrapper.newObjWithoutConstructor()`, `newObjOverriding(...)` and `mock()` keep tests
+  independent of other student members (#30). See [Independent tests](writing-tests.md#independent-tests).

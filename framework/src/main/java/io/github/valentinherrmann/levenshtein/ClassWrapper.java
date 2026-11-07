@@ -15,8 +15,10 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -73,6 +75,11 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * Cached Byte Buddy subclass for abstract classes and interfaces.
      */
     private Class<?> dynamicSubclass;
+
+    /**
+     * Cached Byte Buddy subclass for {@link Mock}s (no constructors, every method intercepted).
+     */
+    private MockClasses.Generated mockSubclass;
 
     /**
      * Wrapper for the expected and actual superclass.
@@ -524,6 +531,84 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return fail(Invocations.withArguments(
                     Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), args), e);
         }
+    }
+
+    /**
+     * Starts a {@link Mock} of the class: an object whose methods the test can replace and whose calls are
+     * recorded, created without running a constructor of the class. Use it to keep tests independent, e.g. when
+     * the method under test calls another student method, or needs an object of another student class.
+     * <pre>{@code
+     * Mock<?> guitarist = guitaristWrapper.mock()
+     *         .override(guitaristWrapper.calculateLoudness, args -> (int) args[0] * 7);
+     * Object g = guitarist.obj();
+     * }</pre>
+     * A missing class fails with the usual message; a {@code final} class, record, enum or sealed class fails with
+     * a readable message.
+     *
+     * @return a new mock
+     * @see #newObjOverriding(Map)
+     * @see #newObjWithoutConstructor()
+     */
+    public Mock<T> mock() {
+        return new Mock<>(this);
+    }
+
+    /**
+     * Creates an object of a subclass of the wrapped class in which each given method returns the result of its
+     * function. No constructor of the class runs, so attributes keep their default values. Methods that are not
+     * overridden run the student's code. Same as {@code mock().override(...)...obj()}; use {@link #mock()} to
+     * check the calls as well.
+     *
+     * @param overrides the methods to override (of this class, its superclasses or interfaces) and their functions,
+     *                  which get the arguments and return the result
+     * @return the new object
+     * @see Mock#override(MethodWrapper, Function)
+     */
+    public Object newObjOverriding(Map<MethodWrapper<?, ?>, Function<Object[], Object>> overrides) {
+        Mock<T> mock = mock();
+        overrides.forEach(mock::override);
+        return mock.obj();
+    }
+
+    /**
+     * Creates an object of the wrapped class without running any of its constructors (attributes keep their
+     * default values {@code 0}, {@code false}, {@code null}; field initializers do not run either). A missing or
+     * broken constructor then cannot fail the test. Concrete classes (also {@code final} ones) are instantiated
+     * directly; abstract classes and interfaces through the subclass of a {@link Mock} without overrides.
+     * The cached default instance ({@link #getObj()}) is not changed.
+     *
+     * @return the new object
+     */
+    public Object newObjWithoutConstructor() {
+        verifyExistence(true);
+        Class<T> c = getClazz();
+        if (c.isEnum()) {
+            return fail(Messages.MOCK_ENUM_NOT_INSTANTIABLE.format(name.expected));
+        }
+        if (c.isInterface() || Modifier.isAbstract(c.getModifiers())) {
+            return mock().obj();
+        }
+        try {
+            return MockClasses.allocate(c);
+        }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(name.expected) + "\n" + Invocations.describe(e), e);
+        }
+    }
+
+    /**
+     * The generated subclass for mocks of this class, created once.
+     */
+    MockClasses.Generated mockSubclass() {
+        if (mockSubclass == null) {
+            try {
+                mockSubclass = MockClasses.subclass(getClazz());
+            }
+            catch (RuntimeException | LinkageError e) {
+                return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
+            }
+        }
+        return mockSubclass;
     }
 
     /**

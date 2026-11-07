@@ -205,4 +205,52 @@ public final class Fixtures {
             VALUE = 1;
         }
     }
+
+    /** A class whose constructor must never run in the mock tests (#30). */
+    public static class Guitarist {
+        public static int constructed;
+        private int factor = 10;
+
+        public Guitarist() {
+            constructed++;
+            throw new IllegalStateException("broken constructor");
+        }
+
+        int calculateLoudness(int volume) { return volume * 10; } // package-private on purpose
+        public String getName() { return "real"; }
+        public int getFactor() { return factor; }
+        public double calc(int x) { return x; }
+        public double calc(double x) { return x * 2; }
+        public int calculateVolumme() { return 1; } // misspelt "calculateVolume"
+        public long louder(long volume) { return volume; } // long instead of the expected int
+        public final int tune() { return 440; }
+        public static int count() { return 0; }
+        public void fail() { throw new IllegalStateException("student bug"); }
+    }
+
+    /** Calls a method of another student class (#30, SE01E04). */
+    public static class Drummer {
+        private Guitarist guitarist;
+
+        public Drummer() { throw new IllegalStateException("broken constructor"); }
+
+        public int calculateLoudness(int volume, int crowdNoise) { return guitarist.calculateLoudness(volume) + crowdNoise; }
+        public void setGuitarist(Guitarist guitarist) { this.guitarist = guitarist; }
+    }
+
+    /** Calls one of its own methods (#30, SE01E03). */
+    public static class Stage {
+        private boolean[] spotlights;
+
+        public int getNumberOfSpotlights() { return spotlights.length; }
+        public boolean isShowReady() { return getNumberOfSpotlights() >= 2; }
+    }
+
+    /** Inherited methods (#30). */
+    public static class Musician {
+        public String instrument() { return "nothing"; }
+        public String greet() { return "I play " + instrument(); }
+    }
+
+    public static class Bassist extends Musician { }
 }

@@ -360,6 +360,14 @@ public class MethodWrapper<T, R> extends Wrapper<T>
         return method == null ? null : method.getReturnType();
     }
 
+    /**
+     * @return the student's method, or {@code null} if it is missing
+     */
+    Method actualMethod() {
+        ensureChecked();
+        return method;
+    }
+
     private static String typeNames(Class<?>[] types) {
         return Arrays.stream(types).map(Class::getSimpleName).collect(Collectors.joining(", "));
     }

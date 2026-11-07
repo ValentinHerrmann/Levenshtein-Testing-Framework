@@ -177,6 +177,66 @@ public enum Messages {
             "Creating instances of a subclass of %s failed. Constructor may not be implemented correctly. This might also cause subsequent tests to fail. Error: %s"),
 
     // -------------------------------------------------------------------------
+    // ClassWrapper – mocks (mock(), newObjOverriding, newObjWithoutConstructor)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Shown when a class cannot be subclassed for a mock.
+     * Placeholders: (1) class name, (2) reason (e.g. {@code final}, {@code record}, {@code enum}, {@code sealed}).
+     */
+    MOCK_CLASS_NOT_OVERRIDABLE(
+            "%s: kann nicht überschrieben werden (%s)",
+            "%s: cannot be overridden (%s)"),
+
+    /**
+     * Shown when an enum should be created without a constructor.
+     * Placeholder: (1) class name.
+     */
+    MOCK_ENUM_NOT_INSTANTIABLE(
+            "%s: von einem enum können keine Objekte erzeugt werden",
+            "%s: objects of an enum cannot be created"),
+
+    /**
+     * Shown when a method cannot be overridden in a mock.
+     * Placeholders: (1) method signature, (2) class name, (3) reason (e.g. {@code final}, {@code static}).
+     */
+    MOCK_METHOD_NOT_OVERRIDABLE(
+            "%s in Klasse %s: kann nicht überschrieben werden (%s)",
+            "%s in class %s: cannot be overridden (%s)"),
+
+    /**
+     * Shown when a method wrapper of another class is used for a mock (e.g. the class does not extend it).
+     * Placeholders: (1) method signature, (2) class of the method, (3) class of the mock.
+     */
+    MOCK_METHOD_NOT_IN_CLASS(
+            "%s aus Klasse %s gehört nicht zur Klasse %s und kann dort nicht überschrieben werden",
+            "%s of class %s does not belong to class %s and cannot be overridden there"),
+
+    /**
+     * Shown when student code calls an abstract method that the test did not override.
+     * Placeholders: (1) method name, (2) class name.
+     */
+    MOCK_ABSTRACT_NOT_OVERRIDDEN(
+            "Die abstrakte Methode %s in Klasse %s wurde aufgerufen, aber vom Test nicht überschrieben.",
+            "The abstract method %s in class %s was called, but the test does not override it."),
+
+    /**
+     * Shown when a method was not called as often as expected.
+     * Placeholders: (1) method signature, (2) class name, (3) expected count, (4) actual count.
+     */
+    MOCK_CALL_COUNT(
+            "%s in Klasse %s sollte %d-mal aufgerufen werden, wurde aber %d-mal aufgerufen.",
+            "%s in class %s should be called %d time(s), but was called %d time(s)."),
+
+    /**
+     * Appended on its own line to {@link #MOCK_CALL_COUNT} if there were calls.
+     * Placeholder: (1) the arguments of each call, e.g. {@code (5), (7)}.
+     */
+    MOCK_RECORDED_CALLS(
+            "Aufrufe: %s",
+            "Calls: %s"),
+
+    // -------------------------------------------------------------------------
     // ClassWrapper – testGettersSetters
     // -------------------------------------------------------------------------
 

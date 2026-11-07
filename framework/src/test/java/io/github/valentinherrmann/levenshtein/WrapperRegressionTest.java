@@ -12,6 +12,7 @@ import de.tum.cit.ase.ares.api.jupiter.Public;
 import io.github.valentinherrmann.levenshtein.fixtures.Fixtures;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DynamicTest;
@@ -980,6 +981,194 @@ class WrapperRegressionTest {
             assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, StrictTimeout.class))
                     .hasValueSatisfying(timeout -> assertThat(timeout.value()).isEqualTo(5));
             assertThat(AnnotationSupport.findAnnotation(HiddenProbe.class, MirrorOutput.class)).isPresent();
+        }
+    }
+
+    @Nested
+    class Mocks { // #30
+
+        private final W<Object> guitarist = nested("Guitarist", "public static");
+        private final MethodWrapper<Object, Integer> loudness =
+                new MethodWrapper<>(guitarist, "calculateLoudness", int.class, new Class<?>[]{int.class});
+        private final MethodWrapper<Object, String> getName = new MethodWrapper<>(guitarist, "getName", String.class, "public");
+        private final MethodWrapper<Object, Integer> getFactor = new MethodWrapper<>(guitarist, "getFactor", int.class, "public");
+        private final MethodWrapper<Object, Double> calcInt =
+                new MethodWrapper<>(guitarist, "calc", double.class, new Class<?>[]{int.class}, "public");
+        private final MethodWrapper<Object, Double> calcDouble =
+                new MethodWrapper<>(guitarist, "calc", double.class, new Class<?>[]{double.class}, "public");
+
+        private final W<Object> drummer = nested("Drummer", "public static");
+        private final MethodWrapper<Object, Integer> drummerLoudness =
+                new MethodWrapper<>(drummer, "calculateLoudness", int.class, new Class<?>[]{int.class, int.class}, "public");
+        private final MethodWrapper<Object, Void> setGuitarist =
+                new MethodWrapper<>(drummer, "setGuitarist", void.class, new Class<?>[]{Fixtures.Guitarist.class}, "public");
+
+        private String failure(Runnable call) {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            return org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class, call::run).getMessage();
+        }
+
+        @Test
+        void noConstructorRuns() {
+            Fixtures.Guitarist.constructed = 0;
+            Object g = guitarist.newObjWithoutConstructor();
+            assertThat(g).isExactlyInstanceOf(Fixtures.Guitarist.class);
+            assertThat(getFactor.invokeOnSpecificObject(g)).isZero(); // field initializers do not run either
+            Object mocked = guitarist.newObjOverriding(Map.of(getName, args -> "mock"));
+            assertThat(mocked).isInstanceOf(Fixtures.Guitarist.class);
+            assertThat(getName.invokeOnSpecificObject(mocked)).isEqualTo("mock");
+            assertThat(Fixtures.Guitarist.constructed).isZero();
+        }
+
+        @Test
+        void overrideIsCalledByOtherStudentClass() { // SE01E04, package-private method
+            Mock<Object> g = guitarist.mock().override(loudness, args -> (int) args[0] * 7);
+            Object d = drummer.newObjWithoutConstructor();
+            setGuitarist.invokeOnSpecificObject(d, g.obj());
+            assertThat(drummerLoudness.invokeOnSpecificObject(d, 5, 3)).isEqualTo(38);
+            g.assertCalled(loudness, 1);
+            assertThat(g.calls(loudness)).singleElement().satisfies(args -> assertThat(args).containsExactly(5));
+        }
+
+        @Test
+        void selfCallIsIntercepted() { // SE01E03
+            W<Object> stage = nested("Stage", "public static");
+            MethodWrapper<Object, Integer> count = new MethodWrapper<>(stage, "getNumberOfSpotlights", int.class, "public");
+            MethodWrapper<Object, Boolean> ready = new MethodWrapper<>(stage, "isShowReady", boolean.class, "public");
+            Object s = stage.newObjOverriding(Map.of(count, args -> 3));
+            assertThat(ready.invokeOnSpecificObject(s)).isTrue();
+            Object t = stage.newObjOverriding(Map.of(count, args -> 1));
+            assertThat(ready.invokeOnSpecificObject(t)).isFalse();
+        }
+
+        @Test
+        void inheritedMethodIsOverridden() {
+            W<Object> musician = nested("Musician", "public static");
+            W<Object> bassist = new W<>("Fixtures$Bassist", musician, null, "public", "static");
+            MethodWrapper<Object, String> instrument = new MethodWrapper<>(musician, "instrument", String.class, "public");
+            MethodWrapper<Object, String> greet = new MethodWrapper<>(musician, "greet", String.class, "public");
+            Mock<Object> b = bassist.mock().returning(instrument, "bass");
+            assertThat(b.obj()).isInstanceOf(Fixtures.Bassist.class);
+            assertThat(greet.invokeOnSpecificObject(b.obj())).isEqualTo("I play bass");
+            b.assertCalled(greet, 1);
+            b.assertCalled(instrument, 1);
+        }
+
+        @Test
+        void onlyTheMatchingOverloadIsOverridden() {
+            Object g = guitarist.newObjOverriding(Map.of(calcInt, args -> 7));
+            assertThat(calcInt.invokeOnSpecificObject(g, 1)).isEqualTo(7.0); // Integer result converted to double
+            assertThat(calcDouble.invokeOnSpecificObject(g, 1.5)).isEqualTo(3.0);
+        }
+
+        @Test
+        void methodFoundUnderDeviatingNameIsOverridden() {
+            MethodWrapper<Object, Integer> volume = new MethodWrapper<>(guitarist, "calculateVolume", int.class, "public");
+            assertThat(volume.getActualName()).isEqualTo("calculateVolumme");
+            Object g = guitarist.newObjOverriding(Map.of(volume, args -> 99));
+            assertThat(volume.invokeOnSpecificObject(g)).isEqualTo(99);
+        }
+
+        @Test
+        void argumentsAndResultAreConverted() {
+            MethodWrapper<Object, Integer> louder =
+                    new MethodWrapper<>(guitarist, "louder", int.class, new Class<?>[]{int.class}, "public");
+            Mock<Object> g = guitarist.mock().override(louder, args -> (Integer) args[0] + 1); // student: long louder(long)
+            assertThat(louder.invokeOnSpecificObject(g.obj(), 4)).isEqualTo(5);
+            assertThat(g.calls(louder).get(0)).containsExactly(4);
+        }
+
+        @Test
+        void notOverridableIsReportedReadably() {
+            MethodWrapper<Object, Integer> tune = new MethodWrapper<>(guitarist, "tune", int.class, "public", "final");
+            assertThat(failure(() -> guitarist.mock().override(tune, args -> 1)))
+                    .isEqualTo("public final int tune() in class Fixtures$Guitarist: cannot be overridden (final)");
+            MethodWrapper<Object, Integer> count = new MethodWrapper<>(guitarist, "count", int.class, "public", "static");
+            assertThat(failure(() -> guitarist.mock().override(count, args -> 1))).endsWith("cannot be overridden (static)");
+            assertThat(failure(() -> nested("FinalCar", "public static final").mock()))
+                    .isEqualTo("Fixtures$FinalCar: cannot be overridden (final)");
+            assertThat(failure(() -> nested("Point", "public static final").mock())).endsWith("(record)");
+            assertThat(failure(() -> nested("Color", "public static final").mock())).endsWith("(enum)");
+            assertThat(failure(() -> nested("Color", "public static final").newObjWithoutConstructor()))
+                    .contains("objects of an enum cannot be created");
+            assertThat(failure(() -> drummer.mock().override(getName, args -> "x")))
+                    .contains("does not belong to class Fixtures$Drummer");
+        }
+
+        @Test
+        void missingMethodFailsWithTheUsualMessage() {
+            MethodWrapper<Object, Integer> ghost = new MethodWrapper<>(guitarist, "playSolo", int.class, "public");
+            assertThat(failure(() -> guitarist.mock().override(ghost, args -> 1))).contains("is not implemented as expected");
+        }
+
+        @Test
+        void assertCalledShowsTheRecordedCalls() {
+            Mock<Object> g = guitarist.mock().override(loudness, args -> 0);
+            loudness.invokeOnSpecificObject(g.obj(), 5);
+            assertThat(failure(() -> g.assertCalled(loudness, 2, () -> "Drummer.calculateLoudness(5, 3)")))
+                    .isEqualTo("Drummer.calculateLoudness(5, 3)\n"
+                            + "int calculateLoudness(int) in class Fixtures$Guitarist should be called 2 time(s),"
+                            + " but was called 1 time(s).\nCalls: (5)");
+            assertThat(failure(() -> g.assertNotCalled(loudness))).contains("should be called 0 time(s)");
+            g.resetCalls();
+            g.assertNotCalled(loudness);
+        }
+
+        @Test
+        void othersReturnDefaults() {
+            Mock<Object> g = guitarist.mock().othersReturnDefaults().returning(calcInt, 1.5);
+            assertThat(getName.invokeOnSpecificObject(g.obj())).isNull();
+            assertThat(calcDouble.invokeOnSpecificObject(g.obj(), 4.0)).isEqualTo(0.0);
+            assertThat(calcInt.invokeOnSpecificObject(g.obj(), 4)).isEqualTo(1.5);
+            g.assertCalled(getName, 1);
+        }
+
+        @Test
+        void eachMockHasItsOwnBehaviourOnOneGeneratedClass() {
+            Object a = guitarist.newObjOverriding(Map.of(getName, args -> "a"));
+            Object b = guitarist.newObjOverriding(Map.of(getName, args -> "b"));
+            assertThat(a.getClass()).isSameAs(b.getClass());
+            assertThat(getName.invokeOnSpecificObject(a)).isEqualTo("a");
+            assertThat(getName.invokeOnSpecificObject(b)).isEqualTo("b");
+        }
+
+        @Test
+        void studentExceptionsAreReportedAsUsual() {
+            MethodWrapper<Object, Void> fail = new MethodWrapper<>(guitarist, "fail", void.class, "public");
+            Object g = guitarist.mock().obj();
+            assertThat(failure(() -> fail.invokeOnSpecificObject(g))).contains("IllegalStateException: student bug");
+        }
+
+        @Test
+        void nullForAPrimitiveResultIsATestError() {
+            Object g = guitarist.newObjOverriding(Map.of(getFactor, args -> null));
+            // thrown inside the call, so reported like any other exception of the call, with the reason
+            assertThat(failure(() -> getFactor.invokeOnSpecificObject(g)))
+                    .contains("IllegalStateException: The override of public int getFactor() returned null,"
+                            + " but the method returns int.");
+        }
+
+        @Test
+        void withoutConstructorForFinalAbstractAndInterface() {
+            W<Object> finalCar = nested("FinalCar", "public static final");
+            Object car = finalCar.newObjWithoutConstructor();
+            assertThat(car).isExactlyInstanceOf(Fixtures.FinalCar.class);
+            assertThat(new MethodWrapper<>(finalCar, "getBrand", String.class, "public").invokeOnSpecificObject(car)).isNull();
+
+            W<Object> abstr = nested("AbstractWithProtectedCtor", "public static abstract");
+            MethodWrapper<Object, String> name = new MethodWrapper<>(abstr, "getName", String.class, "public");
+            MethodWrapper<Object, Double> cost = new MethodWrapper<>(abstr, "cost", double.class, "public", "abstract");
+            Object a = abstr.newObjWithoutConstructor();
+            assertThat(a).isInstanceOf(Fixtures.AbstractWithProtectedCtor.class);
+            assertThat(name.invokeOnSpecificObject(a)).isNull();
+            assertThat(failure(() -> cost.invokeOnSpecificObject(a)))
+                    .contains("The abstract method cost in class Fixtures$AbstractWithProtectedCtor was called,"
+                            + " but the test does not override it.");
+            Object withCost = abstr.newObjOverriding(Map.of(cost, args -> 3.5));
+            assertThat(cost.invokeOnSpecificObject(withCost)).isEqualTo(3.5);
+
+            W<Object> drivable = nested("Drivable", "public static abstract interface");
+            assertThat(drivable.newObjWithoutConstructor()).isInstanceOf(Fixtures.Drivable.class);
         }
     }
 }
