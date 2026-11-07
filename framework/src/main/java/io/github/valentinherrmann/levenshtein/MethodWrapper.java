@@ -6,6 +6,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static io.github.valentinherrmann.levenshtein.Utils.*;
@@ -193,35 +194,94 @@ public class MethodWrapper<T, R> extends Wrapper<T>
 
     /**
      * Invokes the method on the class's default instance (or null for static methods).
+     * An exception thrown by the student code fails the test with the exception type, its message and the
+     * argument values.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * (e.g. {@code String[]}) into several arguments. A wrong number of arguments is reported as
+     * {@link IllegalArgumentException}.</p>
      *
      * @param params values for the method's parameters
      * @return the return value of the method, safely cast to R
+     * @see #invokeWithContext(Supplier, Object...)
      */
     public R invoke(Object... params)
     {
-        return invokeOnSpecificObject(null, params);
+        return invoke(null, null, params);
+    }
+
+    /**
+     * Like {@link #invoke(Object...)}, but if the student code throws, the text of {@code context} is put in
+     * front of the failure message, e.g. the scenario or the seed of generated inputs:
+     * <pre>{@code
+     * car.calculateCost().invokeWithContext(() -> "Scenario " + i + ", seed " + seed, years);
+     * }</pre>
+     * The supplier is only evaluated if the call fails.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * into several arguments.</p>
+     *
+     * @param context supplies the text shown in front of the failure message (may be {@code null})
+     * @param params values for the method's parameters
+     * @return the return value of the method, safely cast to R
+     */
+    public R invokeWithContext(Supplier<String> context, Object... params)
+    {
+        return invoke(null, context, params);
     }
 
     /**
      * Invokes the method on a specific object instance.
-     * An exception thrown by the student code fails the test with the exception type and message;
-     * use {@link #invokeExpectingException(Class, Object, Object...)} if an exception is the expected outcome.
+     * An exception thrown by the student code fails the test with the exception type, its message and the
+     * argument values; use {@link #invokeExpectingException(Class, Object, Object...)} if an exception is the
+     * expected outcome.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * (e.g. {@code String[]}) into several arguments. A wrong number of arguments is reported as
+     * {@link IllegalArgumentException}.</p>
      *
      * @param obj the object to invoke the method on (null uses default instance or null for static methods)
      * @param params values for the method's parameters
      * @return the return value of the method, safely cast to R
+     * @see #invokeOnSpecificObjectWithContext(Supplier, Object, Object...)
      */
-    @SuppressWarnings("unchecked")
     public R invokeOnSpecificObject(Object obj, Object... params)
     {
+        return invoke(obj, null, params);
+    }
+
+    /**
+     * Like {@link #invokeOnSpecificObject(Object, Object...)}, but if the student code throws, the text of
+     * {@code context} is put in front of the failure message (e.g. the scenario or the seed of generated inputs).
+     * The supplier is only evaluated if the call fails.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * into several arguments.</p>
+     *
+     * @param context supplies the text shown in front of the failure message (may be {@code null})
+     * @param obj the object to invoke the method on (null uses default instance or null for static methods)
+     * @param params values for the method's parameters
+     * @return the return value of the method, safely cast to R
+     */
+    public R invokeOnSpecificObjectWithContext(Supplier<String> context, Object obj, Object... params)
+    {
+        return invoke(obj, context, params);
+    }
+
+    @SuppressWarnings("unchecked")
+    private R invoke(Object obj, Supplier<String> context, Object[] params)
+    {
+        verifyExistence(true);
+        Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
         Object val;
         try {
-            val = invokeRaw(obj, params);
+            val = Invocations.invoke(method, resolveTarget(obj), args);
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
-            return fail(Messages.METHOD_INVOCATION_EXCEPTION.format(actualToString(), getParentClassWrapper().name.expected,
-                    Invocations.describe(t)), t);
+            String message = Messages.METHOD_INVOCATION_EXCEPTION.format(actualToString(),
+                    getParentClassWrapper().name.expected, Invocations.describe(t));
+            return fail(Invocations.withContext(context, Invocations.withArguments(message, args)), t);
         }
         if (val == null || returnType.expected == null || returnType.expected == void.class) {
             return (R) val;
@@ -232,6 +292,9 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     /**
      * Invokes the method and expects the student code to throw an exception of the given type.
      *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * into several arguments.</p>
+     *
      * @param expected the expected exception type (subclasses are accepted)
      * @param obj the object to invoke the method on (null uses default instance or null for static methods)
      * @param params values for the method's parameters
@@ -240,10 +303,11 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      */
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object obj, Object... params) {
         verifyExistence(true);
+        Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
         Object target = resolveTarget(obj);
         String outcome;
         try {
-            Invocations.invoke(method, target, params);
+            Invocations.invoke(method, target, args);
             outcome = Messages.NOTHING_THROWN.get();
         }
         catch (Throwable t) {
@@ -253,8 +317,8 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             Invocations.rethrowIfCritical(t);
             outcome = Invocations.describe(t);
         }
-        return fail(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(actualToString(), getParentClassWrapper().name.expected,
-                expected.getSimpleName(), outcome));
+        return fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(actualToString(),
+                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), args));
     }
 
     /**

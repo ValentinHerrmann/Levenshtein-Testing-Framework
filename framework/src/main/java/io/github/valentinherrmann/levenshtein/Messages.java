@@ -296,6 +296,14 @@ public enum Messages {
             "Der Aufruf der Methode %s auf Klasse %s hat eine Ausnahme geworfen: %s",
             "Calling method %s on class %s threw an exception: %s"),
 
+    /**
+     * Appended on its own line to a failed constructor or method call with arguments.
+     * Placeholder: (1) the argument values, e.g. {@code 2.5, "text"}.
+     */
+    INVOCATION_ARGUMENTS(
+            "Argumente: (%s)",
+            "Arguments: (%s)"),
+
     // -------------------------------------------------------------------------
     // AttributeWrapper
     // -------------------------------------------------------------------------

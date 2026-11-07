@@ -174,7 +174,7 @@ jobs:
           protected long getYear()
           public class Car extends AbstractVehicle implements Driveable
           void start()
-          private Double prize
+          private float prize
           calculateCost(long)
           protected Car(String, Integer)
           muss den ungültigen Wert ablehnen

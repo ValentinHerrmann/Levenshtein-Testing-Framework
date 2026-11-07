@@ -6,13 +6,13 @@ package io.github.valentinherrmann.example.vehicles;
 /*  FAILING EXAMPLE: "implements Driveable" is missing -> class MISSING (interface)  */
 public class Car extends AbstractVehicle {
 
-    /*  FAILING EXAMPLE (combined): name typo prize and Double instead of double -> attribute DEVIATION  */
-    private Double prize;
+    /*  FAILING EXAMPLE (combined): name typo prize and float instead of double -> attribute DEVIATION  */
+    private float prize;
     private double speed;
 
     public Car(String manufacturer, int year, double prize) {
         super(manufacturer, year);
-        this.prize = prize;
+        this.prize = (float) prize;
         this.speed = 0.0;
     }
 
@@ -27,7 +27,7 @@ public class Car extends AbstractVehicle {
 
     /*  FAILING EXAMPLE: negative prices are stored -> getter/setter test reports the violated setter condition  */
     public void setPrice(double prize) {
-        this.prize = prize;
+        this.prize = (float) prize;
     }
 
     @Override

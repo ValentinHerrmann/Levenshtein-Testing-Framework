@@ -187,6 +187,8 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
      * Sets the value of this attribute on a specific object instance.
      * If obj is null, creates or uses a default instance from the parent class.
      * Fails if the attribute is declared final.
+     * A number is converted to the type of the student's field (e.g. a {@code double} value into a {@code float}
+     * field); a narrowing conversion may lose precision.
      * Uses {@link Assertions#fail(String)} to report access failures.
      *
      * @param obj the object instance to set the value on (null for static fields or default instance)
@@ -203,7 +205,8 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         Object target = resolveTarget(obj);
         try {
             field.setAccessible(true);
-            Object converted = value == null || field.getType().isPrimitive() || !(value instanceof Number)
+            // numeric values are converted to the student's type (also primitives: reflection only widens)
+            Object converted = value == null || !(value instanceof Number)
                     ? value : safeCast(value, field.getType());
             field.set(target, converted);
         }

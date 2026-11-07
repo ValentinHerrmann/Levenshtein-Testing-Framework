@@ -48,6 +48,7 @@ public final class LevenshteinSettings {
     private static volatile int classNameDeviationThreshold = DEFAULT_THRESHOLD;
     private static volatile int methodNameDeviationThreshold = DEFAULT_THRESHOLD;
     private static volatile int attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
+    private static volatile boolean gettersSettersRequireSameObject = false;
 
     private LevenshteinSettings() {
     }
@@ -96,13 +97,36 @@ public final class LevenshteinSettings {
     }
 
     /**
-     * Restores all defaults (German messages, 20 % for every threshold).
+     * @return whether {@code testGettersSetters} requires the getter/setter to keep the same object for
+     *         reference values (default {@code false}: equal content is enough)
+     * @see #setGettersSettersRequireSameObject(boolean)
+     */
+    public static boolean isGettersSettersRequireSameObject() {
+        return gettersSettersRequireSameObject;
+    }
+
+    /**
+     * Chooses how {@code testGettersSetters} compares the value it set with the value it reads back.
+     * {@code false} (default): equal content is enough ({@link java.util.Objects#deepEquals(Object, Object)}),
+     * so a getter or setter may store or return a copy, e.g. of an array.
+     * {@code true}: for reference values the very same object is required ({@code ==}), so a copy fails.
+     * Primitives, their wrappers, strings and enums are always compared by value.
+     *
+     * @param requireSameObject whether the same object is required for reference values
+     */
+    public static void setGettersSettersRequireSameObject(boolean requireSameObject) {
+        gettersSettersRequireSameObject = requireSameObject;
+    }
+
+    /**
+     * Restores all defaults (German messages, 20 % for every threshold, getter/setter values compared by content).
      */
     public static void reset() {
         language = Language.DEUTSCH;
         classNameDeviationThreshold = DEFAULT_THRESHOLD;
         methodNameDeviationThreshold = DEFAULT_THRESHOLD;
         attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
+        gettersSettersRequireSameObject = false;
     }
 
     private static int checkThreshold(int threshold) {

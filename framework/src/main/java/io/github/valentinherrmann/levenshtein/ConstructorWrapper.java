@@ -136,8 +136,13 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     /**
      * Invokes the constructor with the specified arguments to create a new instance.
      * For abstract classes, uses ByteBuddy to create a dynamic subclass instance.
-     * An exception thrown by the student code fails the test with the exception type and message;
-     * use {@link #invokeExpectingException(Class, Object...)} if an exception is the expected outcome.
+     * An exception thrown by the student code fails the test with the exception type, its message and the
+     * argument values; use {@link #invokeExpectingException(Class, Object...)} if an exception is the expected
+     * outcome.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * (e.g. {@code String[]}) into several arguments. A wrong number of arguments is reported as
+     * {@link IllegalArgumentException}.</p>
      *
      * @param args the arguments to pass to the constructor
      * @return a new instance of the class
@@ -149,18 +154,22 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         if (isParentAbstract()) {
             return (T) getParentClassWrapper().getDynamicSubclassObj(this, args);
         }
+        Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
         try {
-            return (T) Invocations.newInstance(constructor, args);
+            return (T) Invocations.newInstance(constructor, checked);
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
-            return Assertions.fail(Messages.CONSTRUCTOR_INVOCATION_FAILED.format(this.expectedToString(),
-                    getParentClassWrapper().name.expected, Invocations.describe(t)), t);
+            return Assertions.fail(Invocations.withArguments(Messages.CONSTRUCTOR_INVOCATION_FAILED.format(
+                    this.expectedToString(), getParentClassWrapper().name.expected, Invocations.describe(t)), checked), t);
         }
     }
 
     /**
      * Invokes the constructor and expects the student code to throw an exception of the given type.
+     *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * into several arguments.</p>
      *
      * @param expected the expected exception type (subclasses are accepted)
      * @param args the arguments to pass to the constructor
@@ -169,14 +178,15 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      */
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object... args) {
         verifyExistence(true);
+        Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
         String outcome;
         try {
             if (isParentAbstract()) {
-                Class<?> dynamic = getParentClassWrapper().getDynamicSubclassObj(this, args).getClass();
+                Class<?> dynamic = getParentClassWrapper().getDynamicSubclassObj(this, checked).getClass();
                 outcome = Messages.NOTHING_THROWN.get() + " (" + dynamic.getSimpleName() + ")";
             }
             else {
-                Invocations.newInstance(constructor, args);
+                Invocations.newInstance(constructor, checked);
                 outcome = Messages.NOTHING_THROWN.get();
             }
         }
@@ -187,8 +197,8 @@ public class ConstructorWrapper<T> extends Wrapper<T>
             Invocations.rethrowIfCritical(t);
             outcome = Invocations.describe(t);
         }
-        return Assertions.fail(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(expectedToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome));
+        return Assertions.fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(expectedToString(),
+                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), checked));
     }
 
     private boolean isParentAbstract() {

@@ -486,6 +486,203 @@ class WrapperRegressionTest {
     }
 
     @Nested
+    class NumericDeviations { // #22
+
+        private final W<Object> w = nested("NumericDeviations", "public static");
+
+        private <V> AttributeWrapper<Object, V> attribute(String name, Class<V> type) {
+            return new AttributeWrapper<>(w, name, type, "private");
+        }
+
+        private MethodWrapper<Object, ?> getter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, type, "public");
+        }
+
+        private MethodWrapper<Object, Void> setter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, void.class, new Class<?>[]{type}, "public");
+        }
+
+        @Test
+        void primitiveFieldOfAnotherNumericTypeCanBeSet() {
+            Object obj = w.newObj();
+            AttributeWrapper<Object, Double> price = attribute("price", double.class);
+            assertThat(price.getOverallExistence()).isEqualTo(DEVIATES);
+            price.setValue(obj, 2.5);
+            assertThat(price.getValue(obj)).isEqualTo(2.5);
+            assertThat(((Fixtures.NumericDeviations) obj).getPrice()).isEqualTo(2.5f);
+
+            AttributeWrapper<Object, Integer> count = attribute("count", int.class);
+            count.setValue(obj, 42);
+            assertThat(count.getValue(obj)).isEqualTo(42);
+
+            AttributeWrapper<Object, Integer> small = attribute("small", int.class);
+            small.setValue(obj, -3);
+            assertThat(small.getValue(obj)).isEqualTo(-3);
+
+            AttributeWrapper<Object, Double> whole = attribute("whole", double.class);
+            whole.setValue(obj, 42.0);
+            assertThat(whole.getValue(obj)).isEqualTo(42.0);
+
+            AttributeWrapper<Object, Integer> letter = attribute("letter", int.class);
+            letter.setValue(obj, 97);
+            assertThat(((Fixtures.NumericDeviations) obj).getLetter()).isEqualTo('a');
+        }
+
+        @Test
+        void getterSetterTestPassesForNumericDeviations() {
+            assertThatCode(() -> w.testGettersSetters(attribute("price", double.class),
+                    getter("getPrice", double.class), setter("setPrice", double.class))).doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(attribute("count", int.class),
+                    getter("getCount", int.class), setter("setCount", int.class))).doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(attribute("small", int.class),
+                    getter("getSmall", int.class), setter("setSmall", int.class))).doesNotThrowAnyException();
+            // 2.5 does not fit into an int: whole numbers are used instead
+            assertThatCode(() -> w.testGettersSetters(attribute("whole", double.class),
+                    getter("getWhole", double.class), setter("setWhole", double.class))).doesNotThrowAnyException();
+            // -3 does not fit into a char: character codes are used instead
+            assertThatCode(() -> w.testGettersSetters(attribute("letter", int.class),
+                    getter("getLetter", int.class), setter("setLetter", int.class))).doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    class ArrayAttributes { // #25
+
+        private final W<Object> w = nested("ArrayAttributes", "public static");
+
+        private final List<boolean[]> flags = List.of(new boolean[]{true, false}, new boolean[]{false}, new boolean[0]);
+
+        private <V> AttributeWrapper<Object, V> attribute(String name, Class<V> type) {
+            return new AttributeWrapper<>(w, name, type, "private");
+        }
+
+        private MethodWrapper<Object, ?> getter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, type, "public");
+        }
+
+        private MethodWrapper<Object, Void> setter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, void.class, new Class<?>[]{type}, "public");
+        }
+
+        @Test
+        void copiesWithEqualContentPass() {
+            assertThatCode(() -> w.testGettersSetters(attribute("spotlights", boolean[].class), flags,
+                    getter("getSpotlights", boolean[].class), setter("setSpotlights", boolean[].class)))
+                    .doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(attribute("names", String[].class),
+                    List.of(new String[]{"a", "b"}, new String[0]),
+                    getter("getNames", String[].class), setter("setNames", String[].class)))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void arraysArePrintedWithTheirElements() {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            AssertionError e = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                    () -> w.testGettersSetters(attribute("broken", boolean[].class), flags,
+                            getter("getBroken", boolean[].class), setter("setBroken", boolean[].class)));
+            assertThat(e.getMessage()).contains("[true, false]").contains("[false]").doesNotContain("[Z@");
+        }
+
+        @Test
+        void sameObjectCanBeRequired() {
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            assertThatThrownBy(() -> w.testGettersSetters(attribute("spotlights", boolean[].class), flags,
+                    getter("getSpotlights", boolean[].class), setter("setSpotlights", boolean[].class)))
+                    .isInstanceOf(AssertionError.class);
+            assertThatCode(() -> w.testGettersSetters(attribute("names", String[].class),
+                    List.of(new String[]{"a", "b"}, new String[0]),
+                    getter("getNames", String[].class), setter("setNames", String[].class)))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    class Calls { // #27, #28
+
+        private final W<Object> w = nested("Calls", "public static");
+
+        private final MethodWrapper<Object, Double> divide =
+                new MethodWrapper<>(w, "divide", double.class, new Class<?>[]{double.class, double.class}, "public");
+
+        private final MethodWrapper<Object, Integer> count =
+                new MethodWrapper<>(w, "count", int.class, new Class<?>[]{String[].class}, "public");
+
+        private String failure(Runnable call) {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            return org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class, call::run).getMessage();
+        }
+
+        @Test
+        void exceptionMessageShowsTheArguments() {
+            assertThat(failure(() -> divide.invoke(2.5, 0.0)))
+                    .contains("ArithmeticException: division by zero")
+                    .contains("Arguments: (2.5, 0.0)");
+        }
+
+        @Test
+        void contextIsPutInFrontOfTheMessage() {
+            assertThat(failure(() -> divide.invokeWithContext(() -> "Scenario 3, seed 42", 2.5, 0.0)))
+                    .startsWith("Scenario 3, seed 42\n")
+                    .contains("Arguments: (2.5, 0.0)");
+            Object obj = w.newObj();
+            assertThat(failure(() -> divide.invokeOnSpecificObjectWithContext(() -> "case 7", obj, 1.0, 0.0)))
+                    .startsWith("case 7\n");
+            assertThat(failure(() -> divide.invokeWithContext(() -> { throw new IllegalStateException(); }, 1.0, 0.0)))
+                    .startsWith("Calling method");
+            assertThat(divide.invokeWithContext(() -> "unused", 3.0, 2.0)).isEqualTo(1.5);
+        }
+
+        @Test
+        void longArgumentsAreShortened() {
+            MethodWrapper<Object, Integer> sum =
+                    new MethodWrapper<>(w, "sum", int.class, new Class<?>[]{List.class}, "public");
+            List<Integer> values = java.util.stream.IntStream.range(0, 100).boxed().toList();
+            assertThat(failure(() -> sum.invoke(values))).contains("Arguments: ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)])");
+        }
+
+        @Test
+        void constructorExceptionShowsTheArguments() {
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String[].class}, "public");
+            assertThat(failure(() -> ctor.invoke((Object) new String[0]))).contains("Arguments: ([])");
+            assertThat(ctor.invoke((Object) new String[]{"x"})).isInstanceOf(Fixtures.Calls.class);
+        }
+
+        @Test
+        void spreadObjectArrayIsReportedWithHint() {
+            assertThat(count.invoke((Object) new String[]{"a", "b"})).isEqualTo(2);
+            assertThatThrownBy(() -> count.invoke((Object[]) new String[]{"a", "b"}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("expects 1 argument(s), but 2 were passed")
+                    .hasMessageContaining("(Object) array");
+            assertThatThrownBy(() -> count.invoke((Object[]) new String[]{"a"}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("(Object) array");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String[].class}, "public");
+            assertThatThrownBy(() -> ctor.invoke((Object[]) new String[]{"a", "b"}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("(Object) array");
+            assertThatThrownBy(() -> w.getObj(true, ctor, (Object[]) new String[]{"a", "b"}))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void primitiveArrayIsPassedAsOneArgument() {
+            MethodWrapper<Object, Integer> countFlags =
+                    new MethodWrapper<>(w, "countFlags", int.class, new Class<?>[]{boolean[].class}, "public");
+            assertThat(countFlags.invoke(new boolean[]{true, false, true})).isEqualTo(3);
+        }
+
+        @Test
+        void wrongArgumentCountIsReported() {
+            assertThatThrownBy(() -> divide.invoke(1.0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("expects 2 argument(s), but 1 were passed")
+                    .hasMessageNotContaining("(Object) array");
+        }
+    }
+
+    @Nested
     class Constructors {
 
         final W<Object> ctors = nested("Ctors", "public static");
@@ -546,6 +743,20 @@ class WrapperRegressionTest {
                     .anyMatch(n -> n.startsWith("Method[Fixtures$Typos.public int getMaxSpeed()"))
                     .anyMatch(n -> n.endsWith(" #2"));
             assertThat(tests).extracting(DynamicTest::getDisplayName).noneMatch(n -> n.startsWith("structStructural"));
+        }
+
+        @Test
+        void emptyGroupsGetNoTest() { // #26
+            W<Object> noMembers = nested("NoOwnMembers", "public static");
+            assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_PER_MEMBER_CATEGORY, noMembers))
+                    .extracting(DynamicTest::getDisplayName)
+                    .containsExactly("Class[Fixtures$NoOwnMembers]");
+            assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_PER_MEMBER_CATEGORY, false, noMembers))
+                    .extracting(DynamicTest::getDisplayName)
+                    .containsExactly("Class[Fixtures$NoOwnMembers]", "Constructors[Fixtures$NoOwnMembers]",
+                            "Attributes[Fixtures$NoOwnMembers]", "Methods[Fixtures$NoOwnMembers]");
+            assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_FOR_EVERYTHING))
+                    .isEmpty();
         }
 
         @Test

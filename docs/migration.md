@@ -25,3 +25,13 @@ the first release of the Ares 2 / Java 25 line and contains the breaking changes
 Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 [Gradle](../example-gradle/build.gradle) or [Maven](../example-maven/pom.xml) template and see
 [Ares 2 Setup in Detail](ares-setup.md).
+
+## Changes in 2026.11.0
+
+* `structuralTestFactory` no longer generates tests for empty groups (e.g. `Attributes[X]` for a class
+  without attributes, `Constructors[X]` for an interface). Such tests always passed, also for an untouched
+  template. If your Artemis exercise gives points for one of them, remove it there, or keep the old tests
+  with `structuralTestFactory(level, false, wrappers...)`.
+* A wrong number of arguments for `invoke(...)`, `ConstructorWrapper.invoke(...)` or `getObj(forceNew,
+  constructorWrapper, args...)` is now an `IllegalArgumentException` (an error in the test) instead of a
+  failed test. Pass a single array argument as `(Object) array`.

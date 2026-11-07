@@ -20,7 +20,7 @@ A student solution of the example exercise with deliberate defects. It runs agai
 | `AbstractVehicle` | `public int getYear()` | `protected long getYear()` | **combined:** return type (numeric) + modifier | `DEVIATION` |
 | `Car` | `extends AbstractVehicle implements Driveable` | `extends AbstractVehicle` | missing interface | `MISSING` (class) |
 | `Car` | `public void start()` | `void start()` | method modifier (package-private) | `DEVIATION` |
-| `Car` | `private double price` | `private Double prize` | **combined:** name typo + type (primitive/wrapper) | `DEVIATION` |
+| `Car` | `private double price` | `private float prize` | **combined:** name typo + type (numeric) | `DEVIATION` |
 | `Car` | `public double calculateCost(int)` | `public double calculateCost(long)` | parameter type (numeric) | `DEVIATION` |
 | `Car` | `public Car(String, int)` | `protected Car(String, Integer)` | **combined:** parameter type (primitive/wrapper) + modifier | `DEVIATION` |
 | `Car` | `setPrice` rejects negative prices | stores them | getter/setter test with condition | `... muss den ungültigen Wert ablehnen ...` |
