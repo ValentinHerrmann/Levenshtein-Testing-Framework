@@ -10,8 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Build and test (JDK 25)
+  # The jobs below are independent and run in parallel; each sets up its own JDK (and Gradle).
+  framework:
+    name: Framework unit tests (JDK 25)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,8 +28,76 @@ jobs:
       - name: Show Java version
         run: java -version
 
-      # Copies of the examples default to the newest framework release from Maven Central; CI tests them against
-      # the framework of this commit instead (installed below).
+      - name: Build and test the framework
+        run: ./mvnw -B -f framework/pom.xml verify
+
+  # The example exercise under active Ares 2 supervision (including the sandbox and timeout self-checks).
+  # Inside the repository both examples compile the framework source.
+  example:
+    name: ${{ matrix.tool }} example (framework source)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [Maven, Gradle]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set up Gradle
+        if: matrix.tool == 'Gradle'
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build and test the Maven example
+        if: matrix.tool == 'Maven'
+        run: cd example-maven && ./mvnw -B verify
+
+      - name: Build and test the Gradle example
+        if: matrix.tool == 'Gradle'
+        run: cd example-gradle && ./gradlew --no-daemon --warning-mode all test
+
+  # The two examples are standalone copies of one exercise: keep them identical (the policies differ
+  # in the programming language configuration only).
+  example-consistency:
+    name: Both examples contain the same exercise
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Compare the examples
+        run: |
+          diff -r example-maven/assignment example-gradle/assignment
+          diff -r example-maven/assignment-failing example-gradle/assignment-failing
+          diff -r -x SecurityPolicy.yaml example-maven/test example-gradle/test
+
+  # Both examples must work when copied out of the repository. Copies default to the newest framework release from
+  # Maven Central; CI tests them against the framework SNAPSHOT of this commit instead, installed into ~/.m2.
+  example-copy:
+    name: Copy of the ${{ matrix.tool }} example (installed framework)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [Maven, Gradle]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
       - name: Determine the framework version
         run: |
           VERSION=$(./mvnw -B -q -f framework/pom.xml org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
@@ -37,56 +106,68 @@ jobs:
           echo "Framework version: $VERSION"
           echo "FRAMEWORK_VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # Framework unit tests + the example exercise under active Ares 2 supervision
-      # (including the sandbox and timeout self-checks). Inside the repository the example compiles the framework source.
-      - name: Build and test
-        run: ./mvnw -B verify
-
-      # The two examples are standalone copies of one exercise: keep them identical (the policies differ
-      # in the programming language configuration only).
-      - name: Check that both examples contain the same exercise
-        run: |
-          diff -r example-maven/assignment example-gradle/assignment
-          diff -r example-maven/assignment-failing example-gradle/assignment-failing
-          diff -r -x SecurityPolicy.yaml example-maven/test example-gradle/test
-
-      # Both examples must work when copied out of the repository. They take the framework SNAPSHOT from ~/.m2,
-      # so install it first.
       - name: Install the framework locally
-        run: ./mvnw -B install -pl framework -DskipTests
+        run: ./mvnw -B -f framework/pom.xml install -DskipTests
 
       - name: Build and test a copy of the Maven example
+        if: matrix.tool == 'Maven'
         run: |
           cp -r example-maven "$RUNNER_TEMP/example-maven"
           cd "$RUNNER_TEMP/example-maven" && ./mvnw -B verify -Dlevenshtein.version="$FRAMEWORK_VERSION"
 
       - name: Set up Gradle
+        if: matrix.tool == 'Gradle'
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build and test the Gradle example (framework source)
-        run: cd example-gradle && ./gradlew --no-daemon --warning-mode all test
-
       - name: Build and test a copy of the Gradle example
+        if: matrix.tool == 'Gradle'
         run: |
           cp -r example-gradle "$RUNNER_TEMP/example-gradle"
           cd "$RUNNER_TEMP/example-gradle"
           ./gradlew --no-daemon --warning-mode all test -PlevenshteinVersion="$FRAMEWORK_VERSION"
 
-      # assignment-failing/src is a failing example solution: every deliberate defect must fail the build and show
-      # its framework message (German, the default language) in the test reports of both build tools.
-      - name: Run the failing example solution of both examples
+  # assignment-failing/src is a failing example solution: every deliberate defect must fail the build and show
+  # its framework message (German, the default language) in the test reports of both build tools.
+  failing-solution:
+    name: Failing example solution (${{ matrix.tool }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: Maven
+            build: cd example-maven && ./mvnw -B -q verify -Dassignment.dir=assignment-failing
+            reports: example-maven/target/surefire-reports
+          - tool: Gradle
+            build: cd example-gradle && ./gradlew --no-daemon -q test -PassignmentDir=assignment-failing
+            reports: example-gradle/build/test-results/test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set up Gradle
+        if: matrix.tool == 'Gradle'
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run the failing example solution
+        env:
+          BUILD: ${{ matrix.build }}
+          REPORTS: ${{ matrix.reports }}
         run: |
-          if (cd example-maven && ./mvnw -B -q verify -Dassignment.dir=assignment-failing); then
-            echo "::error::The failing example solution passed the Maven build"; exit 1
-          fi
-          if (cd example-gradle && ./gradlew --no-daemon -q test -PassignmentDir=assignment-failing); then
-            echo "::error::The failing example solution passed the Gradle build"; exit 1
+          if (eval "$BUILD"); then
+            echo "::error::The failing example solution passed the ${{ matrix.tool }} build"; exit 1
           fi
           status=0
-          for reports in example-maven/target/surefire-reports example-gradle/build/test-results/test; do
-            while IFS= read -r marker; do
-              grep -rqF -- "$marker" "$reports" || { echo "::error::'$marker' missing in $reports"; status=1; }
-            done <<'MARKERS'
+          while IFS= read -r marker; do
+            grep -rqF -- "$marker" "$REPORTS" || { echo "::error::'$marker' missing in $REPORTS"; status=1; }
+          done <<'MARKERS'
           public static final int MAX_SPEED
           public String manufacturer
           protected Integer year
@@ -100,7 +181,6 @@ jobs:
           aber getSpeed() liefert 0.0
           hat eine Ausnahme geworfen
           MARKERS
-          done
           exit $status
 
   # The steps of publish.yml with the release version of this SNAPSHOT, but without GPG and without the upload:
