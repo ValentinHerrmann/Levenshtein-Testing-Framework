@@ -15,7 +15,7 @@ package io.github.valentinherrmann.levenshtein;
  * <p>All entries are format templates:</p>
  * <pre>{@code
  * fail(Messages.CLASS_NOT_IMPLEMENTED.format(name, pkg));
- * assertThat(x).withFailMessage(Messages.GETTER_WRONG_VALUE.get(), getter, expected, actual).isEqualTo(actual);
+ * assertThat(x).withFailMessage(Messages.CAST_FAILED.get(), value, actualType, expectedType).isEqualTo(y);
  * }</pre>
  *
  * @see LevenshteinSettings#getLanguage()
@@ -177,13 +177,89 @@ public enum Messages {
             "Creating instances of a subclass of %s failed. Constructor may not be implemented correctly. This might also cause subsequent tests to fail. Error: %s"),
 
     // -------------------------------------------------------------------------
-    // ClassWrapper – testGetter
+    // ClassWrapper – testGettersSetters
     // -------------------------------------------------------------------------
+
+    /**
+     * Report of a failed getter/setter test, one line per subtest.
+     * Placeholders: (1) attribute name, (2) class name, (3) subtest lines.
+     */
+    GETTERS_SETTERS_REPORT(
+            "Getter/Setter-Test für Attribut %s in Klasse %s:\n%s",
+            "Getter/setter test for attribute %s in class %s:\n%s"),
+
+    /** Subtest label: the setter stores the value in the attribute. */
+    GETTERS_SETTERS_SETTER_TO_ATTRIBUTE(
+            "Setter -> Attribut",
+            "setter -> attribute"),
+
+    /** Subtest label: the getter returns the value of the attribute. */
+    GETTERS_SETTERS_ATTRIBUTE_TO_GETTER(
+            "Attribut -> Getter",
+            "attribute -> getter"),
+
+    /** Subtest label: the getter returns what the setter set. */
+    GETTERS_SETTERS_SETTER_TO_GETTER(
+            "Setter -> Getter",
+            "setter -> getter"),
+
+    /** Result of a passed subtest. */
+    GETTERS_SETTERS_PASSED(
+            "bestanden",
+            "passed"),
+
+    /** Result of a subtest whose getter or setter was not given. */
+    GETTERS_SETTERS_NOT_TESTED(
+            "nicht getestet",
+            "not tested"),
+
+    /**
+     * Names the attribute as the place a value is read from.
+     * Placeholders: (1) attribute name.
+     */
+    GETTERS_SETTERS_ATTRIBUTE(
+            "Attribut %s",
+            "attribute %s"),
+
+    /**
+     * Shown when a valid value is not stored by the setter.
+     * Placeholders: (1) setter name, (2) value, (3) where the value is read from, (4) actual, (5) expected.
+     */
+    GETTERS_SETTERS_VALUE_NOT_STORED(
+            "nach %s(%s) liefert %s den Wert %s, erwartet: %s",
+            "after %s(%s), %s yields %s, expected: %s"),
+
+    /**
+     * Shown when the setter stores a value that violates the setter condition.
+     * Placeholders: (1) setter name, (2) value, (3) where the value is read from, (4) actual, (5) value before.
+     */
+    GETTERS_SETTERS_INVALID_VALUE_STORED(
+            "%s(%s) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber %s liefert jetzt %s statt %s",
+            "%s(%s) must reject the invalid value (keep the value unchanged or throw an exception), but %s now yields %s instead of %s"),
+
+    /**
+     * Shown when the getter does not return the value of the attribute.
+     * Placeholders: (1) attribute, (2) attribute value, (3) getter name, (4) returned value.
+     */
+    GETTERS_SETTERS_WRONG_VALUE_RETURNED(
+            "%s hat den Wert %s, aber %s() liefert %s",
+            "%s has the value %s, but %s() returns %s"),
+
+    /**
+     * Shown when a getter or setter throws an exception for a valid value.
+     * Placeholders: (1) method name, (2) argument (empty for getters), (3) exception.
+     */
+    GETTERS_SETTERS_THREW(
+            "%s(%s) hat eine Ausnahme geworfen: %s",
+            "%s(%s) threw an exception: %s"),
 
     /**
      * Shown when a getter method does not return the expected attribute value.
      * Placeholders: (1) getter signature, (2) expected value, (3) actual value.
+     *
+     * @deprecated no longer used, {@code testGetter} reports with the {@code GETTERS_SETTERS_*} messages
      */
+    @Deprecated
     GETTER_WRONG_VALUE(
             """
               Getter '%s' gibt nicht den Attributwert zurück.

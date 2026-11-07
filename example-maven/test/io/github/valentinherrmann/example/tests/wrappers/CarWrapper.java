@@ -21,6 +21,7 @@ public class CarWrapper<T> extends ClassWrapper<T> {
 
     // Car-specific methods
     private final MethodWrapper<T, ?> getPrice;
+    private final MethodWrapper<T, ?> setPrice;
 
     // Interface methods (from Driveable)
     private final MethodWrapper<T, ?> start;
@@ -52,6 +53,10 @@ public class CarWrapper<T> extends ClassWrapper<T> {
     // Getters for Car-specific methods
     public MethodWrapper<T, ?> getPrice() {
         return getPrice;
+    }
+
+    public MethodWrapper<T, ?> setPrice() {
+        return setPrice;
     }
 
     // Getters for interface methods
@@ -123,6 +128,14 @@ public class CarWrapper<T> extends ClassWrapper<T> {
                 this,
                 getPriceMethodName(),   // "getPrice"
                 priceType(),                        // double.class,
+                "public"
+        );
+
+        setPrice = new MethodWrapper<>(
+                this,
+                setPriceMethodName(),   // "setPrice"
+                void.class,
+                new Class<?>[]{priceType()},        // double.class
                 "public"
         );
 

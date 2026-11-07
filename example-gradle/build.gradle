@@ -14,9 +14,14 @@ ext {
     aresVersion = '2.2.1'
     aspectjVersion = '1.9.25.1'
     junitVersion = '6.1.3'
-    // The released framework from Maven Central. To test a SNAPSHOT of the framework instead, install it
-    // (./mvnw -B install -pl framework in the framework repository) and run with -PlevenshteinVersion=<snapshot>.
-    levenshteinVersion = providers.gradleProperty('levenshteinVersion').getOrElse('2000.0.0')
+    // Inside the framework repository the tests compile the framework source (debuggable, no install needed).
+    // A copy uses the newest framework release from Maven Central (release candidates included), or the version
+    // given with -PlevenshteinVersion=<version> (a SNAPSHOT is taken from ~/.m2).
+    frameworkSource = file('../framework/src/main/java')
+    levenshteinVersion = providers.gradleProperty('levenshteinVersion').getOrElse('latest.release')
+    // The student code under test: assignment (passing example solution) or, with -PassignmentDir=assignment-failing,
+    // the failing example solution that shows the framework's messages.
+    assignmentDir = providers.gradleProperty('assignmentDir').getOrElse('assignment')
 }
 
 repositories {
@@ -34,10 +39,10 @@ java {
 // Standard Artemis layout: assignment/src (student code) and test/ (instructor tests, policy).
 sourceSets {
     main {
-        java.srcDirs = ['assignment/src']
+        java.srcDirs = ["${assignmentDir}/src"]
     }
     test {
-        java.srcDirs = ['test']
+        java.srcDirs = frameworkSource.directory ? ['test', frameworkSource] : ['test']
     }
 }
 
@@ -54,7 +59,9 @@ dependencies {
     implementation "org.aspectj:aspectjrt:${aspectjVersion}"
     aresAgent "de.tum.cit.ase:ares:${aresVersion}:agent"
 
-    testImplementation "io.github.valentinherrmann:levenshtein-testing-framework:${levenshteinVersion}"
+    if (!frameworkSource.directory) {
+        testImplementation "io.github.valentinherrmann:levenshtein-testing-framework:${levenshteinVersion}"
+    }
     testImplementation platform("org.junit:junit-bom:${junitVersion}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.junit.platform:junit-platform-testkit'

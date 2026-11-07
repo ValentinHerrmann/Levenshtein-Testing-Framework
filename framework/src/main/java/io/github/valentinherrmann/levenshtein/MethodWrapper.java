@@ -214,11 +214,9 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     @SuppressWarnings("unchecked")
     public R invokeOnSpecificObject(Object obj, Object... params)
     {
-        verifyExistence(true);
-        Object target = resolveTarget(obj);
         Object val;
         try {
-            val = Invocations.invoke(method, target, params);
+            val = invokeRaw(obj, params);
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
@@ -259,6 +257,15 @@ public class MethodWrapper<T, R> extends Wrapper<T>
                 expected.getSimpleName(), outcome));
     }
 
+    /**
+     * Invokes the method and passes an exception thrown by the student code on unchanged.
+     * Fails with the usual message if the method is missing.
+     */
+    Object invokeRaw(Object obj, Object... params) throws Throwable {
+        verifyExistence(true);
+        return Invocations.invoke(method, resolveTarget(obj), params);
+    }
+
     private Object resolveTarget(Object obj) {
         if (Modifier.isStatic(method.getModifiers())) {
             return null;
@@ -271,6 +278,22 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      */
     public Class<?>[] getParamTypes() {
         return paramTypes.clone();
+    }
+
+    /**
+     * @return the parameter types of the student's method, or the expected ones if the method is missing
+     */
+    public Class<?>[] getActualParamTypes() {
+        ensureChecked();
+        return method == null ? paramTypes.clone() : method.getParameterTypes();
+    }
+
+    /**
+     * @return the return type of the student's method, or {@code null} if the method is missing
+     */
+    Class<?> actualReturnType() {
+        ensureChecked();
+        return method == null ? null : method.getReturnType();
     }
 
     private static String typeNames(Class<?>[] types) {

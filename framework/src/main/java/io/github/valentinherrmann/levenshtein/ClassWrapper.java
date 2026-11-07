@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import net.bytebuddy.ByteBuddy;
@@ -27,7 +28,6 @@ import org.junit.platform.commons.support.ReflectionSupport;
 
 import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence;
 import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence.*;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
@@ -645,25 +645,91 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Tests that a getter method returns the correct value for an attribute.
-     * Verifies that calling the getter on an instance returns the same value as the attribute.
+     * Tests that a getter method returns the value of an attribute.
+     * Same as {@link #testGettersSetters(AttributeWrapper, MethodWrapper[])} with only a getter.
      *
      * @param attribute the attribute wrapper to test
      * @param getter the getter method wrapper to test
      */
     public void testGetter(AttributeWrapper<?,?> attribute, MethodWrapper<?,?> getter)  {
-        attribute.verifyExistence(true);
-        getter.verifyExistence(true);
+        testGettersSetters(attribute, getter);
+    }
 
-        Object instance = getObj();
-        Object expected = attribute.getValue(instance);
-        Object actual = getter.invokeOnSpecificObject(instance);
+    /**
+     * Tests the getter and/or setter of an attribute without conditions, i.e. the setter stores every value and
+     * the getter returns the stored value. The role of each method wrapper follows from its parameters
+     * (none: getter, one: setter). With generated sample values (at least five per type), up to three subtests run,
+     * each on a new instance: setter -> attribute, attribute -> getter (values injected via reflection) and
+     * setter -> getter. If one fails, the test fails with a message describing all three.
+     * The cached default instance ({@link #getObj()}) is not changed.
+     *
+     * @param attribute the attribute the getter and setter belong to
+     * @param gettersSetters a getter (no parameters) and/or a setter (one parameter)
+     * @throws IllegalArgumentException if the method wrappers are neither one getter nor one setter
+     */
+    public void testGettersSetters(AttributeWrapper<?, ?> attribute, MethodWrapper<?, ?>... gettersSetters) {
+        runGettersSettersTest(attribute, null, null, gettersSetters);
+    }
 
-        assertThat(actual).withFailMessage(
-                Messages.GETTER_WRONG_VALUE.get(),
-                getter.actualToString(),
-                String.valueOf(expected),
-                String.valueOf(actual)
-        ).isEqualTo(expected);
+    /**
+     * Like {@link #testGettersSetters(AttributeWrapper, MethodWrapper[])}, but the setter must only store values
+     * for which {@code setterCondition} holds. For other values it must keep the old value or throw an exception.
+     * A condition that throws itself (e.g. a {@link NullPointerException} for {@code null}) marks the value invalid.
+     *
+     * @param attribute the attribute the getter and setter belong to
+     * @param setterCondition the condition for values the setter accepts, e.g. {@code (Double p) -> p >= 0}
+     * @param gettersSetters a setter (one parameter) and optionally a getter (no parameters)
+     * @param <V> the type of values the condition is written for
+     */
+    public <V> void testGettersSetters(AttributeWrapper<?, ?> attribute, Predicate<V> setterCondition,
+                                       MethodWrapper<?, ?>... gettersSetters) {
+        runGettersSettersTest(attribute, null, setterCondition, gettersSetters);
+    }
+
+    /**
+     * Like {@link #testGettersSetters(AttributeWrapper, MethodWrapper[])}, but with own sample values instead of
+     * generated ones (required for types without generated values, e.g. own classes).
+     *
+     * @param attribute the attribute the getter and setter belong to
+     * @param sampleValues the values to set (use several different ones to catch hard-coded values)
+     * @param gettersSetters a getter (no parameters) and/or a setter (one parameter)
+     * @param <V> the type of the sample values
+     */
+    public <V> void testGettersSetters(AttributeWrapper<?, ?> attribute, List<V> sampleValues,
+                                       MethodWrapper<?, ?>... gettersSetters) {
+        runGettersSettersTest(attribute, sampleValues, null, gettersSetters);
+    }
+
+    /**
+     * Combines {@link #testGettersSetters(AttributeWrapper, List, MethodWrapper[])} (own sample values) and
+     * {@link #testGettersSetters(AttributeWrapper, Predicate, MethodWrapper[])} (setter condition).
+     *
+     * @param attribute the attribute the getter and setter belong to
+     * @param sampleValues the values to set, valid and invalid ones
+     * @param setterCondition the condition for values the setter accepts
+     * @param gettersSetters a setter (one parameter) and optionally a getter (no parameters)
+     * @param <V> the type of the sample values
+     */
+    public <V> void testGettersSetters(AttributeWrapper<?, ?> attribute, List<V> sampleValues, Predicate<V> setterCondition,
+                                       MethodWrapper<?, ?>... gettersSetters) {
+        runGettersSettersTest(attribute, sampleValues, setterCondition, gettersSetters);
+    }
+
+    private void runGettersSettersTest(AttributeWrapper<?, ?> attribute, List<?> sampleValues, Predicate<?> setterCondition,
+                                       MethodWrapper<?, ?>[] gettersSetters) {
+        GettersSettersTest test = new GettersSettersTest(this, attribute, sampleValues, setterCondition, gettersSetters);
+        T savedObj = obj;
+        ConstructorWrapper<?> savedConstructor = objConstructor;
+        Object[] savedArgs = objArgs;
+        boolean savedPinned = objPinned;
+        try {
+            test.run();
+        }
+        finally {
+            obj = savedObj;
+            objConstructor = savedConstructor;
+            objArgs = savedArgs;
+            objPinned = savedPinned;
+        }
     }
 }

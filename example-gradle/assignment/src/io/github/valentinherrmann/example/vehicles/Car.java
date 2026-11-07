@@ -37,6 +37,15 @@ public class Car extends AbstractVehicle implements Driveable {
         return price;
     }
 
+    /**
+     * Sets the price; negative prices are ignored.
+     */
+    public void setPrice(double price) {
+        if (price >= 0) {
+            this.price = price;
+        }
+    }
+
     // Method overriding - implements abstract method from AbstractVehicle
     @Override
     public double calculateCost() {

@@ -41,7 +41,7 @@ dependencies {
     aresAgent "de.tum.cit.ase:ares:2.2.1:agent"
 
     testImplementation(
-        "io.github.valentinherrmann:levenshtein-testing-framework:2000.0.0")
+        "io.github.valentinherrmann:levenshtein-testing-framework:latest.release")
     testImplementation platform("org.junit:junit-bom:6.1.3")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     // only the example's TimeoutControlTest needs it: remove it in an exam
@@ -69,7 +69,7 @@ dependencies {
 <dependency>
     <groupId>io.github.valentinherrmann</groupId>
     <artifactId>levenshtein-testing-framework</artifactId>
-    <version>2000.0.0</version>
+    <version>[2000.0.0,)</version>
     <scope>test</scope>
 </dependency>
 ```

@@ -13,8 +13,36 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2
 ```
 
-The example takes the framework `2000.0.0` from Maven Central. `./mvnw -B verify` in the repository root
-builds the framework of the checkout and the Maven example instead.
+Inside the repository the example compiles the framework source of the checkout. `./mvnw -B verify` in the
+repository root builds the framework and the Maven example the same way.
+
+To see the framework's messages, run the same tests against the failing example solution in
+`assignment-failing/src` (`./mvnw -B verify -Dassignment.dir=assignment-failing` for Maven). It fails on purpose,
+with deviating types, modifiers, parameters and inheritance, some of them combined (all defects:
+[`assignment-failing/README.md`](../example-gradle/assignment-failing/README.md)):
+
+```bash
+./gradlew test -PassignmentDir=assignment-failing
+```
+
+```text
+⚠️ ABWEICHUNG in AbstractVehicle ⚠️
+Falls möglich wird der tatsächliche Wert für weitere Tests verwendet.
+Erwartet:	public int getYear()
+Tatsächlich:	protected long getYear()
+
+❌ FEHLT ❌ im Paket io.github.valentinherrmann.example.vehicles
+Erwartet:	public class Car extends AbstractVehicle implements Driveable
+Tatsächlich:	public class Car extends AbstractVehicle
+
+Getter/Setter-Test für Attribut price in Klasse Car:
+❌ Setter -> Attribut: setPrice(-1.25) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber Attribut price liefert jetzt -1.25 statt 2.5
+✅ Attribut -> Getter: bestanden
+❌ Setter -> Getter: setPrice(-1.25) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber getPrice() liefert jetzt -1.25 statt 2.5
+```
+
+The messages are German by default; `LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH)` switches
+them to English.
 
 The repository contains three modules:
 
@@ -24,7 +52,8 @@ The repository contains three modules:
 | [`example-gradle/`](../example-gradle) | The example exercise as a standalone **Gradle** project: your exam template |
 | [`example-maven/`](../example-maven) | The same exercise as a standalone **Maven** project: your exam template |
 
-Both examples use the Artemis layout: `assignment/src` = student code, `test/` = instructor tests and policy.
+Both examples use the Artemis layout: `assignment/src` = student code, `test/` = instructor tests and policy
+(`assignment-failing/src` = the failing example solution).
 
 ## Step 2: Create your exam repository from the template
 
@@ -44,8 +73,9 @@ Then adapt:
 | `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep the programming language configuration. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
 
-The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) is the
-release `2000.0.0` from Maven Central, so the copy builds on Artemis as it is.
+The copy takes the newest framework release from Maven Central (`levenshteinVersion` = `latest.release` in
+`build.gradle`, `levenshtein.version` = `[2000.0.0,)` in `pom.xml`, release candidates included), so it builds on
+Artemis as it is. Set a fixed version there to keep an exam on one release.
 
 > [!IMPORTANT]
 > The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).
@@ -171,7 +201,7 @@ class CarTest {
 
     @Test
     void getPriceReturnsPrice() {
-        car.testGetter(car.price(), car.getPrice());
+        car.testGettersSetters(car.price(), car.getPrice());
     }
 }
 ```

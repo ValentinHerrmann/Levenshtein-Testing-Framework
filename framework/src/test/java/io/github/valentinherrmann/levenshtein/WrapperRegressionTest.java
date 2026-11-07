@@ -343,6 +343,149 @@ class WrapperRegressionTest {
     }
 
     @Nested
+    class GettersSetters {
+
+        private final W<Object> w = nested("GettersSetters", "public static");
+
+        private <V> AttributeWrapper<Object, V> attribute(String name, Class<V> type) {
+            return new AttributeWrapper<>(w, name, type, "private");
+        }
+
+        private MethodWrapper<Object, ?> getter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, type, "public");
+        }
+
+        private MethodWrapper<Object, Void> setter(String name, Class<?> type) {
+            return new MethodWrapper<>(w, name, void.class, new Class<?>[]{type}, "public");
+        }
+
+        private String failure(Runnable test) {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            AssertionError e = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class, test::run);
+            return e.getMessage();
+        }
+
+        @Test
+        void correctGetterAndSetterPass() {
+            AttributeWrapper<Object, Double> price = attribute("price", double.class);
+            assertThatCode(() -> w.testGettersSetters(price, getter("getPrice", double.class), setter("setPrice", double.class)))
+                    .doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(price, setter("setPrice", double.class), getter("getPrice", double.class)))
+                    .doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(price, getter("getPrice", double.class))).doesNotThrowAnyException();
+            assertThatCode(() -> w.testGetter(price, getter("getPrice", double.class))).doesNotThrowAnyException();
+        }
+
+        @Test
+        void hardCodedGetterFails() {
+            String message = failure(() -> w.testGettersSetters(attribute("count", int.class),
+                    getter("getCount", int.class), setter("setCount", int.class)));
+            assertThat(message)
+                    .contains("Getter/setter test for attribute count in class Fixtures$GettersSetters")
+                    .contains("✅ setter -> attribute: passed")
+                    .contains("❌ attribute -> getter: attribute count has the value 7, but getCount() returns 42")
+                    .contains("❌ setter -> getter: after setCount(7), getCount() yields 42, expected: 7");
+        }
+
+        @Test
+        void setterIgnoringItsArgumentFails() {
+            String message = failure(() -> w.testGettersSetters(attribute("name", String.class),
+                    getter("getName", String.class), setter("setName", String.class)));
+            assertThat(message)
+                    .contains("❌ setter -> attribute: after setName(\"Alpha\"), attribute name yields null, expected: \"Alpha\"")
+                    .contains("✅ attribute -> getter: passed")
+                    .contains("❌ setter -> getter");
+        }
+
+        @Test
+        void getterOfAnotherAttributeFails() {
+            String message = failure(() -> w.testGettersSetters(attribute("other", int.class), getter("getWrong", int.class)));
+            assertThat(message)
+                    .contains("➖ setter -> attribute: not tested")
+                    .contains("❌ attribute -> getter")
+                    .contains("➖ setter -> getter: not tested");
+        }
+
+        @Test
+        void onlyGivenSubtestsRun() {
+            String message = failure(() -> w.testGettersSetters(attribute("name", String.class), setter("setName", String.class)));
+            assertThat(message)
+                    .contains("❌ setter -> attribute")
+                    .contains("➖ attribute -> getter: not tested")
+                    .contains("➖ setter -> getter: not tested");
+        }
+
+        @Test
+        void setterConditionAcceptsRejectingSetters() {
+            assertThatCode(() -> w.testGettersSetters(attribute("label", String.class), v -> v != null,
+                    getter("getLabel", String.class), setter("setLabel", String.class))).doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(attribute("title", String.class), v -> v != null,
+                    getter("getTitle", String.class), setter("setTitle", String.class))).doesNotThrowAnyException();
+        }
+
+        @Test
+        void setterConditionFailsSettersStoringInvalidValues() {
+            String message = failure(() -> w.testGettersSetters(attribute("tag", String.class), (String v) -> v != null,
+                    getter("getTag", String.class), setter("setTag", String.class)));
+            assertThat(message)
+                    .contains("❌ setter -> attribute: setTag(null) must reject the invalid value")
+                    .contains("✅ attribute -> getter: passed")
+                    .contains("❌ setter -> getter: setTag(null) must reject the invalid value");
+
+            String negative = failure(() -> w.testGettersSetters(attribute("price", double.class), (Double p) -> p >= 0,
+                    setter("setPrice", double.class)));
+            assertThat(negative).contains("setPrice(-1.25) must reject the invalid value");
+        }
+
+        @Test
+        void conditionForAnotherTypeIsATestError() {
+            assertThatThrownBy(() -> w.testGettersSetters(attribute("price", double.class), (String s) -> !s.isEmpty(),
+                    setter("setPrice", double.class)))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void typeDeviationsAndFinalAttributesWork() {
+            assertThatCode(() -> w.testGettersSetters(attribute("amount", int.class),
+                    getter("getAmount", int.class), setter("setAmount", int.class))).doesNotThrowAnyException();
+            assertThatCode(() -> w.testGettersSetters(attribute("fixed", int.class), getter("getFixed", int.class)))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void ownSampleValuesAreNeededForOtherTypes() {
+            AttributeWrapper<Object, Object> box = attribute("box", Object.class);
+            assertThatCode(() -> w.testGettersSetters(box, getter("getBox", Object.class))).doesNotThrowAnyException();
+            assertThatThrownBy(() -> w.testGettersSetters(box, setter("setBox", Object.class)))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatCode(() -> w.testGettersSetters(box, List.of(new Object(), "text", 4, new Object(), 2.5),
+                    getter("getBox", Object.class), setter("setBox", Object.class))).doesNotThrowAnyException();
+        }
+
+        @Test
+        void misuseIsATestError() {
+            AttributeWrapper<Object, Double> price = attribute("price", double.class);
+            MethodWrapper<Object, ?> getPrice = getter("getPrice", double.class);
+            MethodWrapper<Object, Double> twoParams = new MethodWrapper<>(w, "setPrice", double.class,
+                    new Class<?>[]{double.class, double.class}, "public");
+            assertThatThrownBy(() -> w.testGettersSetters(price)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> w.testGettersSetters(price, getPrice, getPrice)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> w.testGettersSetters(price, twoParams)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> w.testGettersSetters(price, v -> true, getPrice)).isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void defaultInstanceIsKept() {
+            Fixtures.GettersSetters pinned = new Fixtures.GettersSetters();
+            pinned.setPrice(99.0);
+            w.setCachedObj(pinned);
+            w.testGettersSetters(attribute("price", double.class), getter("getPrice", double.class), setter("setPrice", double.class));
+            assertThat(w.getObj()).isSameAs(pinned);
+            assertThat(pinned.getPrice()).isEqualTo(99.0);
+        }
+    }
+
+    @Nested
     class Constructors {
 
         final W<Object> ctors = nested("Ctors", "public static");

@@ -115,6 +115,12 @@ public final class Constants {
         };
     }
 
+    public static String setPriceMethodName() {
+        return switch (variant) {
+            case DEFAULT -> "setPrice";
+        };
+    }
+
     public static String getSpeedMethodName() {
         return switch (variant) {
             case DEFAULT -> "getSpeed";

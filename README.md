@@ -35,7 +35,7 @@ Expect:	public void start()
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
 cd Levenshtein-Testing-Framework/example-gradle
-./gradlew test   # the example exercise under Ares 2, framework 2000.0.0 from Maven Central
+./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
 Then follow the **[Quick Start](docs/quick-start.md)**: copy the [Gradle](example-gradle) (or
@@ -57,24 +57,21 @@ results.
 ## Development
 
 ```bash
-# framework unit tests + Maven example under Ares 2, against the framework of this checkout
+# framework unit tests + Maven example under Ares 2, against the framework source of this checkout
 ./mvnw -B verify
 
-# install the framework SNAPSHOT into ~/.m2
-./mvnw -B install -pl framework
-
-# Gradle example under Ares 2, against the installed SNAPSHOT
-(cd example-gradle && ./gradlew test \
-    -PlevenshteinVersion=$(sed -n 's/^-Dlevenshtein.version=//p' ../.mvn/maven.config))
+# Gradle example under Ares 2, against the framework source of this checkout
+(cd example-gradle && ./gradlew test)
 
 # + sources, javadoc, GPG signature (needs a key)
 ./mvnw -B -P release -pl framework verify
 ```
 
-The examples are exam templates, so on their own they use the **released** framework from Maven Central
-(`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`). Inside this repository the root
-build passes the SNAPSHOT through [`.mvn/maven.config`](.mvn/maven.config), and CI passes it to standalone
-copies of both examples.
+Inside this repository both examples compile the framework source (`../framework/src/main/java`) together with
+the tests, so the framework can be debugged directly. The examples are exam templates: a copy without
+`../framework` uses the newest framework release from Maven Central, release candidates included
+(`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`, both overridable). CI installs the
+SNAPSHOT and passes it to standalone copies of both examples.
 
 The framework is built and published with Maven only (publishing with Gradle is more trouble than it is worth).
 The Gradle module is a consumer of it, like an exam repository.
@@ -82,10 +79,9 @@ The Gradle module is a consumer of it, like an exam repository.
 Releases are published to Maven Central by the `Publish` workflow on a GitHub release
 (`-P release -pl framework deploy`; the version comes from the tag). CI's `release-dry-run` job builds the
 release artifacts for every change. A version on Maven Central can never be changed, so publish a release
-candidate first (e.g. `2000.0.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
-version: it runs both templates against Maven Central. Afterwards, bump `pom.xml`, `framework/pom.xml` and
-`.mvn/maven.config` to the next SNAPSHOT (CI checks that the last two match), and the release version in both
-examples.
+candidate first (e.g. `2026.11.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
+version: it runs both templates against Maven Central. Afterwards, bump the `<version>` in `framework/pom.xml`
+to the next SNAPSHOT; it is the only place that holds the framework version.
 
 ## References
 

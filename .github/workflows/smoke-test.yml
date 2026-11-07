@@ -1,12 +1,12 @@
 name: Smoke test
 
 # Runs both templates the way an exam author copies them, against a framework that is already on Maven Central:
-# after a release candidate (input: e.g. 2000.0.0-RC1) or a release (no input: the version pinned in the templates).
+# after a release candidate (input: version number) or a release (no input: the newest version on Maven Central).
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Framework version on Maven Central (empty: the version pinned in the templates)'
+        description: 'Framework version on Maven Central (empty: the newest version, release candidates included)'
         required: false
         default: ''
 
