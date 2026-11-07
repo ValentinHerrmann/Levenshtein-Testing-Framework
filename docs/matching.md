@@ -96,7 +96,8 @@ Types are graded for attributes (their type) and methods (their return type), in
 
 Numeric types (`byte`, `short`, `char`, `int`, `long`, `float`, `double` and their wrappers) deviate in
 both directions; `boolean` never mixes with them. Parameter types of methods and constructors follow the
-[parameter rule](#how-the-candidate-is-chosen).
+[parameter rule](#how-the-candidate-is-chosen). Behavioural tests convert values to the student's type
+(`setValue` writes `2.5` into a `float` field), and `testGettersSetters` generates values that fit it.
 
 ## Modifiers
 

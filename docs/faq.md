@@ -35,6 +35,15 @@ case, see [Ares 2 behaviour worth knowing](ares-setup.md#ares-2-behaviour-worth-
 **A structural test fails although the behavioural tests pass.** Intended: the element `DEVIATES`. The
 student loses the structural point, not the behavioural ones.
 
+**An array argument arrives as several arguments.** `invoke`, `getObj(forceNew, constructorWrapper, args...)`
+and the other `Object...` methods are varargs: Java spreads an object array (`String[]`, `Integer[]`) into
+its elements, a primitive array (`boolean[]`) is passed as one argument. Pass it as `(Object) array`. The
+framework reports a wrong number of arguments as `IllegalArgumentException` with this hint.
+
+**A getter/setter test fails for an array attribute although the content is right.** Since 2026.11.0
+arrays are compared by content. If the same object is required, set
+`LevenshteinSettings.setGettersSettersRequireSameObject(true)`.
+
 **Extra members in the student code?** They are ignored. Only an additional *interface* is reported as
 `DEVIATES`.
 

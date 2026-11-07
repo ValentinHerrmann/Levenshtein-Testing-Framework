@@ -78,7 +78,8 @@ public final class Utils
 
     /**
      * Converts a value to the given type: returns the value itself if it already is an instance,
-     * or converts between numeric types (e.g. an {@code int} result where a {@code double} is expected).
+     * or converts between numeric types (e.g. an {@code int} result where a {@code double} is expected;
+     * {@code char} counts as numeric type).
      * Fails with a readable assertion message if neither is possible.
      *
      * @param val the value to convert (must not be null)
@@ -116,6 +117,7 @@ public final class Utils
             if (target == Double.class) return n.doubleValue();
             if (target == Short.class) return n.shortValue();
             if (target == Byte.class) return n.byteValue();
+            if (target == Character.class) return (char) n.intValue();
         }
         return Assertions.fail(Messages.CAST_FAILED.format(val, val.getClass().getSimpleName(), castTo.getSimpleName()));
     }

@@ -423,6 +423,10 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * (or set via {@link #setCachedObj(Object)}) and {@code forceNew} is false.
      * Abstract classes and interfaces are instantiated through a Byte Buddy subclass.
      *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * (e.g. {@code String[]}) into several arguments. A wrong number of arguments is reported as
+     * {@link IllegalArgumentException}.</p>
+     *
      * @param forceNew whether to force creation of a new instance
      * @param constructorWrapper the constructor wrapper to use for instantiation (null: no-argument constructor)
      * @param constructorArgs the arguments to pass to the constructor
@@ -488,6 +492,9 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * This allows testing abstract classes by creating concrete implementations at runtime.
      * Abstract methods of the instance throw {@link AbstractMethodError} when called.
      *
+     * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
+     * into several arguments. A wrong number of arguments is reported as {@link IllegalArgumentException}.</p>
+     *
      * @param constructorWrapper the constructor to imitate (null for the no-argument constructor)
      * @param constructorArgs the arguments to pass to the constructor
      * @return a new instance of the dynamic subclass
@@ -498,6 +505,8 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             constructorWrapper.verifyExistence(true);
             types = constructorWrapper.getActualParamTypes();
         }
+        Object[] args = Invocations.checkArguments(types, constructorArgs,
+                constructorWrapper != null ? constructorWrapper.actualToString() : name.expected + "()");
         try {
             if (dynamicSubclass == null) {
                 Class<T> base = getClazz();
@@ -508,11 +517,12 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
                         .getLoaded();
             }
             Constructor<?> ctor = dynamicSubclass.getDeclaredConstructor(types);
-            return Invocations.newInstance(ctor, constructorArgs);
+            return Invocations.newInstance(ctor, args);
         }
         catch (Throwable e) {
             Invocations.rethrowIfCritical(e);
-            return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
+            return fail(Invocations.withArguments(
+                    Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), args), e);
         }
     }
 

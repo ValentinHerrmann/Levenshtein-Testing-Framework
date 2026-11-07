@@ -61,12 +61,30 @@ public final class StructuralLevenshtein {
     /**
      * Factory method for creating dynamic structural tests based on class wrappers.
      * Generates JUnit DynamicTests organized according to the specified detail level, in a deterministic order.
+     * Groups without wrappers (e.g. {@code Attributes[X]} for a class without attributes) get no test, because
+     * such a test would always pass, also for an untouched template.
      *
      * @param detailsLevel the level of detail for test organization
      * @param classWrappers the class wrappers to generate tests for
      * @return a list of DynamicTest objects ready to be used in a @TestFactory method
+     * @see #structuralTestFactory(DetailLevel, boolean, ClassWrapper[])
      */
     public static List<DynamicTest> structuralTestFactory(DetailLevel detailsLevel, ClassWrapper<?>... classWrappers) {
+        return structuralTestFactory(detailsLevel, true, classWrappers);
+    }
+
+    /**
+     * Like {@link #structuralTestFactory(DetailLevel, ClassWrapper[])}, but chooses whether groups without wrappers
+     * get a test.
+     *
+     * @param detailsLevel the level of detail for test organization
+     * @param skipEmpty {@code true} (default of the other overload): no test for a group without wrappers;
+     *                  {@code false}: such a group gets a test that always passes (the previous behaviour)
+     * @param classWrappers the class wrappers to generate tests for
+     * @return a list of DynamicTest objects ready to be used in a @TestFactory method
+     */
+    public static List<DynamicTest> structuralTestFactory(DetailLevel detailsLevel, boolean skipEmpty,
+                                                          ClassWrapper<?>... classWrappers) {
         Map<String,List<Wrapper<?>>> wrappers = new LinkedHashMap<>();
         switch (detailsLevel) {
             case ONE_FOR_EVERYTHING -> {
@@ -111,6 +129,9 @@ public final class StructuralLevenshtein {
         List<DynamicTest> tests = new ArrayList<>();
         for(Map.Entry<String, List<Wrapper<?>>> x : wrappers.entrySet()) {
             List<Wrapper<?>> group = x.getValue();
+            if (skipEmpty && group.isEmpty()) {
+                continue;
+            }
             tests.add(DynamicTest.dynamicTest(x.getKey(), () -> structuralTestTemplate(group)));
         }
         return tests;

@@ -70,7 +70,7 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 * `WrapperProperty<T>`: expected vs. actual value plus existence
 * `StructuralLevenshtein`: JUnit `DynamicTest` factory
 * `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
-* `LevenshteinSettings`: runtime configuration (thresholds, language)
+* `LevenshteinSettings`: runtime configuration (thresholds, language, getter/setter comparison)
 * `Messages`: German/English feedback
 * `Utils`: Levenshtein distance, type compatibility, `safeCast`
 
@@ -161,6 +161,8 @@ classDiagram
         -Method method
         +invoke(Object... params) R
         +invokeOnSpecificObject(Object obj, Object... params) R
+        +invokeWithContext(Supplier~String~ context, Object... params) R
+        +invokeOnSpecificObjectWithContext(Supplier~String~ context, Object obj, Object... params) R
         +invokeExpectingException(Class~X~ expected, Object obj, Object... params) X
         +getParamTypes() Class[]
     }
@@ -214,6 +216,7 @@ classDiagram
     class StructuralLevenshtein {
         <<final>>
         +structuralTestFactory(DetailLevel level, ClassWrapper... classWrappers)$ List~DynamicTest~
+        +structuralTestFactory(DetailLevel level, boolean skipEmpty, ClassWrapper... classWrappers)$ List~DynamicTest~
         +structuralTestTemplate(List wrappers)$
     }
     class DetailLevel {
@@ -263,6 +266,9 @@ classDiagram
         ~newInstance(Constructor ctor, Object... args)$ Object
         ~rethrowIfCritical(Throwable t)$
         ~describe(Throwable t)$ String
+        ~checkArguments(Class[] parameterTypes, Object[] args, String signature)$ Object[]
+        ~describeArguments(Object[] args)$ String
+        ~describeValue(Object value)$ String
     }
     class LevenshteinTest {
         <<annotation>>

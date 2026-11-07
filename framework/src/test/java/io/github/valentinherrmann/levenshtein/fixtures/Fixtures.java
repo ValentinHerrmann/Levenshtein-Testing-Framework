@@ -115,6 +115,87 @@ public final class Fixtures {
         public int hashCode() { return brand.hashCode(); }
     }
 
+    /** Attributes whose numeric type deviates from the expected one (#22). */
+    public static class NumericDeviations {
+        private float price;   // expected double
+        private long count;    // expected int
+        private short small;   // expected int
+        private int whole;     // expected double
+        private char letter;   // expected int
+
+        public float getPrice() { return price; }
+        public void setPrice(float price) { this.price = price; }
+
+        public long getCount() { return count; }
+        public void setCount(long count) { this.count = count; }
+
+        public short getSmall() { return small; }
+        public void setSmall(short small) { this.small = small; }
+
+        public int getWhole() { return whole; }
+        public void setWhole(int whole) { this.whole = whole; }
+
+        public char getLetter() { return letter; }
+        public void setLetter(char letter) { this.letter = letter; }
+    }
+
+    /** Array attributes (#25). */
+    public static class ArrayAttributes {
+        private boolean[] spotlights = new boolean[0];
+        private String[] names;
+        private boolean[] broken = {true};
+
+        public boolean[] getSpotlights() { return spotlights.clone(); }
+        public void setSpotlights(boolean[] spotlights) { this.spotlights = spotlights.clone(); }
+
+        public String[] getNames() { return names; }
+        public void setNames(String[] names) { this.names = names; }
+
+        public boolean[] getBroken() { return new boolean[] {false}; }
+        public void setBroken(boolean[] broken) { this.broken = broken; }
+
+        private String text = "start";
+        private int[] levels = {1};
+
+        public String getText() { return text == null ? null : new String(text); }
+        public void setText(String text) { this.text = text; }
+
+        public int[] getLevels() { return levels; }
+        public void setLevels(int[] levels) { if (levels.length > 0) { this.levels = levels; } }
+    }
+
+    /** Calls that throw for some inputs, and array parameters (#27, #28). */
+    public static class Calls {
+        public Calls() { }
+
+        public Calls(String[] names) {
+            if (names.length == 0) {
+                throw new IllegalArgumentException("no names");
+            }
+        }
+
+        public double divide(double a, double b) {
+            if (b == 0) {
+                throw new ArithmeticException("division by zero");
+            }
+            return a / b;
+        }
+
+        public int sum(java.util.List<Integer> values) { throw new IllegalStateException("not implemented"); }
+        public int count(String[] names) { return names.length; }
+        public int countFlags(boolean[] flags) { return flags.length; }
+        public boolean isNull(String s) { return s == null; }
+        public void boom() { throw new IllegalStateException("boom"); }
+    }
+
+    /** An abstract class whose constructor always throws (#27). */
+    public abstract static class AbstractThrowingCtor {
+        protected AbstractThrowingCtor(String name) { throw new IllegalStateException("broken " + name); }
+    }
+
+    /** A subclass without own attributes, constructors wrappers or methods (#26). */
+    public static class NoOwnMembers extends Base { }
+
     public static class ExplodingInit {
         public static final int VALUE;
         static {

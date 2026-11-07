@@ -66,6 +66,9 @@ Pick the level that matches your grading granularity: each generated test is its
 Artemis, too).
 
 * The order is deterministic; duplicate names get a `#2` suffix instead of replacing each other.
+* A group without wrappers gets no test (e.g. no `Attributes[OpenAirStage]` for a subclass without own
+  attributes), because it would always pass, also for an untouched template. `structuralTestFactory(level,
+  false, wrappers...)` still generates them.
 * Student code only runs inside the generated tests, i.e. supervised by Ares.
 * If one element cannot be checked, that element is reported and the rest of the test continues.
 
@@ -97,8 +100,19 @@ IllegalArgumentException e = carWrapper.setYear()
 
 * If the student's element is `MISSING`, the call fails with "... is not implemented as expected. See
   structural Tests for details".
-* An exception thrown by student code fails the test with its type and message (the original exception is
-  attached as the cause). Ares security violations and assertion failures are passed through unchanged.
+* An exception thrown by student code fails the test with its type, its message and the argument values
+  (arrays and collections with more than ten elements shortened, e.g. `Arguments: ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)])`); the original
+  exception is attached as the cause. Ares security violations and assertion failures are passed through
+  unchanged.
+* Many generated inputs? `invokeWithContext(() -> "Scenario " + i + ", seed " + seed, args...)` and
+  `invokeOnSpecificObjectWithContext(context, obj, args...)` put the text in front of the failure message.
+  The supplier is only evaluated if the call fails.
+* **Arrays as arguments:** `invoke`, `invokeOnSpecificObject`, `invokeExpectingException`, `getObj(forceNew,
+  constructorWrapper, args...)` and `ConstructorWrapper.invoke` take `Object... args`. Java spreads an object
+  array (`String[]`, `Integer[]`, ...) passed there into several arguments; a primitive array (`boolean[]`)
+  is passed as one. Pass a single array argument as `(Object) array`:
+  `stage.constructor().invoke((Object) spotlights)`. A wrong number of arguments is reported as
+  `IllegalArgumentException` with this hint.
 * `Utils.safeCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
   message instead of producing a `ClassCastException` later.
 * Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
@@ -126,7 +140,14 @@ void priceGettersSetters() {
   was not given are reported as "not tested". The cached default instance (`getObj()`) is not changed.
 * Sample values are generated for primitives, their wrappers, `String` and enums: five different values (so
   hard-coded getters and setters ignoring their argument fail), plus `null` for reference types if no
-  primitive is involved. Other types need own sample values.
+  primitive is involved. Other types (arrays, own classes, ...) need own sample values.
+* A student type with another numeric type (e.g. `float` or `int` instead of `double`) is `DEVIATES`, and
+  the generated values fit it (whole numbers for `int`), so the deviation only costs the structural point.
+  Own sample values are used as they are: a value that does not fit (e.g. `2.5` for an `int`) fails.
+* Values are compared by content (`Objects.deepEquals`), so a getter or setter may store or return a copy of
+  an array; failure messages show the elements (`[true, false]`). To require the very same object for
+  reference values, set `LevenshteinSettings.setGettersSettersRequireSameObject(true)` (see
+  [Configuration](#configuration)).
 * **Setter condition** (`Predicate`, e.g. `v -> v != null`): values that satisfy it must be stored; for other
   values the setter must keep the old value or throw an exception. A condition that throws itself (e.g. a
   `NullPointerException` for `null`) marks the value invalid. Only setters are checked; more complex rules
@@ -162,6 +183,8 @@ static {
     LevenshteinSettings.setClassNameDeviationThreshold(10);
     LevenshteinSettings.setMethodNameDeviationThreshold(20);
     LevenshteinSettings.setAttributeNameDeviationThreshold(20);
+    // testGettersSetters: equal content (false, default) or the same object (true) for reference values
+    LevenshteinSettings.setGettersSettersRequireSameObject(false);
 }
 ```
 

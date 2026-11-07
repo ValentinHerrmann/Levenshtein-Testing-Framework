@@ -3,8 +3,10 @@ package io.github.valentinherrmann.levenshtein;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 import java.util.function.Predicate;
 
+import static io.github.valentinherrmann.levenshtein.Utils.isNumericDeviation;
 import static io.github.valentinherrmann.levenshtein.Utils.safeCast;
 import static io.github.valentinherrmann.levenshtein.Utils.toWrapperType;
 import static org.assertj.core.api.Assertions.fail;
@@ -14,9 +16,17 @@ import static org.assertj.core.api.Assertions.fail;
  * setter -> attribute, attribute -> getter and setter -> getter. Every applicable subtest runs, and all
  * results are reported together in one failure message.
  *
+ * <p>Values are compared by content ({@link Objects#deepEquals(Object, Object)}, so arrays work), or by identity
+ * for reference values if {@link LevenshteinSettings#isGettersSettersRequireSameObject()} is set. Generated sample
+ * values fit the student's numeric types (e.g. whole numbers if the student declared {@code int} instead of
+ * {@code double}); sample values passed by the author are used as they are.</p>
+ *
  * @see ClassWrapper#testGettersSetters(AttributeWrapper, MethodWrapper[])
  */
 final class GettersSettersTest {
+
+    /** Marks a value that cannot be converted. */
+    private static final Object MISFIT = new Object();
 
     private final ClassWrapper<?> classWrapper;
     private final AttributeWrapper<?, ?> attribute;
@@ -65,7 +75,7 @@ final class GettersSettersTest {
         this.setter = foundSetter;
         this.setterCondition = (Predicate<Object>) setterCondition;
 
-        List<Object> values = sampleValues != null ? new ArrayList<>(sampleValues) : generateSamples(attribute.getExpectedType());
+        List<Object> values = sampleValues != null ? new ArrayList<>(sampleValues) : generateFittingSamples();
         if (values == null && setter != null) {
             throw new IllegalArgumentException("testGettersSetters cannot generate sample values for the type "
                     + attribute.getExpectedType().getSimpleName() + " of attribute " + attribute.getExpectedName()
@@ -114,6 +124,77 @@ final class GettersSettersTest {
             result.add(null);
         }
         return result;
+    }
+
+    /**
+     * Generates sample values for the expected type that survive the student's numeric types unchanged, so a
+     * deviating numeric type (e.g. {@code float} or {@code int} instead of {@code double}) only costs the structural
+     * point. If the values for the expected type do not fit, the values for one of the student's types are used
+     * (converted to the expected type); if none fit completely, the fitting values for the expected type remain.
+     *
+     * @return the sample values, or {@code null} if the type is not supported
+     */
+    private List<Object> generateFittingSamples() {
+        Class<?> expected = attribute.getExpectedType();
+        List<Object> generated = generateSamples(expected);
+        if (generated == null) {
+            return null;
+        }
+        List<Class<?>> numericDeviations = studentTypes().filter(t -> isNumericDeviation(expected, t)).toList();
+        if (numericDeviations.isEmpty() || generated.stream().allMatch(v -> fits(v, numericDeviations))) {
+            return generated;
+        }
+        for (Class<?> studentType : numericDeviations) {
+            List<Object> candidate = generateSamples(studentType);
+            if (candidate == null) {
+                continue;
+            }
+            List<Object> converted = new ArrayList<>();
+            for (Object v : candidate) {
+                converted.add(convert(v, expected));
+            }
+            if (!converted.contains(MISFIT) && converted.stream().allMatch(v -> fits(v, numericDeviations))) {
+                return converted;
+            }
+        }
+        List<Object> fitting = new ArrayList<>(generated);
+        fitting.removeIf(v -> !fits(v, numericDeviations));
+        return fitting;
+    }
+
+    private static Object convert(Object value, Class<?> type) {
+        try {
+            return value == null ? null : safeCast(value, type, true);
+        }
+        catch (AssertionError e) {
+            return MISFIT;
+        }
+    }
+
+    /**
+     * @return whether the value comes back unchanged after a conversion into each of the types
+     */
+    private boolean fits(Object value, List<Class<?>> types) {
+        if (value == null) {
+            return true;
+        }
+        for (Class<?> type : types) {
+            Object back = convert(convert(value, type), attribute.getExpectedType());
+            if (back == MISFIT || !Objects.equals(back, value)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @return the types of the student's field, getter return value and setter parameter that exist
+     */
+    private Stream<Class<?>> studentTypes() {
+        return Stream.of(attribute.actualFieldType(),
+                        getter == null ? null : getter.actualReturnType(),
+                        setter == null ? null : setter.getActualParamTypes()[0])
+                .filter(Objects::nonNull);
     }
 
     /**
@@ -198,19 +279,19 @@ final class GettersSettersTest {
             if (thrown != null) {
                 throw new AssertionError(Messages.GETTERS_SETTERS_THREW.format(name(setter), show(value), Invocations.describe(thrown)));
             }
-            if (!Objects.equals(after, normalize(value))) {
+            if (!same(after, normalize(value))) {
                 throw new AssertionError(Messages.GETTERS_SETTERS_VALUE_NOT_STORED.format(
                         name(setter), show(value), readFrom, show(after), show(value)));
             }
         }
-        else if (thrown == null && !Objects.equals(after, before)) {
+        else if (thrown == null && !same(after, before)) {
             throw new AssertionError(Messages.GETTERS_SETTERS_INVALID_VALUE_STORED.format(
                     name(setter), show(value), readFrom, show(after), show(before)));
         }
     }
 
     private void checkReturned(String attributeName, Object expected, Object actual) {
-        if (!Objects.equals(actual, expected)) {
+        if (!same(actual, expected)) {
             throw new AssertionError(Messages.GETTERS_SETTERS_WRONG_VALUE_RETURNED.format(
                     attributeName, show(expected), name(getter), show(actual)));
         }
@@ -273,13 +354,27 @@ final class GettersSettersTest {
         return actual != null ? actual : m.getExpectedName();
     }
 
+    /**
+     * Compares by content (arrays element by element), or by identity for reference values if
+     * {@link LevenshteinSettings#isGettersSettersRequireSameObject()} is set.
+     */
+    private static boolean same(Object a, Object b) {
+        if (LevenshteinSettings.isGettersSettersRequireSameObject() && a != null && b != null
+                && !isValueType(a) && !isValueType(b)) {
+            return a == b;
+        }
+        return Objects.deepEquals(a, b);
+    }
+
+    /**
+     * @return whether the value is always compared by value (primitive wrappers, strings, enums)
+     */
+    private static boolean isValueType(Object value) {
+        return value instanceof Number || value instanceof Character || value instanceof Boolean
+                || value instanceof String || value instanceof Enum<?>;
+    }
+
     private static String show(Object value) {
-        if (value instanceof String s) {
-            return "\"" + s + "\"";
-        }
-        if (value instanceof Character c) {
-            return "'" + c + "'";
-        }
-        return String.valueOf(value);
+        return Invocations.describeValue(value);
     }
 }
