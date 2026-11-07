@@ -153,6 +153,15 @@ public final class Fixtures {
 
         public boolean[] getBroken() { return new boolean[] {false}; }
         public void setBroken(boolean[] broken) { this.broken = broken; }
+
+        private String text = "start";
+        private int[] levels = {1};
+
+        public String getText() { return text == null ? null : new String(text); }
+        public void setText(String text) { this.text = text; }
+
+        public int[] getLevels() { return levels; }
+        public void setLevels(int[] levels) { if (levels.length > 0) { this.levels = levels; } }
     }
 
     /** Calls that throw for some inputs, and array parameters (#27, #28). */
@@ -175,6 +184,13 @@ public final class Fixtures {
         public int sum(java.util.List<Integer> values) { throw new IllegalStateException("not implemented"); }
         public int count(String[] names) { return names.length; }
         public int countFlags(boolean[] flags) { return flags.length; }
+        public boolean isNull(String s) { return s == null; }
+        public void boom() { throw new IllegalStateException("boom"); }
+    }
+
+    /** An abstract class whose constructor always throws (#27). */
+    public abstract static class AbstractThrowingCtor {
+        protected AbstractThrowingCtor(String name) { throw new IllegalStateException("broken " + name); }
     }
 
     /** A subclass without own attributes, constructors wrappers or methods (#26). */

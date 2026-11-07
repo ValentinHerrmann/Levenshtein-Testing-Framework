@@ -585,6 +585,28 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void sameObjectSettingIsResetAndKeepsValueComparisonForStrings() {
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            assertThat(LevenshteinSettings.isGettersSettersRequireSameObject()).isTrue();
+            // the getter returns new String(text): strings are still compared by value
+            assertThatCode(() -> w.testGettersSetters(attribute("text", String.class),
+                    getter("getText", String.class), setter("setText", String.class)))
+                    .doesNotThrowAnyException();
+            LevenshteinSettings.reset();
+            assertThat(LevenshteinSettings.isGettersSettersRequireSameObject()).isFalse();
+        }
+
+        @Test
+        void sameObjectSettingWorksWithSetterCondition() {
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            // the setter keeps the old array for an empty one: same object before and after
+            assertThatCode(() -> w.testGettersSetters(attribute("levels", int[].class),
+                    List.of(new int[]{1, 2}, new int[0], new int[]{3}), (int[] l) -> l.length > 0,
+                    getter("getLevels", int[].class), setter("setLevels", int[].class)))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
         void sameObjectCanBeRequired() {
             LevenshteinSettings.setGettersSettersRequireSameObject(true);
             assertThatThrownBy(() -> w.testGettersSetters(attribute("spotlights", boolean[].class), flags,
@@ -674,11 +696,133 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void nullAsOnlyArgumentIsOneNullArgument() {
+            MethodWrapper<Object, Boolean> isNull =
+                    new MethodWrapper<>(w, "isNull", boolean.class, new Class<?>[]{String.class}, "public");
+            assertThat(isNull.invoke((Object[]) null)).isTrue();
+            assertThat(isNull.invoke((Object) null)).isTrue();
+        }
+
+        @Test
+        void expectingExceptionChecksArgumentsAndShowsThem() {
+            assertThatThrownBy(() -> count.invokeExpectingException(IllegalStateException.class, null,
+                    (Object[]) new String[]{"a", "b"}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("(Object) array");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String[].class}, "public");
+            // the IllegalArgumentException of the check is not mistaken for the expected one of the student code
+            assertThatThrownBy(() -> ctor.invokeExpectingException(IllegalArgumentException.class,
+                    (Object[]) new String[]{"a", "b"}))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("(Object) array");
+            assertThat(ctor.invokeExpectingException(IllegalArgumentException.class, (Object) new String[0]))
+                    .hasMessage("no names");
+            assertThat(failure(() -> divide.invokeExpectingException(ArithmeticException.class, null, 4.0, 2.0)))
+                    .contains("no exception was thrown")
+                    .contains("Arguments: (4.0, 2.0)");
+        }
+
+        @Test
+        void callWithoutArgumentsHasNoArgumentLine() {
+            MethodWrapper<Object, Void> boom = new MethodWrapper<>(w, "boom", void.class, "public");
+            assertThat(failure(boom::invoke)).contains("IllegalStateException: boom").doesNotContain("Arguments:");
+        }
+
+        @Test
+        void abstractClassChecksAndShowsArguments() {
+            W<Object> abstr = nested("AbstractWithProtectedCtor", "public static abstract");
+            ConstructorWrapper<Object> c = new ConstructorWrapper<>(abstr, new Class<?>[]{String.class}, "protected");
+            assertThatThrownBy(() -> c.invoke("a", "b"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("expects 1 argument(s), but 2 were passed");
+            assertThatThrownBy(() -> abstr.getDynamicSubclassObj(c))
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            W<Object> throwing = nested("AbstractThrowingCtor", "public static abstract");
+            ConstructorWrapper<Object> broken = new ConstructorWrapper<>(throwing, new Class<?>[]{String.class}, "protected");
+            assertThat(failure(() -> broken.invoke("Toyota")))
+                    .contains("broken Toyota")
+                    .contains("Arguments: (\"Toyota\")");
+        }
+
+        @Test
+        void emptyContextAddsNoLineAndIsOnlyEvaluatedOnFailure() {
+            assertThat(failure(() -> divide.invokeWithContext(() -> null, 1.0, 0.0))).startsWith("Calling method");
+            assertThat(failure(() -> divide.invokeWithContext(() -> "  ", 1.0, 0.0))).startsWith("Calling method");
+            assertThat(failure(() -> divide.invokeWithContext(null, 1.0, 0.0))).startsWith("Calling method");
+            java.util.concurrent.atomic.AtomicInteger evaluated = new java.util.concurrent.atomic.AtomicInteger();
+            divide.invokeWithContext(() -> "n=" + evaluated.incrementAndGet(), 1.0, 2.0);
+            divide.invokeOnSpecificObjectWithContext(() -> "n=" + evaluated.incrementAndGet(), w.newObj(), 1.0, 2.0);
+            assertThat(evaluated).hasValue(0);
+        }
+
+        @Test
         void wrongArgumentCountIsReported() {
             assertThatThrownBy(() -> divide.invoke(1.0))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("expects 2 argument(s), but 1 were passed")
                     .hasMessageNotContaining("(Object) array");
+        }
+    }
+
+    @Nested
+    class ValueFormatting { // #25, #27
+
+        static class BadToString {
+            @Override
+            public String toString() {
+                throw new IllegalStateException("broken");
+            }
+        }
+
+        @Test
+        void simpleValues() {
+            assertThat(Invocations.describeValue(null)).isEqualTo("null");
+            assertThat(Invocations.describeValue("text")).isEqualTo("\"text\"");
+            assertThat(Invocations.describeValue('c')).isEqualTo("'c'");
+            assertThat(Invocations.describeValue(2.5)).isEqualTo("2.5");
+            assertThat(Invocations.describeValue(Fixtures.Color.RED)).isEqualTo("RED");
+        }
+
+        @Test
+        void arraysAndCollectionsShowTheirElements() {
+            assertThat(Invocations.describeValue(new int[]{1, 2, 3})).isEqualTo("[1, 2, 3]");
+            assertThat(Invocations.describeValue(new boolean[]{true, false})).isEqualTo("[true, false]");
+            assertThat(Invocations.describeValue(new String[][]{{"a"}, {"b", "c"}})).isEqualTo("[[\"a\"], [\"b\", \"c\"]]");
+            assertThat(Invocations.describeValue(new int[0])).isEqualTo("[]");
+            assertThat(Invocations.describeValue(List.of('x', 'y'))).isEqualTo("['x', 'y']");
+            assertThat(Invocations.describeValue(new int[12])).isEqualTo("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, … (+2)]");
+        }
+
+        @Test
+        void longValuesAreCut() {
+            String described = Invocations.describeValue("x".repeat(100));
+            assertThat(described).isEqualTo("\"" + "x".repeat(Invocations.MAX_VALUE_LENGTH) + "…\"");
+        }
+
+        @Test
+        void deepAndSelfContainingArraysEnd() {
+            Object[] self = new Object[1];
+            self[0] = self;
+            assertThat(Invocations.describeValue(self)).isEqualTo("[[[[…]]]]");
+            assertThat(Invocations.describeValue(new int[][][][][]{{{{{1}}}}})).isEqualTo("[[[[…]]]]");
+        }
+
+        @Test
+        void failingToStringIsReported() {
+            assertThat(Invocations.describeValue(new BadToString()))
+                    .isEqualTo("BadToString (toString() threw IllegalStateException)");
+        }
+
+        @Test
+        void argumentListIsJoinedAndCut() {
+            assertThat(Invocations.describeArguments(null)).isEqualTo("null");
+            assertThat(Invocations.describeArguments(new Object[0])).isEmpty();
+            assertThat(Invocations.describeArguments(new Object[]{2.5, "a", null})).isEqualTo("2.5, \"a\", null");
+            Object[] many = new Object[10];
+            java.util.Arrays.fill(many, "y".repeat(50));
+            String described = Invocations.describeArguments(many);
+            assertThat(described).hasSize(Invocations.MAX_ARGUMENTS_LENGTH + 1).endsWith("…");
         }
     }
 
@@ -757,6 +901,12 @@ class WrapperRegressionTest {
                             "Attributes[Fixtures$NoOwnMembers]", "Methods[Fixtures$NoOwnMembers]");
             assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_FOR_EVERYTHING))
                     .isEmpty();
+            assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_PER_CLASS, noMembers))
+                    .extracting(DynamicTest::getDisplayName)
+                    .containsExactly("Structural[Fixtures$NoOwnMembers]");
+            assertThat(StructuralLevenshtein.structuralTestFactory(StructuralLevenshtein.DetailLevel.ONE_PER_MEMBER, noMembers))
+                    .extracting(DynamicTest::getDisplayName)
+                    .containsExactly("Class[Fixtures$NoOwnMembers]");
         }
 
         @Test
@@ -782,6 +932,8 @@ class WrapperRegressionTest {
         void safeCastFailsClearly() { // #15.5
             assertThat(Utils.safeCast(3, double.class)).isEqualTo(3.0);
             assertThat(Utils.safeCast('a', int.class)).isEqualTo(97);
+            assertThat(Utils.safeCast(97, char.class)).isEqualTo('a'); // #22
+            assertThat(Utils.safeCast(97L, Character.class)).isEqualTo('a');
             assertThatThrownBy(() -> Utils.safeCast("text", Integer.class))
                     .isInstanceOf(AssertionError.class).hasMessageContaining("String");
         }
