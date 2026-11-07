@@ -19,6 +19,9 @@ ext {
     // given with -PlevenshteinVersion=<version> (a SNAPSHOT is taken from ~/.m2).
     frameworkSource = file('../framework/src/main/java')
     levenshteinVersion = providers.gradleProperty('levenshteinVersion').getOrElse('latest.release')
+    // The student code under test: assignment (passing example solution) or, with -PassignmentDir=assignment-failing,
+    // the failing example solution that shows the framework's messages.
+    assignmentDir = providers.gradleProperty('assignmentDir').getOrElse('assignment')
 }
 
 repositories {
@@ -36,7 +39,7 @@ java {
 // Standard Artemis layout: assignment/src (student code) and test/ (instructor tests, policy).
 sourceSets {
     main {
-        java.srcDirs = ['assignment/src']
+        java.srcDirs = ["${assignmentDir}/src"]
     }
     test {
         java.srcDirs = frameworkSource.directory ? ['test', frameworkSource] : ['test']

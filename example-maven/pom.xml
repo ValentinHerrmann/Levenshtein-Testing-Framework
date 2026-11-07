@@ -29,6 +29,9 @@
              A copy uses the newest framework release from Maven Central (release candidates included), or the
              version given with -Dlevenshtein.version=<version> (a SNAPSHOT is taken from ~/.m2). -->
         <levenshtein.version>[2000.0.0,)</levenshtein.version>
+        <!-- The student code under test: assignment (passing example solution) or, with
+             -Dassignment.dir=assignment-failing, the failing example solution that shows the framework's messages. -->
+        <assignment.dir>assignment</assignment.dir>
         <!-- Keeps @{argLine} resolvable when JaCoCo is not part of the run. -->
         <argLine></argLine>
         <!-- The example is never published. -->
@@ -68,7 +71,7 @@
 
     <build>
         <!-- Standard Artemis layout. Copy this block verbatim. -->
-        <sourceDirectory>${project.basedir}/assignment/src</sourceDirectory>
+        <sourceDirectory>${project.basedir}/${assignment.dir}/src</sourceDirectory>
         <testSourceDirectory>${project.basedir}/test</testSourceDirectory>
         <testResources>
             <testResource>

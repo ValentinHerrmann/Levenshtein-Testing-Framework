@@ -47,6 +47,7 @@ jobs:
       - name: Check that both examples contain the same exercise
         run: |
           diff -r example-maven/assignment example-gradle/assignment
+          diff -r example-maven/assignment-failing example-gradle/assignment-failing
           diff -r -x SecurityPolicy.yaml example-maven/test example-gradle/test
 
       # Both examples must work when copied out of the repository. They take the framework SNAPSHOT from ~/.m2,
@@ -70,6 +71,37 @@ jobs:
           cp -r example-gradle "$RUNNER_TEMP/example-gradle"
           cd "$RUNNER_TEMP/example-gradle"
           ./gradlew --no-daemon --warning-mode all test -PlevenshteinVersion="$FRAMEWORK_VERSION"
+
+      # assignment-failing/src is a failing example solution: every deliberate defect must fail the build and show
+      # its framework message (German, the default language) in the test reports of both build tools.
+      - name: Run the failing example solution of both examples
+        run: |
+          if (cd example-maven && ./mvnw -B -q verify -Dassignment.dir=assignment-failing); then
+            echo "::error::The failing example solution passed the Maven build"; exit 1
+          fi
+          if (cd example-gradle && ./gradlew --no-daemon -q test -PassignmentDir=assignment-failing); then
+            echo "::error::The failing example solution passed the Gradle build"; exit 1
+          fi
+          status=0
+          for reports in example-maven/target/surefire-reports example-gradle/build/test-results/test; do
+            while IFS= read -r marker; do
+              grep -rqF -- "$marker" "$reports" || { echo "::error::'$marker' missing in $reports"; status=1; }
+            done <<'MARKERS'
+          public static final int MAX_SPEED
+          public String manufacturer
+          protected Integer year
+          protected long getYear()
+          public class Car extends AbstractVehicle implements Driveable
+          void start()
+          private Double prize
+          calculateCost(long)
+          protected Car(String, Integer)
+          muss den ungültigen Wert ablehnen
+          aber getSpeed() liefert 0.0
+          hat eine Ausnahme geworfen
+          MARKERS
+          done
+          exit $status
 
   # The steps of publish.yml with the release version of this SNAPSHOT, but without GPG and without the upload:
   # problems of the release profile (sources, javadoc, the version change) show up here, before a tag exists.

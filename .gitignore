@@ -13,3 +13,4 @@ build/
 target/
 bin/
 private.key
+.claude/
