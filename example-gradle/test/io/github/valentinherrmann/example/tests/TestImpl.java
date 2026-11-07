@@ -405,8 +405,12 @@ public class TestImpl {
      * The condition demands that setPrice ignores (or rejects with an exception) negative prices.
      */
     public static void testPriceGettersSetters() {
-        carImpl().testGettersSetters(carImpl().price(), (Double price) -> price >= 0,
-                carImpl().getPrice(), carImpl().setPrice());
+        carImpl().testGettersSetters(
+            carImpl().price(), 
+            (Double price) -> price >= 0,
+            carImpl().getPrice(), 
+            carImpl().setPrice()
+        );
     }
 }
 

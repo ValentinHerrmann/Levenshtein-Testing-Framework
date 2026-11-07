@@ -606,7 +606,11 @@ public class TestManager {
      */
     @Test
     void testImplPriceGettersSetters() {
-        TestImpl.testPriceGettersSetters();
+        try {
+            TestImpl.testPriceGettersSetters();
+        } catch (AssertionError e) {
+            fail(e.getMessage());
+        }
     }
 
     // ============================================================================
