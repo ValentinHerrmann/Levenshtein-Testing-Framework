@@ -27,20 +27,18 @@ jobs:
       - name: Show Java version
         run: java -version
 
-      # The examples default to the released framework from Maven Central; CI tests them against the framework of
-      # this commit instead. The root build gets the version from .mvn/maven.config, which must not drift.
+      # Copies of the examples default to the newest framework release from Maven Central; CI tests them against
+      # the framework of this commit instead (installed below).
       - name: Determine the framework version
         run: |
           VERSION=$(./mvnw -B -q -f framework/pom.xml org.apache.maven.plugins:maven-help-plugin:3.5.2:evaluate \
             -Dexpression=project.version -DforceStdout | tail -n 1)
           test -n "$VERSION" || { echo "::error::Could not determine the framework version"; exit 1; }
           echo "Framework version: $VERSION"
-          grep -qxF -- "-Dlevenshtein.version=$VERSION" .mvn/maven.config \
-            || { echo "::error::.mvn/maven.config must contain -Dlevenshtein.version=$VERSION"; exit 1; }
           echo "FRAMEWORK_VERSION=$VERSION" >> "$GITHUB_ENV"
 
       # Framework unit tests + the example exercise under active Ares 2 supervision
-      # (including the sandbox and timeout self-checks).
+      # (including the sandbox and timeout self-checks). Inside the repository the example compiles the framework source.
       - name: Build and test
         run: ./mvnw -B verify
 
@@ -63,6 +61,9 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Build and test the Gradle example (framework source)
+        run: cd example-gradle && ./gradlew --no-daemon --warning-mode all test
 
       - name: Build and test a copy of the Gradle example
         run: |

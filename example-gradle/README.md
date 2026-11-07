@@ -8,9 +8,9 @@ same exercise built with Maven.
 ./gradlew test   # JDK 25
 ```
 
-It uses the framework `2000.0.0` from Maven Central, so a copy also builds on Artemis. To try a SNAPSHOT of the
-framework instead, run `./mvnw -B install -pl framework` in a clone of the
-[framework repository](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework) and then
+Inside the framework repository it compiles the framework source. A copy uses the newest framework release from
+Maven Central (`latest.release`, release candidates included), so it also builds on Artemis. To try a SNAPSHOT of
+the framework in a copy, run `./mvnw -B install -pl framework` in a clone of the [framework repository](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework) and then
 `./gradlew test -PlevenshteinVersion=<snapshot>`.
 
 For a real exam, delete the self-checks `SecurityControlTest`, `TimeoutControlTest` and `SandboxControl` and the

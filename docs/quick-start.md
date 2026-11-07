@@ -13,8 +13,8 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2
 ```
 
-The example takes the framework `2000.0.0` from Maven Central. `./mvnw -B verify` in the repository root
-builds the framework of the checkout and the Maven example instead.
+Inside the repository the example compiles the framework source of the checkout. `./mvnw -B verify` in the
+repository root builds the framework and the Maven example the same way.
 
 The repository contains three modules:
 
@@ -44,8 +44,9 @@ Then adapt:
 | `test/SecurityPolicy.yaml` | `theSupervisedCodeUsesTheFollowingPackage: "org.example.exam"`, `theMainClassInsideThisPackageIs`, the list `theFollowingClassesAreTestClasses` (the **exact** names of all your test and wrapper classes), and `regardingFileSystemInteractions: [ ]`. Keep the programming language configuration. |
 | Your test classes | `@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")` |
 
-The framework version (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`) is the
-release `2000.0.0` from Maven Central, so the copy builds on Artemis as it is.
+The copy takes the newest framework release from Maven Central (`levenshteinVersion` = `latest.release` in
+`build.gradle`, `levenshtein.version` = `[2000.0.0,)` in `pom.xml`, release candidates included), so it builds on
+Artemis as it is. Set a fixed version there to keep an exam on one release.
 
 > [!IMPORTANT]
 > The reasons for every setting, for both build tools, are in [Ares 2 Setup in Detail](ares-setup.md).

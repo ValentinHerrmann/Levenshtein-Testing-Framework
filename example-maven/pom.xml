@@ -14,7 +14,8 @@
 
     <groupId>io.github.valentinherrmann</groupId>
     <artifactId>levenshtein-testing-framework-example</artifactId>
-    <version>2000.0.0-SNAPSHOT</version>
+    <!-- Never published: not the framework version. -->
+    <version>0-SNAPSHOT</version>
 
     <name>Levenshtein Testing Framework (example exercise)</name>
 
@@ -24,9 +25,10 @@
         <ares.version>2.2.1</ares.version>
         <aspectj.version>1.9.25.1</aspectj.version>
         <junit.version>6.1.3</junit.version>
-        <!-- The released framework from Maven Central. To test an installed SNAPSHOT of the framework instead,
-             run with -Dlevenshtein.version=<snapshot> (the framework repository sets it in .mvn/maven.config). -->
-        <levenshtein.version>2000.0.0</levenshtein.version>
+        <!-- Inside the framework repository the tests compile the framework source (profile framework-source).
+             A copy uses the newest framework release from Maven Central (release candidates included), or the
+             version given with -Dlevenshtein.version=<version> (a SNAPSHOT is taken from ~/.m2). -->
+        <levenshtein.version>[2000.0.0,)</levenshtein.version>
         <!-- Keeps @{argLine} resolvable when JaCoCo is not part of the run. -->
         <argLine></argLine>
         <!-- The example is never published. -->
@@ -50,12 +52,6 @@
             <version>${aspectj.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>io.github.valentinherrmann</groupId>
-            <artifactId>levenshtein-testing-framework</artifactId>
-            <version>${levenshtein.version}</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -240,4 +236,54 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- A copy of the template: the framework from Maven Central. Copy this profile's dependency into the
+             <dependencies> of an exam repository. -->
+        <profile>
+            <id>framework-release</id>
+            <activation>
+                <file><missing>${basedir}/../framework/pom.xml</missing></file>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.valentinherrmann</groupId>
+                    <artifactId>levenshtein-testing-framework</artifactId>
+                    <version>${levenshtein.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- Inside the framework repository: compile the framework source with the tests (debuggable). -->
+        <profile>
+            <id>framework-source</id>
+            <activation>
+                <file><exists>${basedir}/../framework/pom.xml</exists></file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-framework-source</id>
+                                <phase>generate-test-sources</phase>
+                                <goals>
+                                    <goal>add-test-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>${project.basedir}/../framework/src/main/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
