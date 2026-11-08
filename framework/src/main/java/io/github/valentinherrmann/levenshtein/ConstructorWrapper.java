@@ -186,9 +186,16 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         Object[] shown = Invocations.snapshotArguments(checked);
         boolean dynamic = isParentAbstract();
         // abstract classes: the generated subclass calls the student's constructor, whose exception is not wrapped
-        Constructor<?> target = dynamic
-                ? getParentClassWrapper().dynamicSubclassConstructor(constructor.getParameterTypes())
-                : constructor;
+        Constructor<?> target = constructor;
+        if (dynamic) {
+            try {
+                target = getParentClassWrapper().dynamicSubclassConstructor(constructor.getParameterTypes());
+            }
+            catch (AssertionError failure) {
+                // generating the subclass failed: show the arguments, as getDynamicSubclassObj does
+                throw Invocations.withCallDetails(failure, null, shown);
+            }
+        }
         String outcome;
         try {
             Invocations.newInstance(target, checked);

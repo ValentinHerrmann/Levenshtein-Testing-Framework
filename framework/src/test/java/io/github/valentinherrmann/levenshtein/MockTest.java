@@ -222,6 +222,17 @@ class MockTest {
     }
 
     @Test
+    void callsReturnsArgumentsThatDoNotFitTheExpectedTypeAsPassed() {
+        W<Object> floats = new W<>("Fixtures$FloatParams", PKG, "public", "static");
+        MethodWrapper<Object, Integer> half = new MethodWrapper<>(floats, "half", int.class, new Class<?>[]{int.class}, "public");
+        Mock<Object> mock = floats.mock();
+        ((Fixtures.FloatParams) mock.obj()).half(2.5f);
+        ((Fixtures.FloatParams) mock.obj()).half(4f);
+        // 4.0 fits int and is converted; 2.5 does not and is kept as passed instead of failing
+        assertThat(mock.calls(half)).containsExactly(new Object[]{2.5f}, new Object[]{4});
+    }
+
+    @Test
     void objIsCreatedOnceAndOverridesAddedLaterApply() {
         Mock<Object> mock = secretive.mock();
         Object obj = mock.obj();

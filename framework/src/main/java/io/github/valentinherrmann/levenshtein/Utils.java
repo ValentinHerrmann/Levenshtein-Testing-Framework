@@ -155,6 +155,9 @@ public final class Utils
         long whole;
         if (n instanceof BigDecimal bd) {
             // Exact: going through doubleValue() would silently round integers beyond 2^53.
+            if (bd.precision() - bd.scale() > 19) {
+                return null; // more than 19 integer digits never fit a long; avoids building a huge BigInteger
+            }
             BigInteger exact;
             try {
                 exact = bd.toBigIntegerExact();
@@ -235,7 +238,7 @@ public final class Utils
         else if (actualType.isAssignableFrom(expected)) {
             typeWrapperProperty.existence = DEVIATES;
         }
-        else if (canContain(actualType, expected) || isNumericDeviation(expected, actualType)) {
+        else if (isNumericDeviation(expected, actualType)) {
             typeWrapperProperty.existence = DEVIATES;
         }
         else {

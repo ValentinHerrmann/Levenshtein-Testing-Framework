@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Tests of the helper methods in {@link Utils}.
@@ -192,6 +193,19 @@ class UtilsTest {
             assertThatThrownBy(() -> Utils.safeCast(new BigDecimal("9007199254740993.5"), long.class))
                     .isInstanceOf(AssertionError.class);
             assertThatThrownBy(() -> Utils.safeCast(new BigDecimal(BigInteger.ONE.shiftLeft(63)), long.class))
+                    .isInstanceOf(AssertionError.class);
+        }
+
+        @Test
+        @Timeout(1)
+        void hugeBigDecimalsAreRejectedQuickly() {
+            assertThatThrownBy(() -> Utils.safeCast(new BigDecimal("1E+1000000000"), long.class))
+                    .isInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> Utils.safeCast(new BigDecimal("-1E+1000000000"), int.class))
+                    .isInstanceOf(AssertionError.class);
+            // 19 integer digits still pass the quick check and are decided exactly
+            assertThat(Utils.safeCast(new BigDecimal("9223372036854775807.000"), long.class)).isEqualTo(Long.MAX_VALUE);
+            assertThatThrownBy(() -> Utils.safeCast(new BigDecimal("9223372036854775808"), long.class))
                     .isInstanceOf(AssertionError.class);
         }
 

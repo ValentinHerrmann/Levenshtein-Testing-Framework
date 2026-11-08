@@ -295,6 +295,17 @@ class ClassWrapperTest {
         }
 
         @Test
+        void argumentsWithoutConstructorAreRejectedAlsoForAPinnedObject() {
+            W<Object> concrete = fixture("FinalCar", "public static final");
+            Object pinned = concrete.getObj(true, null);
+            concrete.setCachedObj(pinned);
+            assertThatThrownBy(() -> concrete.getObj(false, null, 42))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("expects 0 argument(s), but 1 were passed");
+            assertThat(concrete.getObj(false, null)).isSameAs(pinned);
+        }
+
+        @Test
         void pinnedObjectIsReturnedForEveryRequest() {
             W<Object> w = fixture("FinalCar", "public static final");
             ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "public");

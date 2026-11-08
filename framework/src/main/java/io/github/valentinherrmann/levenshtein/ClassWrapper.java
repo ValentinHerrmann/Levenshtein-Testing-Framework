@@ -445,6 +445,11 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         Object[] args = constructorWrapper == null
                 ? (constructorArgs == null ? new Object[0] : constructorArgs)
                 : Invocations.normalizeNull(constructorWrapper.getActualParamTypes(), constructorArgs);
+        if (constructorWrapper == null && args.length > 0) {
+            // the no-argument constructor takes no arguments, also when a cached or pinned object would be returned
+            verifyExistence(true);
+            Invocations.checkArguments(new Class<?>[0], args, name.expected + "()");
+        }
         boolean sameRequest = objPinned
                 || (objConstructor == constructorWrapper && Arrays.deepEquals(objArgs, args));
         if (obj != null && !forceNew && sameRequest) {
@@ -460,8 +465,6 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             created = (T) constructorWrapper.invoke(args);
         }
         else {
-            // the no-argument constructor takes no arguments (checked like for abstract classes)
-            Invocations.checkArguments(new Class<?>[0], args, name.expected + "()");
             created = (T) instantiateWithNoArgConstructor(c);
         }
         obj = created;

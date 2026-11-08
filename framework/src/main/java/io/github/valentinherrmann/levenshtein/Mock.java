@@ -196,7 +196,9 @@ public final class Mock<T> {
      * was recorded; other objects are the ones passed.
      *
      * @param method a method of the mocked class or of one of its superclasses or interfaces
-     * @return the arguments of each call, converted to the parameter types the wrapper expects
+     * @return the arguments of each call, converted to the parameter types the wrapper expects where they fit
+     *         (a value that does not fit, e.g. 2.5 for a student's {@code float} where {@code int} is expected,
+     *         is returned as passed)
      */
     public List<Object[]> calls(MethodWrapper<?, ?> method) {
         Recorded calls = recorded.get(checkedKey(method));
@@ -206,7 +208,7 @@ public final class Mock<T> {
         Class<?>[] expected = method.getParamTypes();
         List<Object[]> result = new ArrayList<>();
         for (Object[] args : calls.first()) {
-            result.add(convertArguments(args, expected));
+            result.add(convertArguments(args, expected, true));
         }
         return result;
     }
@@ -231,17 +233,14 @@ public final class Mock<T> {
      * @param context supplies the text shown in front of the failure message (may be {@code null})
      */
     public void assertCalled(MethodWrapper<?, ?> method, int times, Supplier<String> context) {
-        Recorded calls = recorded.get(checkedKey(method));
-        long count = calls == null ? 0 : calls.count();
+        long count = callCount(method);
         if (count == times) {
             return;
         }
         String message = Messages.MOCK_CALL_COUNT.format(method.actualToString(),
                 method.getParentClassWrapper().getExpectedName(), times, count);
         if (count > 0) {
-            // the arguments as the student passed them: a value that does not fit the type the wrapper expects
-            // (e.g. 2.5 for a student's double where int is expected) must not replace this failure
-            String list = calls.first().stream()
+            String list = calls(method).stream()
                     .limit(Invocations.MAX_ELEMENTS)
                     .map(args -> "(" + Invocations.describeArguments(args) + ")")
                     .collect(Collectors.joining(", "));
@@ -332,7 +331,7 @@ public final class Mock<T> {
     }
 
     private Object apply(Replacement replacement, Method method, Object[] args) {
-        Object result = replacement.function().apply(convertArguments(args, replacement.wrapper().getParamTypes()));
+        Object result = replacement.function().apply(convertArguments(args, replacement.wrapper().getParamTypes(), false));
         Class<?> returnType = method.getReturnType();
         if (returnType == void.class) {
             return null;
@@ -344,15 +343,25 @@ public final class Mock<T> {
         return Utils.safeCast(result, returnType, true);
     }
 
-    private static Object[] convertArguments(Object[] args, Class<?>[] expectedTypes) {
+    /**
+     * @param lenient whether a value that does not fit its expected type is kept as passed (for reports) instead
+     *                of failing (for overrides, which rely on the expected types)
+     */
+    private static Object[] convertArguments(Object[] args, Class<?>[] expectedTypes, boolean lenient) {
         Object[] converted = args.clone();
         if (expectedTypes.length != converted.length) {
             return converted;
         }
         for (int i = 0; i < converted.length; i++) {
-            if (converted[i] != null) {
-                converted[i] = Utils.safeCast(converted[i], expectedTypes[i], true);
+            Object value = converted[i];
+            if (value == null) {
+                continue;
             }
+            if (lenient && !Utils.toWrapperType(expectedTypes[i]).isInstance(value)
+                    && Utils.convertNumber(value, expectedTypes[i]) == null) {
+                continue;
+            }
+            converted[i] = Utils.safeCast(value, expectedTypes[i], true);
         }
         return converted;
     }
