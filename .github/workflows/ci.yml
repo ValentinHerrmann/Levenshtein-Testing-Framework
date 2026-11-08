@@ -31,6 +31,53 @@ jobs:
       - name: Build and test the framework
         run: ./mvnw -B -f framework/pom.xml verify
 
+  # PIT mutation testing of the framework (not the examples): fails below the mutationThreshold of the
+  # "mutation" profile in framework/pom.xml and uploads the HTML report, also when the threshold is missed.
+  mutation:
+    name: Framework mutation testing (PIT)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run PIT
+        run: ./mvnw -B -f framework/pom.xml -P mutation verify
+
+      - name: Summarize the mutation score
+        if: always()
+        run: |
+          report=framework/target/pit-reports/mutations.xml
+          test -s "$report" || { echo "No PIT report" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          python3 - "$report" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import collections, sys, xml.etree.ElementTree as ET
+          stats = collections.defaultdict(collections.Counter)
+          for m in ET.parse(sys.argv[1]).getroot():
+              name = m.findtext('mutatedClass').rsplit('.', 1)[-1].split('$')[0]
+              stats[name]['total'] += 1
+              stats[name]['killed'] += m.get('detected') == 'true'
+          total = sum(c['total'] for c in stats.values())
+          killed = sum(c['killed'] for c in stats.values())
+          print(f"### PIT mutation score: {killed}/{total} killed ({100 * killed // max(total, 1)} %)\n")
+          print("| Class | Killed | Mutants | Score |\n|---|---:|---:|---:|")
+          for name, c in sorted(stats.items(), key=lambda kv: kv[1]['killed'] / kv[1]['total']):
+              print(f"| {name} | {c['killed']} | {c['total']} | {100 * c['killed'] // c['total']} % |")
+          PY
+
+      - name: Upload the PIT report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-report
+          path: framework/target/pit-reports/
+          if-no-files-found: ignore
+
   # The example exercise under active Ares 2 supervision (including the sandbox and timeout self-checks).
   # Inside the repository both examples compile the framework source.
   example:

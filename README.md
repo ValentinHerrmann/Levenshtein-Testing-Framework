@@ -67,6 +67,9 @@ results.
 
 # + sources, javadoc, GPG signature (needs a key)
 ./mvnw -B -P release -pl framework verify
+
+# mutation testing of the framework with PIT (report: framework/target/pit-reports/index.html)
+./mvnw -B -f framework/pom.xml -P mutation verify
 ```
 
 Inside this repository both examples compile the framework source (`../framework/src/main/java`) together with
@@ -74,6 +77,13 @@ the tests, so the framework can be debugged directly. The examples are exam temp
 `../framework` uses the newest framework release from Maven Central, release candidates included
 (`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`, both overridable). CI installs the
 SNAPSHOT and passes it to standalone copies of both examples.
+
+The framework's own tests are checked with [PIT](https://pitest.org) mutation testing: PIT changes the framework
+code in small ways (e.g. `<` to `<=`, a condition to `true`) and reruns the tests; a change no test notices
+("surviving mutant") points to a missing test or a bug. Only framework classes are mutated, never the examples.
+CI's `mutation` job fails below `mutationThreshold` in the `mutation` profile of `framework/pom.xml` and uploads
+the HTML report as the `pit-report` artifact. Raise the threshold when new tests kill more mutants; never lower it
+to make a change pass.
 
 The framework is built and published with Maven only (publishing with Gradle is more trouble than it is worth).
 The Gradle module is a consumer of it, like an exam repository.
