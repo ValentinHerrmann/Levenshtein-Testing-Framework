@@ -82,6 +82,12 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     private MockClasses.Generated mockSubclass;
 
     /**
+     * The object of the enclosing class that all objects of an inner (non-static nested) class share, created once
+     * by {@link #outerObj()}.
+     */
+    private Object outerObj;
+
+    /**
      * Wrapper for the expected and actual superclass.
      */
     WrapperProperty<ClassWrapper<?>> superClassWrapper;
@@ -137,10 +143,57 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         this(expectedName, expectedPackage, null, null, modifiers);
     }
 
+    /**
+     * Creates a wrapper that only refers to a student class by its expected name, for use as the type of an
+     * attribute, a return value or a parameter, e.g.
+     * {@code new AttributeWrapper<>(this, "drummer", ClassWrapper.reference("Drummer", "band"), "private")}.
+     * This works even if the full wrapper of that class is not created yet (classes that refer to each other).
+     * The class is looked up like any other class (deviating names are accepted, see
+     * {@link LevenshteinSettings#getClassNameDeviationThreshold()}), but only when the member using it is checked.
+     * The reference has no members and no default instance; it is {@link #equals(Object) equal} to the full
+     * wrapper of the same class.
+     *
+     * @param expectedName the expected (simple or binary nested) name of the class
+     * @param expectedPackage the expected package name ({@code ""} for the default package)
+     * @param <V> the type of the class
+     * @return the reference
+     */
+    public static <V> ClassWrapper<V> reference(String expectedName, String expectedPackage) {
+        return new Reference<>(expectedName, expectedPackage);
+    }
+
     @Override
     public void verifyExistence(boolean throwAssertion)
     {
         super.verifyExistence(Messages.CLASS_NOT_IMPLEMENTED.format(name.expected, expectedPackage), throwAssertion);
+    }
+
+    /**
+     * Interfaces are implicitly {@code abstract}, enums {@code final} (or {@code abstract} if a constant has a
+     * body), records {@code final}; nested interfaces, enums and records as well as types declared in an
+     * interface are implicitly {@code static}.
+     */
+    @Override
+    protected int implicitModifiers() {
+        int implicit = super.implicitModifiers();
+        Class<T> c = clazz;
+        if (c == null) {
+            return implicit;
+        }
+        boolean member = c.isMemberClass();
+        if (c.isInterface()) {
+            implicit |= Modifier.ABSTRACT | (member ? Modifier.STATIC : 0);
+        }
+        if (c.isEnum()) {
+            implicit |= Modifier.FINAL | Modifier.ABSTRACT | (member ? Modifier.STATIC : 0);
+        }
+        if (c.isRecord()) {
+            implicit |= Modifier.FINAL | (member ? Modifier.STATIC : 0);
+        }
+        if (member && c.getEnclosingClass() != null && c.getEnclosingClass().isInterface()) {
+            implicit |= Modifier.STATIC;
+        }
+        return implicit;
     }
 
     /**
@@ -474,8 +527,48 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         return obj;
     }
 
+    /**
+     * Creates the outer instance that the constructor of an inner class needs: with the no-argument constructor
+     * of the outer class if possible, otherwise without running a constructor.
+     *
+     * @param outer the enclosing class
+     * @return an object of the enclosing class
+     */
+    static Object outerInstance(Class<?> outer) {
+        try {
+            return Invocations.newInstance(outer.getDeclaredConstructor());
+        }
+        catch (Throwable t) {
+            Invocations.rethrowIfCritical(t);
+        }
+        try {
+            return MockClasses.allocate(outer);
+        }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(outer.getSimpleName()) + "\n" + Invocations.describe(e), e);
+        }
+    }
+
+    /**
+     * The outer instance for objects of this class if it is an inner class (e.g. the test expects a {@code static}
+     * nested class but the student left out {@code static}). It is created once, so all objects of the inner
+     * class created by the framework share one outer object, as they would in the student's program.
+     *
+     * @return the shared object of the enclosing class
+     */
+    Object outerObj() {
+        if (outerObj == null) {
+            outerObj = outerInstance(getClazz().getEnclosingClass());
+        }
+        return outerObj;
+    }
+
     private Object instantiateWithNoArgConstructor(Class<T> c) {
         try {
+            if (ConstructorWrapper.isInnerClass(c)) { // the constructor takes the outer instance
+                Constructor<T> withOuter = c.getDeclaredConstructor(c.getEnclosingClass());
+                return Invocations.newInstance(withOuter, outerObj());
+            }
             Constructor<T> noArg = c.getDeclaredConstructor();
             return Invocations.newInstance(noArg);
         }
@@ -523,8 +616,18 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         Object[] args = Invocations.checkArguments(types, constructorArgs,
                 constructorWrapper != null ? constructorWrapper.actualToString() : name.expected + "()");
         Object[] shown = Invocations.snapshotArguments(args);
+        Class<?>[] fullTypes = types;
+        Object[] fullArgs = args;
+        if (constructorWrapper != null) {
+            fullTypes = constructorWrapper.fullParamTypes();
+            fullArgs = constructorWrapper.withOuterInstance(args);
+        }
+        else if (ConstructorWrapper.isInnerClass(getClazz())) {
+            fullTypes = new Class<?>[] {getClazz().getEnclosingClass()};
+            fullArgs = new Object[] {outerObj()};
+        }
         try {
-            return Invocations.newInstance(dynamicSubclassConstructor(types), args);
+            return Invocations.newInstance(dynamicSubclassConstructor(fullTypes), fullArgs);
         }
         catch (Throwable e) {
             if (e instanceof AssertionError failure) {
@@ -853,6 +956,27 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             objConstructor = savedConstructor;
             objArgs = savedArgs;
             objPinned = savedPinned;
+        }
+    }
+
+    /**
+     * A class referred to by name only, see {@link #reference(String, String)}.
+     */
+    private static final class Reference<V> extends ClassWrapper<V> {
+
+        Reference(String expectedName, String expectedPackage) {
+            super(expectedName, expectedPackage);
+        }
+
+        /**
+         * A reference has no default instance.
+         *
+         * @param forceNew ignored
+         * @return always null
+         */
+        @Override
+        public Object getObj(boolean forceNew) {
+            return null;
         }
     }
 }

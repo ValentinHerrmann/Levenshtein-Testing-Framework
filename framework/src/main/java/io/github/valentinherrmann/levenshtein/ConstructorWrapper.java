@@ -21,9 +21,15 @@ import java.util.stream.Collectors;
 public class ConstructorWrapper<T> extends Wrapper<T>
 {
     /**
-     * The expected parameter types for the constructor.
+     * The expected parameter types as specified; student classes are only resolved when the constructor is checked.
      */
-    Class<?>[] paramTypes;
+    private final TypeRef[] paramRefs;
+
+    /**
+     * The resolved expected parameter types; a missing student class is {@code null}. Set when the constructor is
+     * checked (immediately if all types are fixed classes).
+     */
+    private Class<?>[] paramTypes;
 
     /**
      * Expected and actual parameter types and their existence (EXACT, DEVIATES for primitive/wrapper
@@ -37,6 +43,12 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     Constructor<T> constructor;
 
     /**
+     * The enclosing class if the found constructor belongs to an inner (non-static nested) class and therefore
+     * takes the outer instance as hidden first parameter that the test does not pass; otherwise null.
+     */
+    private Class<?> outerType;
+
+    /**
      * Constructs a new ConstructorWrapper for verifying a class constructor.
      *
      * @param parentClass the class wrapper containing this constructor
@@ -44,8 +56,30 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      * @param modifiers the expected modifiers (e.g., "public", "protected")
      */
     public ConstructorWrapper(ClassWrapper<T> parentClass, Class<?>[] paramTypes, String... modifiers) {
+        this(parentClass, TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Constructs a new ConstructorWrapper whose parameter types may include student classes. Each parameter type
+     * is a {@link Class}, a {@link ClassWrapper} (e.g. {@code ClassWrapper.reference("Guitarist", "band")}) or a
+     * {@link java.util.function.Supplier} of a class wrapper (needs a cast in an array:
+     * {@code (Supplier<ClassWrapper<?>>) () -> x}). Student classes are only looked up when the constructor is
+     * checked; if one is missing, only the parameters count as missing.
+     *
+     * @param parentClass the class wrapper containing this constructor
+     * @param paramTypes the expected parameter types for the constructor
+     * @param modifiers the expected modifiers (e.g., "public", "protected")
+     * @throws IllegalArgumentException if a parameter type is {@code null} or of another kind
+     */
+    public ConstructorWrapper(ClassWrapper<T> parentClass, Object[] paramTypes, String... modifiers) {
+        this(parentClass, TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    private ConstructorWrapper(ClassWrapper<T> parentClass, TypeRef[] paramRefs, String... modifiers) {
         super(parentClass, "", modifiers);
-        this.paramTypes = paramTypes == null ? new Class<?>[0] : paramTypes.clone();
+        this.paramRefs = paramRefs;
+        boolean fixed = Arrays.stream(paramRefs).allMatch(TypeRef::isFixed);
+        this.paramTypes = fixed ? TypeRef.resolveAll(paramRefs) : null;
         this.params = new WrapperProperty<>(this.paramTypes);
     }
 
@@ -73,9 +107,15 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     @SuppressWarnings("unchecked")
     protected void findWithDeviation()
     {
+        paramTypes = getParamTypes();
+        params.expected = paramTypes;
+        boolean unresolved = Arrays.asList(paramTypes).contains(null);
         Class<T> clazz = getParentClassWrapper().getClazz();
         if(clazz != null) {
             try {
+                if (unresolved) {
+                    throw new NoSuchMethodException(); // not with the exact types: look for the closest candidate
+                }
                 constructor = clazz.getDeclaredConstructor(paramTypes);
                 params.existence = EXACT;
             }
@@ -87,7 +127,8 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                         if (score >= 0 && score < bestScore) {
                             bestScore = score;
                             constructor = (Constructor<T>) candidate;
-                            params.existence = DEVIATES;
+                            // a parameter whose student class is missing cannot match
+                            params.existence = unresolved ? MISSING : DEVIATES;
                         }
                     }
                 }
@@ -95,9 +136,12 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                     // treated as missing
                 }
             }
+            if (constructor == null && isInnerClass(clazz)) {
+                findWithOuterInstance(clazz);
+            }
         }
         if(constructor != null) {
-            params.actual = constructor.getParameterTypes();
+            params.actual = visibleParamTypes();
             verifyModifiers(constructor.getModifiers());
         }
         else {
@@ -106,8 +150,84 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     /**
+     * @return whether the class is an inner class, whose constructors take the outer instance as first parameter
+     */
+    static boolean isInnerClass(Class<?> c) {
+        return c.isMemberClass() && !Modifier.isStatic(c.getModifiers()) && !c.isInterface();
+    }
+
+    /**
+     * Looks for a constructor of an inner class that takes the outer instance and then the expected parameters,
+     * e.g. if the test expects a {@code static} nested class but the student left out {@code static}. The class
+     * wrapper reports the missing {@code static}; the constructor itself does not deviate because of it and is
+     * invoked with a default object of the outer class.
+     */
+    @SuppressWarnings("unchecked")
+    private void findWithOuterInstance(Class<T> clazz) {
+        Class<?> outer = clazz.getEnclosingClass();
+        int bestScore = Integer.MAX_VALUE;
+        try {
+            for (Constructor<?> candidate : clazz.getDeclaredConstructors()) {
+                Class<?>[] types = candidate.getParameterTypes();
+                if (candidate.isSynthetic() || types.length != paramTypes.length + 1 || types[0] != outer) {
+                    continue;
+                }
+                int score = parameterDeviation(Arrays.copyOfRange(types, 1, types.length));
+                if (score >= 0 && score < bestScore) {
+                    bestScore = score;
+                    constructor = (Constructor<T>) candidate;
+                    params.existence = score == 0 ? EXACT : DEVIATES;
+                }
+            }
+        }
+        catch (LinkageError ignored) {
+            // treated as missing
+        }
+        if (constructor != null) {
+            outerType = outer;
+        }
+    }
+
+    /**
+     * @return the parameter types the test passes: those of the found constructor without a hidden outer
+     *         instance, or the expected ones if the constructor is missing
+     */
+    private Class<?>[] visibleParamTypes() {
+        if (constructor == null) {
+            return paramTypes.clone();
+        }
+        Class<?>[] all = constructor.getParameterTypes();
+        return outerType == null ? all : Arrays.copyOfRange(all, 1, all.length);
+    }
+
+    /**
+     * @return all parameter types of the found constructor, including a hidden outer instance
+     */
+    Class<?>[] fullParamTypes() {
+        return constructor.getParameterTypes();
+    }
+
+    /**
+     * Prepends the shared object of the outer class ({@link ClassWrapper#outerObj()}) if the constructor belongs
+     * to an inner class.
+     *
+     * @param args the (checked) arguments passed by the test
+     * @return the arguments for the actual constructor
+     */
+    Object[] withOuterInstance(Object[] args) {
+        if (outerType == null) {
+            return args;
+        }
+        Object[] all = new Object[args.length + 1];
+        all[0] = getParentClassWrapper().outerObj();
+        System.arraycopy(args, 0, all, 1, args.length);
+        return all;
+    }
+
+    /**
      * @return -1 if the parameters cannot match, otherwise a score where lower is closer: 0 for identical types,
-     *         1 per primitive/wrapper difference and 2 per numeric difference (e.g. {@code long} vs. {@code int})
+     *         1 per primitive/wrapper difference, 2 per numeric difference (e.g. {@code long} vs. {@code int}) and
+     *         {@value Utils#UNRESOLVED_PARAMETER_SCORE} per reference type in place of a missing student class
      */
     private int parameterDeviation(Class<?>[] actual) {
         if (actual.length != paramTypes.length) {
@@ -115,6 +235,13 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         }
         int score = 0;
         for (int i = 0; i < actual.length; i++) {
+            if (paramTypes[i] == null) {
+                if (actual[i].isPrimitive()) {
+                    return -1;
+                }
+                score += Utils.UNRESOLVED_PARAMETER_SCORE;
+                continue;
+            }
             if (actual[i].equals(paramTypes[i])) {
                 continue;
             }
@@ -154,10 +281,10 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         if (isParentAbstract()) {
             return (T) getParentClassWrapper().getDynamicSubclassObj(this, args);
         }
-        Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
+        Object[] checked = Invocations.checkArguments(visibleParamTypes(), args, actualToString());
         Object[] shown = Invocations.snapshotArguments(checked); // as passed, before the student code can change them
         try {
-            return (T) Invocations.newInstance(constructor, checked);
+            return (T) Invocations.newInstance(constructor, withOuterInstance(checked));
         }
         catch (Throwable t) {
             if (t instanceof AssertionError e) {
@@ -182,7 +309,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      */
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object... args) {
         verifyExistence(true);
-        Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
+        Object[] checked = Invocations.checkArguments(visibleParamTypes(), args, actualToString());
         Object[] shown = Invocations.snapshotArguments(checked);
         boolean dynamic = isParentAbstract();
         // abstract classes: the generated subclass calls the student's constructor, whose exception is not wrapped
@@ -198,7 +325,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         }
         String outcome;
         try {
-            Invocations.newInstance(target, checked);
+            Invocations.newInstance(target, withOuterInstance(checked));
             outcome = Messages.NOTHING_THROWN.get()
                     + (dynamic ? " (" + target.getDeclaringClass().getSimpleName() + ")" : "");
         }
@@ -219,6 +346,11 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     @Override
+    protected int relevantModifierMask() {
+        return Modifier.constructorModifiers();
+    }
+
+    @Override
     protected void parseExistence() {
         parseExistence(params, modifiers);
     }
@@ -233,7 +365,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                 "%s %s(%s)",
                 modifiers.expected,
                 getParentClassWrapper().name.expected,
-                typeNames(paramTypes)
+                TypeRef.simpleNames(paramRefs)
         ).trim();
     }
 
@@ -252,12 +384,12 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Retrieves the parameter types expected for this constructor.
+     * Retrieves the parameter types expected for this constructor, resolving student classes given as types.
      *
-     * @return an array of parameter types
+     * @return an array of parameter types; a student class that is missing is {@code null}
      */
     public Class<?>[] getParamTypes() {
-        return paramTypes.clone();
+        return paramTypes != null ? paramTypes.clone() : TypeRef.resolveAll(paramRefs);
     }
 
     /**
@@ -267,6 +399,6 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      */
     public Class<?>[] getActualParamTypes() {
         ensureChecked();
-        return constructor == null ? paramTypes.clone() : constructor.getParameterTypes();
+        return visibleParamTypes();
     }
 }

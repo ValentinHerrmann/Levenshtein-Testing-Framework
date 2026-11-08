@@ -26,6 +26,26 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 [Gradle](../example-gradle/build.gradle) or [Maven](../example-maven/pom.xml) template and see
 [Ares 2 Setup in Detail](ares-setup.md).
 
+## Changes in 2026.11.1
+
+* **Unexpected modifiers are reported (#35).** A modifier of the student's element that is neither expected,
+  optional nor implicit (e.g. `private static boolean[] spotlights` where `private` is expected, an extra
+  `abstract`, `final` or `synchronized`) is now a deviation: the structural test fails with "unexpected
+  modifier: ...". Existing structural tests can turn red on student code with extra modifiers. Mark harmless
+  extras as optional with a `?` suffix, e.g. `"public", "final?"` for a utility class. See
+  [Modifiers](matching.md#modifiers).
+* Nested classes: a wrapper of a `static` nested class must now expect `static`.
+* **A missing expected `static` is a deviation instead of `MISSING`:** behavioural tests go on and call the
+  method or read the attribute on the default object.
+* `@LevenshteinTest` and `@HiddenLevenshteinTest` reset attributes that are unexpectedly `static` before each
+  test (`StaticStateReset`).
+* An inner class where a `static` nested class is expected can still be instantiated (the outer instance is
+  created automatically).
+* `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` behaves like before (only an
+  unexpected `static` of attributes and methods is reported; a missing `static` is `MISSING`).
+* With `@LevenshteinTest`, attribute wrappers are looked up before each test. Configure `LevenshteinSettings`
+  in a static initializer or `@BeforeAll`; changes inside a test method come too late for them.
+
 ## Changes in 2026.11.0
 
 * `structuralTestFactory` no longer generates tests for empty groups (e.g. `Attributes[X]` for a class
@@ -43,3 +63,11 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
   text of `invokeWithContext` as well.
 * New: `ClassWrapper.newObjWithoutConstructor()`, `newObjOverriding(...)` and `mock()` keep tests
   independent of other student members (#30). See [Independent tests](writing-tests.md#independent-tests).
+* New: student classes as attribute, return and parameter types (#33). `AttributeWrapper`, `MethodWrapper` and
+  `ConstructorWrapper` accept a `ClassWrapper` (e.g. `ClassWrapper.reference("Drummer", pkg)`) or a supplier of
+  one; parameter lists can be an `Object[]` that mixes them with `Class<?>`. Replace helpers like a copied
+  `TypeWrapper.resolve(name)` with Byte Buddy placeholder classes by these. See
+  [Student classes as member types](writing-tests.md#student-classes-as-member-types).
+  * A literal `null` as return type (`new MethodWrapper<>(this, "m", null, ...)`) is now ambiguous; write
+    `(Class<Object>) null`.
+  * A `null` entry in a parameter type array now throws `IllegalArgumentException` when the wrapper is built.

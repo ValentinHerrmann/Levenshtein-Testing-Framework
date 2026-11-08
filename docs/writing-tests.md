@@ -11,6 +11,9 @@
 | `MethodWrapper<T, R>` | `(this, name, returnType, modifiers...)`<br>`(this, name, returnType, new Class<?>[]{paramTypes}, modifiers...)` | A method, e.g. `(this, "calculateCost", double.class, new Class<?>[]{int.class}, "public")` |
 | `ConstructorWrapper<T>` | `(this, new Class<?>[]{paramTypes}, modifiers...)` | A constructor |
 
+Where a type is expected, you can also pass the `ClassWrapper` of a student class (or a mix of `Class<?>` and
+`ClassWrapper`s in an `Object[]`), see [Student classes as member types](#student-classes-as-member-types).
+
 * **Modifiers** are plain strings: `"public"`, `"private"`, `"protected"`, `"static"`, `"final"`, `"abstract"`, ...
   A typo throws `IllegalArgumentException` as soon as the wrapper is created.
 * **Member wrappers must be (non-static) fields** of your `ClassWrapper` subclass. That's how the
@@ -44,6 +47,44 @@ public CarWrapper(ClassWrapper<?> superClass,
 
 The superclass and interface checks compare the classes the wrappers *found*, so a deviating superclass
 name still counts. Inheriting indirectly, or implementing an additional interface, is `DEVIATES`.
+
+## Student classes as member types
+
+If an attribute, return or parameter type is itself a student class, pass its `ClassWrapper` instead of a
+`Class<?>`. The type is looked up only when the member is checked, so:
+
+* a **missing** student class only makes that type (or the parameters) `MISSING`. The member's name and
+  modifiers are still checked, and nothing throws while the wrappers are built;
+* a **misnamed** student class within the threshold is found like any other class, and the member uses it;
+* two classes that **refer to each other** work, whichever wrapper is built or checked first.
+
+Messages show the type by its expected simple name (`Drummer`), also if the class is missing.
+
+Because member wrappers are built in the wrapper's constructor, refer to a class whose wrapper does not exist
+yet in one of two ways:
+
+```java
+// 1. by name: a light wrapper without members, found like any other class
+ClassWrapper<?> drummerType = ClassWrapper.reference("Drummer", "org.example.band");
+
+// 2. via a supplier of the full wrapper, evaluated when the member is checked
+Supplier<ClassWrapper<?>> drummerType = () -> TestManager.drummer;
+```
+
+Inside `GuitaristWrapper`'s constructor:
+
+```java
+drummer     = new AttributeWrapper<>(this, "drummer", drummerType, "private");
+getDrummer  = new MethodWrapper<>(this, "getDrummer", drummerType, "public");
+setDrummer  = new MethodWrapper<>(this, "setDrummer", void.class, new Object[]{drummerType}, "public");
+constructor = new ConstructorWrapper<>(this, new Object[]{double.class, drummerType}, "public");
+```
+
+Parameter lists are `Object[]` here, each entry a `Class<?>`, a `ClassWrapper` or a supplier. A lambda written
+directly into the array needs a cast, `(Supplier<ClassWrapper<?>>) () -> TestManager.drummer`, so prefer a
+variable or `ClassWrapper.reference(...)`. A supplier that still returns `null` when the member is checked throws
+`IllegalStateException` (wrong initialisation order in the test). `getExpectedType()`, `getExpectedReturnType()`
+and `getParamTypes()` return `null` for a student class that is missing.
 
 ## Structural tests
 
@@ -281,8 +322,14 @@ static {
     LevenshteinSettings.setAttributeNameDeviationThreshold(20);
     // testGettersSetters: equal content (false, default) or the same object (true) for reference values
     LevenshteinSettings.setGettersSettersRequireSameObject(false);
+    // modifiers the test does not expect: DEVIATE (default) or IGNORE (behaviour before 2026.11.1)
+    LevenshteinSettings.setUnexpectedModifiers(LevenshteinSettings.UnexpectedModifiers.DEVIATE);
 }
 ```
+
+Set them in a static initializer or `@BeforeAll`, not in a test method or `@BeforeEach`: `@LevenshteinTest`
+looks up the attribute wrappers before each test (to reset attributes that are unexpectedly `static`), so a
+later change does not reach them.
 
 `LevenshteinSettings.reset()` restores the defaults. Timeouts: `@LevenshteinTest` carries
 `@StrictTimeout(5)`. A `@StrictTimeout` on the class or a method overrides it. (`regardingTimeouts` in the

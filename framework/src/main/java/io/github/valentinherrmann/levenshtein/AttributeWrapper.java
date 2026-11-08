@@ -9,6 +9,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static io.github.valentinherrmann.levenshtein.Utils.*;
@@ -37,6 +38,12 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     private final WrapperProperty<Class<?>> type;
 
     /**
+     * The expected type as specified; a student class is only resolved when the attribute is checked.
+     * {@code null} if no type was given.
+     */
+    private final TypeRef typeRef;
+
+    /**
      * Constructs a new AttributeWrapper for verifying a class attribute.
      *
      * @param parentClass the class wrapper containing this attribute
@@ -45,8 +52,44 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
      * @param modifiers the expected modifiers (e.g., "public", "static", "final")
      */
     public AttributeWrapper(ClassWrapper<T> parentClass, String expectedName, Class<V> expectedType, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofNullableClass(expectedType), modifiers);
+    }
+
+    /**
+     * Constructs a new AttributeWrapper for an attribute whose type is a student class, e.g. an attribute
+     * {@code drummer} of type {@code Drummer}. The type is only looked up when the attribute is checked, so the
+     * wrappers can be built in any order. If the student class is missing, only the attribute's type counts as
+     * missing.
+     *
+     * @param parentClass the class wrapper containing this attribute
+     * @param expectedName the expected name of the attribute
+     * @param expectedType the wrapper of the expected type, e.g. {@code ClassWrapper.reference("Drummer", "band")}
+     * @param modifiers the expected modifiers (e.g., "public", "static", "final")
+     */
+    public AttributeWrapper(ClassWrapper<T> parentClass, String expectedName, ClassWrapper<? extends V> expectedType, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofWrapper(expectedType, "attribute " + expectedName), modifiers);
+    }
+
+    /**
+     * Like {@link #AttributeWrapper(ClassWrapper, String, ClassWrapper, String...)}, but the wrapper of the type is
+     * only taken from the supplier when the attribute is checked, e.g. {@code () -> TestManager.drummer} for a
+     * wrapper that is created later.
+     *
+     * @param parentClass the class wrapper containing this attribute
+     * @param expectedName the expected name of the attribute
+     * @param expectedType supplies the wrapper of the expected type
+     * @param modifiers the expected modifiers (e.g., "public", "static", "final")
+     */
+    public AttributeWrapper(ClassWrapper<T> parentClass, String expectedName,
+                            Supplier<? extends ClassWrapper<? extends V>> expectedType, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofSupplier(expectedType, "attribute " + expectedName), modifiers);
+    }
+
+    private AttributeWrapper(ClassWrapper<T> parentClass, String expectedName, TypeRef typeRef, String... modifiers) {
         super(parentClass, expectedName, modifiers);
-        this.type = new WrapperProperty<>(expectedType);
+        this.typeRef = typeRef;
+        this.type = new WrapperProperty<>(typeRef != null && typeRef.isFixed() ? typeRef.resolve() : null);
+        StaticStateReset.register(this);
     }
 
 
@@ -59,12 +102,45 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     }
 
     /**
-     * Fields of interfaces are implicitly static, so an unexpected {@code static} is only reported for classes.
+     * Fields of interfaces are implicitly static, so the legacy mode only reports an unexpected {@code static}
+     * for classes.
      */
     @Override
-    protected boolean reportUnexpectedStatic() {
+    protected boolean legacyReportsUnexpectedStatic() {
         Class<T> parent = getParentClassWrapper().getClazz();
         return parent == null || !parent.isInterface();
+    }
+
+    @Override
+    protected int relevantModifierMask() {
+        return Modifier.fieldModifiers();
+    }
+
+    /**
+     * @return the student's field found by the lookup, or null if it is missing (does not trigger the lookup)
+     */
+    Field foundField() {
+        return field;
+    }
+
+    /**
+     * Constants of interfaces and enum constants are implicitly {@code static final}, the component fields of
+     * records implicitly {@code final}.
+     */
+    @Override
+    protected int implicitModifiers() {
+        int implicit = super.implicitModifiers();
+        Class<T> parent = getParentClassWrapper().getClazz();
+        if (parent != null && parent.isInterface()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (field != null && field.isEnumConstant()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (parent != null && parent.isRecord() && field != null && !Modifier.isStatic(field.getModifiers())) {
+            implicit |= Modifier.FINAL;
+        }
+        return implicit;
     }
 
     /**
@@ -139,10 +215,12 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     }
 
     /**
-     * @return the expected type of the attribute
+     * Resolves a student class given as type (see {@link #AttributeWrapper(ClassWrapper, String, ClassWrapper, String...)}).
+     *
+     * @return the expected type of the attribute, or {@code null} if it is a student class that is missing
      */
     public Class<?> getExpectedType() {
-        return type.expected;
+        return typeRef == null ? null : typeRef.resolve();
     }
 
     /**
@@ -225,6 +303,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     @Override
     protected void findWithDeviation()
     {
+        type.expected = getExpectedType();
         Class<?> clazz = getParentClassWrapper().getClazz();
         if(clazz != null) {
             try // First try exact match
@@ -244,6 +323,9 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         {
             verifyModifiers(field.getModifiers());
             verifyType(type, field.getType());
+            if (hasUnexpectedModifier("static")) {
+                StaticStateReset.snapshot(field); // reset before each test, see StaticStateReset
+            }
         }
     }
 
@@ -280,7 +362,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
 
     @Override
     public String expectedToString() {
-        String t = type.expected == null ? "<missing>" : type.expected.getSimpleName();
+        String t = typeRef == null ? "<missing>" : typeRef.expectedSimpleName();
         return String.format("%s %s %s", modifiers.expected, t, name.expected).trim();
     }
 

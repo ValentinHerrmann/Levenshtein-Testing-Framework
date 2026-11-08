@@ -150,7 +150,7 @@ class MethodWrapperTest {
 
     @Test
     void expectedToStringWithoutReturnType() {
-        MethodWrapper<Object, Object> w = new MethodWrapper<>(lookup, "computeTotal", null, new Class<?>[]{int.class}, "public");
+        MethodWrapper<Object, Object> w = new MethodWrapper<>(lookup, "computeTotal", (Class<Object>) null, new Class<?>[]{int.class}, "public");
         assertThat(w.expectedToString()).isEqualTo("public <missing> computeTotal(int)");
         assertThat(lookupMethod("computeTotal").expectedToString()).isEqualTo("public int computeTotal()");
     }
