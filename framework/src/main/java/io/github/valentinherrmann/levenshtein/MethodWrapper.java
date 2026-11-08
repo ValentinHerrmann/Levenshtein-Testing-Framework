@@ -85,11 +85,28 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * @return {@code "name(Type1,Type2)"} of the expected signature; used to keep other wrappers' members
      */
     String expectedSignatureKey() {
-        return name.expected + Arrays.stream(paramTypes).map(Class::getName).collect(Collectors.joining(",", "(", ")"));
+        return signatureKey(name.expected, paramTypes);
     }
 
-    private static String signatureKey(Method m) {
-        return m.getName() + Arrays.stream(m.getParameterTypes()).map(Class::getName).collect(Collectors.joining(",", "(", ")"));
+    /**
+     * @return {@code "name(Type1,Type2)"} of the method; identifies a method within a class hierarchy
+     */
+    static String signatureKey(Method m) {
+        return signatureKey(m.getName(), m.getParameterTypes());
+    }
+
+    /**
+     * @return {@code "name(Type1,Type2)"} with the binary names of the parameter types
+     */
+    static String signatureKey(String name, Class<?>[] parameterTypes) {
+        StringBuilder key = new StringBuilder(name).append('(');
+        for (int i = 0; i < parameterTypes.length; i++) {
+            if (i > 0) {
+                key.append(',');
+            }
+            key.append(parameterTypes[i].getName());
+        }
+        return key.append(')').toString();
     }
 
     @Override

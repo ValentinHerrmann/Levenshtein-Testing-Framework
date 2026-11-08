@@ -1149,6 +1149,91 @@ class WrapperRegressionTest {
         }
 
         @Test
+        void studentMethodRunsOnTheCloneThatWasCalled() { // review #1
+            W<Object> counter = nested("Counter", "public static");
+            MethodWrapper<Object, Integer> get = new MethodWrapper<>(counter, "get", int.class, "public");
+            MethodWrapper<Object, Fixtures.Counter> copy = new MethodWrapper<>(counter, "copy", Fixtures.Counter.class, "public");
+            AttributeWrapper<Object, Integer> value = new AttributeWrapper<>(counter, "value", int.class, "private");
+            for (boolean cloneFirst : new boolean[]{true, false}) {
+                Mock<Object> mock = counter.mock();
+                value.setValue(mock.obj(), 1);
+                Object clone = copy.invokeOnSpecificObject(mock.obj());
+                value.setValue(clone, 99);
+                if (cloneFirst) {
+                    assertThat(get.invokeOnSpecificObject(clone)).isEqualTo(99);
+                    assertThat(get.invokeOnSpecificObject(mock.obj())).isEqualTo(1);
+                }
+                else {
+                    assertThat(get.invokeOnSpecificObject(mock.obj())).isEqualTo(1);
+                    assertThat(get.invokeOnSpecificObject(clone)).isEqualTo(99);
+                }
+                mock.assertCalled(get, 2); // the clone shares the recording
+            }
+        }
+
+        @Test
+        void recordingKeepsTheFirstCallsAndCountsAll() { // review #3
+            Mock<Object> g = guitarist.mock();
+            for (int i = 0; i < Mock.MAX_RECORDED_CALLS + 500; i++) {
+                getName.invokeOnSpecificObject(g.obj());
+            }
+            assertThat(g.callCount(getName)).isEqualTo(Mock.MAX_RECORDED_CALLS + 500L);
+            assertThat(g.calls(getName)).hasSize(Mock.MAX_RECORDED_CALLS);
+            assertThat(failure(() -> g.assertCalled(getName, 1)))
+                    .contains("but was called 1500 time(s)")
+                    .endsWith("(), … (+1490)");
+        }
+
+        @Test
+        void callChecksRejectMethodsThatCannotBeIntercepted() { // review #4
+            MethodWrapper<Object, Integer> tune = new MethodWrapper<>(guitarist, "tune", int.class, "public", "final");
+            MethodWrapper<Object, Integer> count = new MethodWrapper<>(guitarist, "count", int.class, "public", "static");
+            Mock<Object> g = guitarist.mock();
+            assertThat(failure(() -> g.assertNotCalled(tune))).endsWith("cannot be overridden (final)");
+            assertThat(failure(() -> g.assertCalled(count, 1))).endsWith("cannot be overridden (static)");
+            assertThat(failure(() -> g.calls(tune))).endsWith("cannot be overridden (final)");
+            assertThat(failure(() -> g.callCount(drummerLoudness))).contains("does not belong to class Fixtures$Guitarist");
+        }
+
+        @Test
+        void recordedArraysAreCopies() { // review #5
+            MethodWrapper<Object, Integer> sum =
+                    new MethodWrapper<>(guitarist, "sumAndClear", int.class, new Class<?>[]{int[].class}, "public");
+            Mock<Object> g = guitarist.mock();
+            int[] values = {3, 1, 2};
+            assertThat(sum.invokeOnSpecificObject(g.obj(), (Object) values)).isEqualTo(6);
+            assertThat(values).containsExactly(0, 0, 0);
+            assertThat((int[]) g.calls(sum).get(0)[0]).containsExactly(3, 1, 2);
+        }
+
+        @Test
+        void fullMockKeepsIdentityForEqualsHashCodeAndToString() { // review #8
+            W<Object> eq = nested("Eq", "public static");
+            Object o = eq.mock().othersReturnDefaults().obj();
+            Object other = eq.mock().othersReturnDefaults().obj();
+            assertThat(o.equals(o)).isTrue();
+            assertThat(o.equals(other)).isFalse();
+            assertThat(o.hashCode()).isEqualTo(System.identityHashCode(o));
+            assertThat(o.toString()).startsWith("Eq@");
+            assertThat(new java.util.ArrayList<>(List.of(o))).contains(o);
+            MethodWrapper<Object, Boolean> equals =
+                    new MethodWrapper<>(eq, "equals", boolean.class, new Class<?>[]{Object.class}, "public");
+            Object alwaysEqual = eq.mock().othersReturnDefaults().returning(equals, true).obj();
+            assertThat(alwaysEqual.equals("anything")).isTrue();
+            assertThat(eq.mock().obj().equals(other)).isTrue(); // partial mock: the student's equals
+        }
+
+        @Test
+        void failingStaticInitializerIsReportedReadably() { // review #9
+            W<Object> broken = nested("BrokenStaticInit", "public static");
+            assertThat(failure(() -> broken.mock().obj()))
+                    .contains("Creating instances of a subclass of Fixtures$BrokenStaticInit failed")
+                    .contains("ExceptionInInitializerError: IllegalStateException: broken static");
+            assertThat(failure(() -> broken.mock().obj()))
+                    .contains("Creating instances of a subclass of Fixtures$BrokenStaticInit failed");
+        }
+
+        @Test
         void withoutConstructorForFinalAbstractAndInterface() {
             W<Object> finalCar = nested("FinalCar", "public static final");
             Object car = finalCar.newObjWithoutConstructor();

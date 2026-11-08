@@ -1,13 +1,17 @@
 package io.github.valentinherrmann.levenshtein;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.modifier.Visibility;
@@ -38,14 +42,93 @@ final class MockClasses {
     private MockClasses() {
     }
 
+    /** Which method of {@link Object} an intercepted method overrides, if any. */
+    enum ObjectMethod { NONE, EQUALS, HASH_CODE, TO_STRING }
+
+    /**
+     * What a mock needs to know about an intercepted method, computed once per class and method.
+     */
+    static final class MethodInfo {
+        private final Class<?> base;
+        private final Class<?> subclass;
+        private final Method method;
+        private final String key;
+        private final boolean implemented;
+        private final ObjectMethod objectMethod;
+        private volatile MethodHandle superCall;
+
+        MethodInfo(Class<?> base, Class<?> subclass, Method method) {
+            this.base = base;
+            this.subclass = subclass;
+            this.method = method;
+            this.key = MethodWrapper.signatureKey(method);
+            this.implemented = hasImplementation(base, method.getName(), method.getParameterTypes());
+            this.objectMethod = objectMethod(method);
+        }
+
+        /** @return the signature key, see {@link MethodWrapper#signatureKey(Method)} */
+        String key() {
+            return key;
+        }
+
+        /** @return whether the student's class has a non-abstract implementation */
+        boolean implemented() {
+            return implemented;
+        }
+
+        /** @return the method of {@link Object} this method overrides, if any */
+        ObjectMethod objectMethod() {
+            return objectMethod;
+        }
+
+        /**
+         * @return the student's implementation, called like {@code super.method(...)} from the subclass; not bound
+         *         to an object, so the first argument is the object actually called
+         */
+        MethodHandle superCall() throws ReflectiveOperationException {
+            MethodHandle handle = superCall;
+            if (handle == null) {
+                handle = MethodHandles.privateLookupIn(subclass, MethodHandles.lookup())
+                        .findSpecial(base, method.getName(),
+                                MethodType.methodType(method.getReturnType(), method.getParameterTypes()), subclass);
+                superCall = handle;
+            }
+            return handle;
+        }
+
+        private static ObjectMethod objectMethod(Method m) {
+            Class<?>[] p = m.getParameterTypes();
+            return switch (m.getName()) {
+                case "equals" -> p.length == 1 && p[0] == Object.class ? ObjectMethod.EQUALS : ObjectMethod.NONE;
+                case "hashCode" -> p.length == 0 ? ObjectMethod.HASH_CODE : ObjectMethod.NONE;
+                case "toString" -> p.length == 0 ? ObjectMethod.TO_STRING : ObjectMethod.NONE;
+                default -> ObjectMethod.NONE;
+            };
+        }
+    }
+
     /**
      * A generated subclass.
      *
+     * @param base the mocked class
      * @param type the subclass
      * @param samePackage whether it is in the same runtime package (class loader and package) as its base,
      *                    which is needed to override package-private methods
+     * @param methods the information about intercepted methods, filled on first use
      */
-    record Generated(Class<?> type, boolean samePackage) {
+    record Generated(Class<?> base, Class<?> type, boolean samePackage, Map<Method, MethodInfo> methods) {
+
+        Generated(Class<?> base, Class<?> type, boolean samePackage) {
+            this(base, type, samePackage, new ConcurrentHashMap<>());
+        }
+
+        /**
+         * @param method an intercepted method
+         * @return its information, computed on the first call
+         */
+        MethodInfo info(Method method) {
+            return methods.computeIfAbsent(method, m -> new MethodInfo(base, type, m));
+        }
     }
 
     /**
@@ -58,11 +141,11 @@ final class MockClasses {
     static Generated subclass(Class<?> base) {
         try {
             MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(base, MethodHandles.lookup());
-            return new Generated(make(base).load(base.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(lookup))
+            return new Generated(base, make(base).load(base.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(lookup))
                     .getLoaded(), true);
         }
         catch (IllegalAccessException | RuntimeException | LinkageError e) {
-            return new Generated(make(base).load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+            return new Generated(base, make(base).load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
                     .getLoaded(), false);
         }
     }

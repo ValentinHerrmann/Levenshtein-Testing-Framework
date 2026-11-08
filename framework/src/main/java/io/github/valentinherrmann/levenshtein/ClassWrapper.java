@@ -565,7 +565,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      * @see Mock#override(MethodWrapper, Function)
      */
     public Object newObjOverriding(Map<MethodWrapper<?, ?>, Function<Object[], Object>> overrides) {
-        Mock<T> mock = mock();
+        Mock<T> mock = new Mock<>(this, false); // nobody can ask this mock for its calls
         overrides.forEach(mock::override);
         return mock.obj();
     }
@@ -586,7 +586,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return fail(Messages.MOCK_ENUM_NOT_INSTANTIABLE.format(name.expected));
         }
         if (c.isInterface() || Modifier.isAbstract(c.getModifiers())) {
-            return mock().obj();
+            return new Mock<>(this, false).obj();
         }
         try {
             return MockClasses.allocate(c);

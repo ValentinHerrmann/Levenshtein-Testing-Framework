@@ -1,20 +1,14 @@
 package io.github.valentinherrmann.levenshtein;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -43,7 +37,9 @@ import static org.assertj.core.api.Assertions.fail;
  *       Ares as usual), or returns its default value after {@link #othersReturnDefaults()}.</li>
  *   <li>Methods are matched by the method the wrapper <b>actually found</b>, so a misspelt but tolerated name is
  *       still overridden. Calls from the student's own code ({@code this.getCount()}) are intercepted, too.</li>
- *   <li>Every call of a method that can be overridden is recorded, see {@link #calls(MethodWrapper)} and
+ *   <li>Every call of a method that can be overridden is counted, and the arguments of the first
+ *       {@value #MAX_RECORDED_CALLS} calls per method are recorded (arrays as copies, other objects as references),
+ *       see {@link #callCount(MethodWrapper)}, {@link #calls(MethodWrapper)} and
  *       {@link #assertCalled(MethodWrapper, int)}.</li>
  *   <li>Not possible: {@code final} classes and methods, records, enums, sealed classes, {@code static} and
  *       {@code private} methods, constructors, and attributes read directly by student code.</li>
@@ -53,25 +49,54 @@ import static org.assertj.core.api.Assertions.fail;
  */
 public final class Mock<T> {
 
+    /** Calls per method whose arguments are kept; further calls are only counted. */
+    public static final int MAX_RECORDED_CALLS = 1000;
+
     private final ClassWrapper<T> classWrapper;
     private final Class<T> base;
-    private final Map<String, Replacement> overrides = new LinkedHashMap<>();
-    private final Map<String, MethodHandle> superCalls = new HashMap<>();
-    private final List<Call> calls = Collections.synchronizedList(new ArrayList<>());
+    private final boolean recording;
+    private final Map<String, Replacement> overrides = new ConcurrentHashMap<>();
+    private final Map<String, Recorded> recorded = new ConcurrentHashMap<>();
     private final InvocationHandler handler = this::handle;
-    private boolean othersReturnDefaults;
+    private volatile boolean othersReturnDefaults;
     private Object obj;
 
     /** A method replaced by a function of the test. */
     private record Replacement(MethodWrapper<?, ?> wrapper, Function<Object[], Object> function) {
     }
 
-    /** A recorded call: the called method and its arguments. */
-    private record Call(String key, Object[] args) {
+    /** The calls of one method: their number and the arguments of the first {@value #MAX_RECORDED_CALLS}. */
+    private static final class Recorded {
+        private long count;
+        private final List<Object[]> first = new ArrayList<>();
+
+        synchronized void add(Object[] args) {
+            count++;
+            if (first.size() < MAX_RECORDED_CALLS) {
+                first.add(Invocations.copyArrays(args));
+            }
+        }
+
+        synchronized long count() {
+            return count;
+        }
+
+        synchronized List<Object[]> first() {
+            return new ArrayList<>(first);
+        }
     }
 
     Mock(ClassWrapper<T> classWrapper) {
+        this(classWrapper, true);
+    }
+
+    /**
+     * @param recording whether calls are recorded; off for objects whose mock nobody can ask
+     *                  ({@link ClassWrapper#newObjOverriding(Map)}, {@link ClassWrapper#newObjWithoutConstructor()})
+     */
+    Mock(ClassWrapper<T> classWrapper, boolean recording) {
         this.classWrapper = classWrapper;
+        this.recording = recording;
         classWrapper.verifyExistence(true);
         this.base = classWrapper.getClazz();
         String reason = base.isEnum() ? "enum"
@@ -102,8 +127,7 @@ public final class Mock<T> {
      */
     public Mock<T> override(MethodWrapper<?, ?> method, Function<Object[], Object> function) {
         Objects.requireNonNull(function, "function");
-        Method actual = checkOverridable(method);
-        overrides.put(key(actual.getName(), actual.getParameterTypes()), new Replacement(method, function));
+        overrides.put(checkedKey(method), new Replacement(method, function));
         return this;
     }
 
@@ -121,6 +145,8 @@ public final class Mock<T> {
     /**
      * Makes this a full mock: methods without override return their default value ({@code 0}, {@code false},
      * {@code null}) instead of running the student's code. Their calls are still recorded.
+     * {@code equals}, {@code hashCode} and {@code toString} without override behave like those of {@link Object}
+     * (identity), so the object still works in lists, sets and messages.
      *
      * @return this mock
      */
@@ -137,15 +163,15 @@ public final class Mock<T> {
      */
     public Object obj() {
         if (obj == null) {
-            Class<?> type = classWrapper.mockSubclass().type();
             try {
+                Class<?> type = classWrapper.mockSubclass().type();
                 Object created = MockClasses.allocate(type);
                 Field field = type.getField(MockClasses.HANDLER_FIELD);
                 field.setAccessible(true);
                 field.set(created, handler);
                 obj = created;
             }
-            catch (ReflectiveOperationException | RuntimeException e) {
+            catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
                 return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(classWrapper.getExpectedName(),
                         Invocations.describe(e)), e);
             }
@@ -154,23 +180,33 @@ public final class Mock<T> {
     }
 
     /**
-     * The recorded calls of a method on {@link #obj()}, in call order.
+     * How often a method was called on {@link #obj()} (or on a clone of it).
+     *
+     * @param method a method of the mocked class or of one of its superclasses or interfaces
+     * @return the number of calls
+     */
+    public long callCount(MethodWrapper<?, ?> method) {
+        Recorded calls = recorded.get(checkedKey(method));
+        return calls == null ? 0 : calls.count();
+    }
+
+    /**
+     * The recorded calls of a method on {@link #obj()}, in call order: the first {@value #MAX_RECORDED_CALLS}
+     * calls, see {@link #callCount(MethodWrapper)} for the number of all calls. Arrays were copied when the call
+     * was recorded; other objects are the ones passed.
      *
      * @param method a method of the mocked class or of one of its superclasses or interfaces
      * @return the arguments of each call, converted to the parameter types the wrapper expects
      */
     public List<Object[]> calls(MethodWrapper<?, ?> method) {
-        method.verifyExistence(true);
-        Method actual = method.actualMethod();
-        String key = key(actual.getName(), actual.getParameterTypes());
+        Recorded calls = recorded.get(checkedKey(method));
+        if (calls == null) {
+            return new ArrayList<>();
+        }
         Class<?>[] expected = method.getParamTypes();
         List<Object[]> result = new ArrayList<>();
-        synchronized (calls) {
-            for (Call call : calls) {
-                if (call.key().equals(key)) {
-                    result.add(convertArguments(call.args(), expected));
-                }
-            }
+        for (Object[] args : calls.first()) {
+            result.add(convertArguments(args, expected));
         }
         return result;
     }
@@ -195,19 +231,19 @@ public final class Mock<T> {
      * @param context supplies the text shown in front of the failure message (may be {@code null})
      */
     public void assertCalled(MethodWrapper<?, ?> method, int times, Supplier<String> context) {
-        List<Object[]> recorded = calls(method);
-        if (recorded.size() == times) {
+        long count = callCount(method);
+        if (count == times) {
             return;
         }
         String message = Messages.MOCK_CALL_COUNT.format(method.actualToString(),
-                method.getParentClassWrapper().getExpectedName(), times, recorded.size());
-        if (!recorded.isEmpty()) {
-            String list = recorded.stream()
-                    .map(args -> "(" + Invocations.describeArguments(args) + ")")
+                method.getParentClassWrapper().getExpectedName(), times, count);
+        if (count > 0) {
+            String list = calls(method).stream()
                     .limit(Invocations.MAX_ELEMENTS)
+                    .map(args -> "(" + Invocations.describeArguments(args) + ")")
                     .collect(Collectors.joining(", "));
-            String more = recorded.size() > Invocations.MAX_ELEMENTS
-                    ? ", … (+" + (recorded.size() - Invocations.MAX_ELEMENTS) + ")" : "";
+            long shown = Math.min(count, Invocations.MAX_ELEMENTS);
+            String more = count > shown ? ", … (+" + (count - shown) + ")" : "";
             message += "\n" + Messages.MOCK_RECORDED_CALLS.format(list + more);
         }
         fail(Invocations.withContext(context, message));
@@ -226,10 +262,14 @@ public final class Mock<T> {
      * Forgets all recorded calls, e.g. after preparing the object.
      */
     public void resetCalls() {
-        calls.clear();
+        recorded.clear();
     }
 
-    private Method checkOverridable(MethodWrapper<?, ?> method) {
+    /**
+     * Checks that a method belongs to the mocked class and can be intercepted (otherwise its calls could neither
+     * be replaced nor recorded) and returns its key.
+     */
+    private String checkedKey(MethodWrapper<?, ?> method) {
         method.verifyExistence(true);
         Method actual = method.actualMethod();
         String signature = method.actualToString();
@@ -246,7 +286,7 @@ public final class Mock<T> {
                         : m.getDeclaringClass().getSimpleName(), reason));
             }
         }
-        return actual;
+        return MethodWrapper.signatureKey(actual);
     }
 
     private String notOverridableReason(Method m) {
@@ -262,22 +302,30 @@ public final class Mock<T> {
         return null;
     }
 
-    /** Called for every intercepted method of {@link #obj()}. */
+    /** Called for every intercepted method of {@link #obj()} (and of clones of it). */
     private Object handle(Object self, Method method, Object[] args) throws Throwable {
         Object[] actualArgs = args == null ? new Object[0] : args;
-        String key = key(method.getName(), method.getParameterTypes());
-        calls.add(new Call(key, actualArgs.clone()));
-        Replacement replacement = overrides.get(key);
+        MockClasses.MethodInfo info = classWrapper.mockSubclass().info(method);
+        if (recording) {
+            recorded.computeIfAbsent(info.key(), k -> new Recorded()).add(actualArgs);
+        }
+        Replacement replacement = overrides.get(info.key());
         if (replacement != null) {
             return apply(replacement, method, actualArgs);
         }
         if (othersReturnDefaults) {
-            return MockClasses.defaultValue(method.getReturnType());
+            return switch (info.objectMethod()) {
+                case EQUALS -> self == actualArgs[0];
+                case HASH_CODE -> System.identityHashCode(self);
+                case TO_STRING -> base.getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(self));
+                case NONE -> MockClasses.defaultValue(method.getReturnType());
+            };
         }
-        if (!MockClasses.hasImplementation(base, method.getName(), method.getParameterTypes())) {
+        if (!info.implemented()) {
             return fail(Messages.MOCK_ABSTRACT_NOT_OVERRIDDEN.format(method.getName(), classWrapper.getExpectedName()));
         }
-        return superCall(self, method, key).invokeWithArguments(actualArgs);
+        // the student's implementation, like super.method(...), on the object actually called
+        return info.superCall().bindTo(self).invokeWithArguments(actualArgs);
     }
 
     private Object apply(Replacement replacement, Method method, Object[] args) {
@@ -293,20 +341,6 @@ public final class Mock<T> {
         return Utils.safeCast(result, returnType, true);
     }
 
-    /** The student's implementation of a method, called like {@code super.method(...)} from the subclass. */
-    private MethodHandle superCall(Object self, Method method, String key) throws ReflectiveOperationException {
-        MethodHandle handle = superCalls.get(key);
-        if (handle == null) {
-            Class<?> subclass = self.getClass();
-            handle = MethodHandles.privateLookupIn(subclass, MethodHandles.lookup())
-                    .findSpecial(base, method.getName(),
-                            MethodType.methodType(method.getReturnType(), method.getParameterTypes()), subclass)
-                    .bindTo(self);
-            superCalls.put(key, handle);
-        }
-        return handle;
-    }
-
     private static Object[] convertArguments(Object[] args, Class<?>[] expectedTypes) {
         Object[] converted = args.clone();
         if (expectedTypes.length != converted.length) {
@@ -318,9 +352,5 @@ public final class Mock<T> {
             }
         }
         return converted;
-    }
-
-    private static String key(String name, Class<?>[] parameterTypes) {
-        return name + Arrays.stream(parameterTypes).map(Class::getName).collect(Collectors.joining(",", "(", ")"));
     }
 }

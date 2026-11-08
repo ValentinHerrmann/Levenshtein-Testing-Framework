@@ -220,9 +220,10 @@ guitarist.assertCalled(guitaristWrapper.calculateLoudness(), 1,
 |---|---|
 | `override(method, args -> result)` | `method` runs the function. |
 | `returning(method, value)` | `method` always returns `value`. |
-| `othersReturnDefaults()` | Methods without an override return `0`, `false` or `null` instead of running the student's code (a full mock). |
+| `othersReturnDefaults()` | Methods without an override return `0`, `false` or `null` instead of running the student's code (a full mock). `equals`, `hashCode` and `toString` without an override behave like those of `Object` (identity), so the object still works in lists, sets and messages. |
 | `obj()` | Returns the object. It is created on the first call and stays the same; overrides added later apply to it as well. |
-| `calls(method)` | Returns the arguments of each recorded call, in call order. |
+| `callCount(method)` | Returns the number of calls. |
+| `calls(method)` | Returns the arguments of the recorded calls, in call order: the first 1000 calls per method (`Mock.MAX_RECORDED_CALLS`). Arrays are copied when the call is recorded; other objects are the ones passed. |
 | `assertCalled(method, times[, context])`, `assertNotCalled(method)` | Fails with the expected and actual number of calls and the recorded arguments, e.g. `Calls: (5), (7)`. |
 | `resetCalls()` | Forgets all recorded calls, e.g. after preparing the object. |
 
@@ -240,6 +241,11 @@ guitarist.assertCalled(guitaristWrapper.calculateLoudness(), 1,
   so keep them to plain computations.
 * A missing class or method fails with the usual `MISSING` message. A class or method that cannot be
   overridden fails with a readable message, e.g. `Guitarist: cannot be overridden (final)`.
+  `calls`, `callCount`, `assertCalled` and `assertNotCalled` check the method in the same way, because calls
+  of a `final`, `static` or `private` method cannot be counted.
+* Only `mock()` records calls. The objects of `newObjOverriding` and `newObjWithoutConstructor` do not, since
+  nobody can ask for them. A clone of a mock object (`super.clone()`) shares the mock: its calls are
+  recorded there, and methods without an override run on the clone.
 
 **Limits.** These cannot be replaced, and the call fails readably instead:
 * `final` classes and methods, records, enums, sealed classes;

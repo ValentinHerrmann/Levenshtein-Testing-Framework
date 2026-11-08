@@ -73,8 +73,46 @@ final class Invocations {
         if (t == null) {
             return "<none>";
         }
+        if (t instanceof ExceptionInInitializerError && t.getCause() != null) {
+            // its own message is null; the cause is the exception of the static initializer
+            return t.getClass().getSimpleName() + ": " + describe(t.getCause());
+        }
         String message = t.getMessage();
         return t.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
+    /**
+     * Copies the arguments of a call, with arrays (also nested ones, up to {@value #MAX_DEPTH} levels) copied, so
+     * that a later change of an array does not change the copy. Other objects are kept as they are.
+     *
+     * @param args the arguments
+     * @return the copy
+     */
+    static Object[] copyArrays(Object[] args) {
+        Object[] copy = args.clone();
+        for (int i = 0; i < copy.length; i++) {
+            copy[i] = copyArray(copy[i], 1);
+        }
+        return copy;
+    }
+
+    private static Object copyArray(Object value, int depth) {
+        if (value == null || !value.getClass().isArray()) {
+            return value;
+        }
+        if (value instanceof Object[] objects) {
+            Object[] copy = objects.clone();
+            if (depth < MAX_DEPTH) {
+                for (int i = 0; i < copy.length; i++) {
+                    copy[i] = copyArray(copy[i], depth + 1);
+                }
+            }
+            return copy;
+        }
+        int length = Array.getLength(value);
+        Object copy = Array.newInstance(value.getClass().getComponentType(), length);
+        System.arraycopy(value, 0, copy, 0, length);
+        return copy;
     }
 
     /**

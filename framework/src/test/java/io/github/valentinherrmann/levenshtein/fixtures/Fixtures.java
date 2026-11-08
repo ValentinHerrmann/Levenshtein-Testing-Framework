@@ -226,6 +226,14 @@ public final class Fixtures {
         public final int tune() { return 440; }
         public static int count() { return 0; }
         public void fail() { throw new IllegalStateException("student bug"); }
+        public int sumAndClear(int[] values) {
+            int sum = 0;
+            for (int i = 0; i < values.length; i++) {
+                sum += values[i];
+                values[i] = 0;
+            }
+            return sum;
+        }
     }
 
     /** Calls a method of another student class (#30, SE01E04). */
@@ -253,4 +261,37 @@ public final class Fixtures {
     }
 
     public static class Bassist extends Musician { }
+
+    /** A mock whose clone shares the handler (code review #1). */
+    public static class Counter implements Cloneable {
+        private int value;
+
+        public int get() { return value; }
+        public Counter copy() {
+            try {
+                return (Counter) super.clone();
+            }
+            catch (CloneNotSupportedException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    /** Own equals, hashCode and toString (code review #8). */
+    public static class Eq {
+        @Override public boolean equals(Object o) { return o instanceof Eq; }
+        @Override public int hashCode() { return 1; }
+        @Override public String toString() { return "Eq"; }
+    }
+
+    /** A static initializer that fails when a mock is created (code review #9). */
+    public static class BrokenStaticInit {
+        static {
+            if (true) {
+                throw new IllegalStateException("broken static");
+            }
+        }
+
+        public int value() { return 1; }
+    }
 }
