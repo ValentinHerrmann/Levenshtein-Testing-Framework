@@ -1,5 +1,7 @@
 # Levenshtein Name Deviation Testing Framework
 
+📖 **[levenshtein.valentin-herrmann.com/](https://levenshtein.valentin-herrmann.com/)**
+
 Structural and behavioural tests for student code that **tolerate small naming deviations** (typos,
 case slips, `int` vs. `Integer`, ...) while still verifying the structure, built on
 [Ares 2](https://github.com/ls1intum/Ares2) for exams and exercises on Artemis. Exact name matching fails
@@ -22,17 +24,19 @@ Expect:	public void start()
 ## Key Features
 
 ✅ **Fuzzy name matching** for classes, methods and attributes; the closest candidate wins  
-✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces  
+✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces; missing and unexpected modifiers are reported  
 ✅ **Behavioural testing** through wrappers that call the student's (possibly misspelled) members  
-✅ **Abstract classes and interfaces** instantiated through Byte Buddy subclasses  
-✅ **One failure format**: every behaviour failure (also your own checks via `Failure`) shows Method, Scenario, Input, Expected and Actual, without stack traces  
+✅ **One failure format**: every failure in student code (also your own checks via `Failure`) shows Method, Scenario, Input, Expected and Actual, without stack traces  
+✅ **Getter/setter tests in one line** with generated values and setter conditions  
 ✅ **Independent tests**: objects without running a student constructor, test-owned method overrides and call checks (`mock()`)  
+✅ **Student classes as member types**, found with the same tolerance  
+✅ **Abstract classes and interfaces** instantiated through Byte Buddy subclasses  
 ✅ **Exercise Variants compatible**: names and types are plain strings and classes  
 ✅ **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision
 
 ## Get started
 
-**Requirements:** JDK 25, and Gradle (the template ships a 9.8.0 wrapper; 9.1+ works) or Maven 3.9+.
+**Requirements:** JDK 25 and Gradle 9.1+ (the template ships a wrapper) or Maven 3.9+.
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
@@ -40,26 +44,29 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
-Then follow the **[Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/)**: copy the [Gradle](example-gradle) (or
+Then follow the **[Quick Start]([https://levenshtein.valentin-herrmann.com/quick-start/](https://levenshtein.valentin-herrmann.com/quick-start/))**: copy the [Gradle](example-gradle) (or
 [Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 
 ## Documentation
 
-📖 **[https://valentinherrmann.github.io/Levenshtein-Testing-Framework/](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/)**: searchable docs site with all guides and the API reference (Javadoc).
+📖 **[levenshtein.valentin-herrmann.com/](https://levenshtein.valentin-herrmann.com/)**: searchable docs site with all guides and the API reference (Javadoc).
 The sources are the Markdown files in [`docs/`](docs).
 
 | Guide | What's inside |
 |---|---|
-| [Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/) | From zero to a running test in four steps |
-| [Writing Tests](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/writing-tests/) | Wrapper cheat sheet, structural and behavioural tests, independent tests (mocks), configuration |
-| [Ares 2 Setup in Detail](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/ares-setup/) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
-| [How Matching Works](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/matching/) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
-| [Architecture](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/architecture/) | Module overview and class diagrams |
-| [Versions and Migrating from 1000.x](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/migration/) | Version history and breaking changes in 2000.0.0 |
-| [FAQ & Troubleshooting](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/faq/) | Common problems and known limitations |
-| [API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/) | Every public class and method of the framework |
-| [Releasing](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/) | Step checklist for publishing a release to Maven Central |
+| [Quick Start](https://levenshtein.valentin-herrmann.com/quick-start/) | From zero to a running test in four steps |
+| [Writing Tests](https://levenshtein.valentin-herrmann.com/writing-tests/) | Wrapper cheat sheet, structural and behavioural tests, getters and setters, failure format, configuration |
+| [Independent Tests and Mocks](https://levenshtein.valentin-herrmann.com/independent-tests/) | Objects without constructor, method overrides and call checks |
+| [Ares 2 Setup in Detail](https://levenshtein.valentin-herrmann.com/ares-setup/) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
+| [How Matching Works](https://levenshtein.valentin-herrmann.com/matching/) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
+| [Architecture](https://levenshtein.valentin-herrmann.com/architecture/) | How the parts fit together, class overview and diagrams |
+| [API Reference (Javadoc)](https://levenshtein.valentin-herrmann.com/api/) | Every public class and method of the framework |
+| [FAQ & Troubleshooting](https://levenshtein.valentin-herrmann.com/faq/) | Common problems and known limitations |
+| [Versions and Migrating](https://levenshtein.valentin-herrmann.com/migration/) | What changed in each release and how to update existing tests |
+| [Development and Releasing](https://levenshtein.valentin-herrmann.com/releasing/) | Building and testing the framework, mutation testing, publishing a release |
+
+Backup docs, in case Cloudflare pages is down: https://valentinherrmann.github.io/Levenshtein-Testing-Framework/
 
 ## Development
 
@@ -70,9 +77,6 @@ The sources are the Markdown files in [`docs/`](docs).
 # Gradle example under Ares 2, against the framework source of this checkout
 (cd example-gradle && ./gradlew test)
 
-# + sources, javadoc, GPG signature (needs a key)
-./mvnw -B -P release -pl framework verify
-
 # mutation testing of the framework with PIT (report: framework/target/pit-reports/index.html)
 ./mvnw -B -f framework/pom.xml -P mutation verify
 
@@ -80,29 +84,7 @@ The sources are the Markdown files in [`docs/`](docs).
 pip install zensical && zensical serve
 ```
 
-Inside this repository both examples compile the framework source (`../framework/src/main/java`) together with
-the tests, so the framework can be debugged directly. The examples are exam templates: a copy without
-`../framework` uses the newest framework release from Maven Central, release candidates included
-(`levenshteinVersion` in `build.gradle`, `levenshtein.version` in `pom.xml`, both overridable). CI installs the
-SNAPSHOT and passes it to standalone copies of both examples.
-
-The framework's own tests are checked with [PIT](https://pitest.org) mutation testing: PIT changes the framework
-code in small ways (e.g. `<` to `<=`, a condition to `true`) and reruns the tests; a change no test notices
-("surviving mutant") points to a missing test or a bug. Only framework classes are mutated, never the examples.
-CI's `mutation` job fails below `mutationThreshold` in the `mutation` profile of `framework/pom.xml` and uploads
-the HTML report as the `pit-report` artifact. Raise the threshold when new tests kill more mutants; never lower it
-to make a change pass.
-
-The framework is built and published with Maven only (publishing with Gradle is more trouble than it is worth).
-The Gradle module is a consumer of it, like an exam repository.
-
-Releases are published to Maven Central by the `Publish` workflow on a GitHub release
-(`-P release -pl framework deploy`; the version comes from the tag). CI's `release-dry-run` job builds the
-release artifacts for every change. A version on Maven Central can never be changed, so publish a release
-candidate first (e.g. `2026.11.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
-version: it runs both templates against Maven Central. Afterwards, bump the `<version>` in `framework/pom.xml`
-to the next SNAPSHOT; it is the only place that holds the framework version. The full step list is the
-[release checklist](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/).
+How the repository is built, tested and released: [Development and Releasing](https://levenshtein.valentin-herrmann.com/releasing/).
 
 ## References
 

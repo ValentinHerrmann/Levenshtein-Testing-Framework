@@ -2,7 +2,8 @@
 
 The templates [`example-gradle/build.gradle`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/build.gradle) (Gradle) and
 [`example-maven/pom.xml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
-below. This page explains it, so you know what you may not remove. Both builds run the same pipeline:
+below. This page explains why each part is there, so you know what you must not remove when you adapt a
+template. Both builds run the same pipeline:
 
 ```mermaid
 flowchart LR
@@ -14,7 +15,9 @@ flowchart LR
 Gradle needs version 9.1+ to run on JDK 25 (8.14 cannot even read the build script); the template ships a
 wrapper for 9.8.0.
 
-**1. Dependencies.** Ares must be visible to the student sources (the weaver needs it there) *and* to the
+## 1. Dependencies
+
+Ares must be visible to the student sources (the weaver needs it there) *and* to the
 tests. In Maven that is the scope `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
 
 <details open markdown="1">
@@ -26,7 +29,7 @@ repositories {
 }
 
 configurations {
-    aresAgent { transitive = false }   // just the agent JAR, see 2.
+    aresAgent { transitive = false }   // just the agent JAR, see section 2
     // Maven's "provided": Ares is also on the test classpath
     testImplementation.extendsFrom compileOnly
 }
@@ -73,7 +76,9 @@ dependencies {
 ```
 </details>
 
-**2. Ares 2 build wiring.** Three things: weave the Ares aspects into the compiled student classes, put the
+## 2. Ares 2 build wiring
+
+Three things: weave the Ares aspects into the compiled student classes, put the
 Ares agent where the test JVM can find it, and start the tests with `-javaagent` plus the module flags.
 
 * **Gradle:** the plugin `io.freefair.aspectj.post-compile-weaving` (weaves; it uses the `aspect`
@@ -89,7 +94,9 @@ Ares agent where the test JVM can find it, and start the tests with `-javaagent`
   "[transform an Ares 1 protected project into an Ares 2 protected project](https://ls1intum.github.io/Ares2/instructor/transform-ares-1-into-ares-2/)"
   (Postcompile, Maven).
 
-**3. Reserved-package guard: mandatory.** Student classes in the build output come *before* every dependency
+## 3. Reserved-package guard (mandatory)
+
+Student classes in the build output come *before* every dependency
 JAR on the test classpath. A student who submits `io/github/valentinherrmann/levenshtein/StructuralLevenshtein.java`
 would replace the framework, and with it every structural test. The guard therefore lists the Ares prefixes
 **plus** `io/github/valentinherrmann/levenshtein/**`, the instructor test package, `org/junit/**`,
@@ -99,10 +106,10 @@ would replace the framework, and with it every structural test. The guard theref
   is compiled and before the tests are compiled, and fails with the offending class files.
 * **Maven:** the antrun execution `verify-ares-reserved-packages-v2` in `example-maven/pom.xml`.
 
-**4. Security policy and annotations.**
+## 4. Security policy and annotations
 
 ```java
-@LevenshteinTest   // = @Public + @StrictTimeout(5) + @MirrorOutput
+@LevenshteinTest   // = @Public + @StrictTimeout(5) + @MirrorOutput + StaticStateReset
 @Policy(value = "test/SecurityPolicy.yaml",
         withinPath = "classes/org/example/exam")
 class ExamTest {

@@ -1,26 +1,18 @@
 # How Matching Works
 
+How a wrapper finds the student's element and grades it as `EXACT`, `DEVIATES` or `MISSING`.
+
 **In short**
 
 * A name matches if at most **20 %** (default) of the longer name differs (Levenshtein distance). The closest
   name wins.
 * `int`/`Integer` and two numeric types (`int`/`long`/`double`, ...) **deviate**; other types do not match.
 * Methods are found by name **and** parameters; return type and modifiers are only graded afterwards.
+* Every missing or unexpected modifier **deviates**; a `?` suffix makes a modifier optional.
 * Every part is `EXACT`, `DEVIATES` or `MISSING`; the **worst** part is the verdict.
 * `DEVIATES` fails the structural test, but behavioural tests still run on the student's element.
 
-The rest of this page is the reference for each kind of element.
-
-* [The big picture](#the-big-picture)
-* [Name matching](#name-matching)
-* [Types](#types)
-* [Modifiers](#modifiers)
-* [Attributes](#attributes)
-* [Methods](#methods): parameters, overloads, claiming, return type
-* [Constructors](#constructors)
-* [Classes](#classes): superclass and interfaces
-* [From verdict to tests](#from-verdict-to-tests)
-* [Debugging a non-match](#debugging-a-non-match)
+The rest of this page is the reference for each kind of element; use the table of contents to jump to one.
 
 ## The big picture
 
@@ -163,10 +155,24 @@ compiles to the same class file and cannot be told apart.
   expected still works: its constructors get an object of the outer class as hidden first argument (one per
   class wrapper, shared by all its inner objects).
 
-`LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` behaves like before 2026.11.1: only
-an unexpected `static` of attributes and methods is reported, and a missing expected `static` makes the element
-`MISSING`. (Implicit modifiers such as the `static` of enum constants, and bits that are no modifiers such as
-varargs, are not reported in this mode either.)
+**What the student sees.** A modifier deviation adds one line per kind to the `DEVIATION` message:
+
+```text
+⚠️ DEVIATION in FestivalStage ⚠️
+If possible actual will be used for further testing.
+Expect:	private boolean[] spotlights
+Actual:	private static boolean[] spotlights
+unexpected modifier: static
+```
+
+In your own code, `wrapper.getMissingModifiers()` and `wrapper.getUnexpectedModifiers()` return the same
+keywords as lists (after the element was looked up).
+
+**The `IGNORE` mode.** `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` relaxes the
+check: only an unexpected `static` of attributes and methods is reported, and a missing expected `static` makes
+the element `MISSING`. Implicit modifiers such as the `static` of enum constants, and bits that are no modifiers
+such as varargs, are not reported in this mode either. Use it for exercises written before modifiers were checked
+strictly.
 
 An unknown modifier in the specification (a typo) throws `IllegalArgumentException` when the wrapper is
 created.

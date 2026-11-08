@@ -22,16 +22,36 @@ Expect:	public void start()
 ## Key features
 
 * **Fuzzy name matching** for classes, methods and attributes; the closest candidate wins
-* **Structural verification** of modifiers, types, constructors, superclasses and interfaces
+* **Structural verification** of modifiers, types, constructors, superclasses and interfaces; every missing or
+  unexpected modifier is reported, harmless ones can be marked optional (`"final?"`)
 * **Behavioural testing** through wrappers that call the student's (possibly misspelled) members
+* **One failure format**: every failure in student code, and your own checks via `Failure`, shows Method,
+  Scenario, Input, Expected and Actual, without stack traces
+* **Getter/setter tests in one line**: `testGettersSetters` generates values, checks setter conditions and
+  compares arrays by content
+* **Independent tests**: objects without running a student constructor, test-owned method overrides and call
+  checks (`mock()`)
+* **Student classes as member types**: attributes, return and parameter types may be other student classes,
+  found with the same tolerance
 * **Abstract classes and interfaces** instantiated through Byte Buddy subclasses
-* **Independent tests**: objects without running a student constructor, test-owned method overrides and call checks (`mock()`)
 * **Exercise Variants compatible**: names and types are plain strings and classes
-* **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision
+* **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision and resets static state
+  between tests
+
+A failing behavioural test reads like this:
+
+```text
+Method:   setPrice(double)
+Scenario: setter -> attribute, attribute price
+Input:    setPrice(-1.25)
+Expected: value rejected (unchanged 2.50 or exception)
+Actual:   -1.25
+(2 of 15 cases failed)
+```
 
 ## Get started
 
-**Requirements:** JDK 25, and Gradle (the template ships a 9.8.0 wrapper; 9.1+ works) or Maven 3.9+.
+You need JDK 25 and Gradle 9.1+ or Maven 3.9+ (details in the [Quick Start](quick-start.md)).
 
 ```bash
 git clone https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework.git
@@ -49,14 +69,19 @@ your exam repository, write your first wrapper and test, and read the results.
 | Guide | What's inside |
 |---|---|
 | [Quick Start](quick-start.md) | From zero to a running test in four steps |
-| [Writing Tests](writing-tests.md) | Wrapper cheat sheet, structural and behavioural tests, independent tests (mocks), configuration |
+| [Writing Tests](writing-tests.md) | Wrapper cheat sheet, structural and behavioural tests, getters and setters, failure format, configuration, annotations |
+| [Independent Tests and Mocks](independent-tests.md) | Objects without constructor, method overrides and call checks, so one mistake fails one test |
 | [Ares 2 Setup in Detail](ares-setup.md) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
-| [How Matching Works](matching.md) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
-| [Architecture](architecture.md) | Module overview and class diagrams |
+| [How Matching Works](matching.md) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING`; types and modifiers |
+| [Architecture](architecture.md) | How the parts fit together, class overview and diagrams |
 | [API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/) | Every public class and method of the framework |
-| [Versions and Migrating from 1000.x](migration.md) | Version history and breaking changes in 2000.0.0 |
 | [FAQ & Troubleshooting](faq.md) | Common problems and known limitations |
-| [Releasing](releasing.md) | Step checklist for publishing a release to Maven Central |
+| [Versions and Migrating](migration.md) | What changed in each release and how to update existing tests |
+| [Development and Releasing](releasing.md) | Building and testing the framework, mutation testing, publishing a release |
+
+For AI assistants and other tools, the whole documentation is also available as plain text:
+[`llms.txt`](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/llms.txt) (index) and
+[`llms-full.txt`](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/llms-full.txt) (all pages).
 
 The framework is published on Maven Central as `io.github.valentinherrmann:levenshtein-testing-framework`; the
 source is on [GitHub](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework).
