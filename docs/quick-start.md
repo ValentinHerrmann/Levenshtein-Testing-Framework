@@ -1,7 +1,5 @@
 # Quick Start
 
-[README](../README.md) · **Quick Start** · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
-
 **Requirements:** JDK 25 and either **Gradle** (the template ships a 9.8.0 wrapper, so just `./gradlew`;
 9.1+ works) or Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
 
@@ -19,7 +17,7 @@ repository root builds the framework and the Maven example the same way.
 To see the framework's messages, run the same tests against the failing example solution in
 `assignment-failing/src` (`./mvnw -B verify -Dassignment.dir=assignment-failing` for Maven). It fails on purpose,
 with deviating types, modifiers, parameters and inheritance, some of them combined (all defects:
-[`assignment-failing/README.md`](../example-gradle/assignment-failing/README.md)):
+[`assignment-failing/README.md`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/assignment-failing/README.md)):
 
 ```bash
 ./gradlew test -PassignmentDir=assignment-failing
@@ -48,16 +46,16 @@ The repository contains three modules:
 
 | Module | Content |
 |---|---|
-| [`framework/`](../framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` (built with Maven) |
-| [`example-gradle/`](../example-gradle) | The example exercise as a standalone **Gradle** project: your exam template |
-| [`example-maven/`](../example-maven) | The same exercise as a standalone **Maven** project: your exam template |
+| [`framework/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/framework) | The published library `io.github.valentinherrmann:levenshtein-testing-framework` (built with Maven) |
+| [`example-gradle/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-gradle) | The example exercise as a standalone **Gradle** project: your exam template |
+| [`example-maven/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-maven) | The same exercise as a standalone **Maven** project: your exam template |
 
 Both examples use the Artemis layout: `assignment/src` = student code, `test/` = instructor tests and policy
 (`assignment-failing/src` = the failing example solution).
 
 ## Step 2: Create your exam repository from the template
 
-Copy the whole [`example-gradle/`](../example-gradle) (or [`example-maven/`](../example-maven)) folder as
+Copy the whole [`example-gradle/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-gradle) (or [`example-maven/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-maven)) folder as
 your exam repository. It runs as it is, so you can check your machine first with `./gradlew test`
 (`./mvnw -B verify`).
 
@@ -87,7 +85,7 @@ Artemis as it is. Set a fixed version there to keep an exam on one release.
 A **wrapper** describes one class you expect from the student. The framework finds the student's class and
 members, even with small typos, and the tests work through the wrapper.
 
-<details open>
+<details open markdown="1">
 <summary><b>Student code</b>: <code>assignment/src/org/example/exam/Car.java</code> (the expected solution)</summary>
 
 ```java
@@ -233,5 +231,5 @@ With the solution above, all 6 tests pass. Every expected element ends up in one
 The exact rules are in [How Matching Works](matching.md).
 
 That's it. Next: describe more classes ([Writing Tests](writing-tests.md)) and look at the full example in
-[`example-maven/test`](../example-maven/test/io/github/valentinherrmann/example/tests), which covers an interface, an
+[`example-maven/test`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-maven/test/io/github/valentinherrmann/example/tests), which covers an interface, an
 abstract class, inheritance, overloading and Exercise Variants.

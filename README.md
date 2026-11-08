@@ -39,22 +39,26 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
-Then follow the **[Quick Start](docs/quick-start.md)**: copy the [Gradle](example-gradle) (or
+Then follow the **[Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/)**: copy the [Gradle](example-gradle) (or
 [Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 
 ## Documentation
 
+📖 **[https://valentinherrmann.github.io/Levenshtein-Testing-Framework/](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/)**: searchable docs site with all guides and the API reference (Javadoc).
+The sources are the Markdown files in [`docs/`](docs).
+
 | Guide | What's inside |
 |---|---|
-| [Quick Start](docs/quick-start.md) | From zero to a running test in four steps |
-| [Writing Tests](docs/writing-tests.md) | Wrapper cheat sheet, structural and behavioural tests, independent tests (mocks), configuration |
-| [Ares 2 Setup in Detail](docs/ares-setup.md) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
-| [How Matching Works](docs/matching.md) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
-| [Architecture](docs/architecture.md) | Module overview and class diagrams |
-| [Versions and Migrating from 1000.x](docs/migration.md) | Version history and breaking changes in 2000.0.0 |
-| [FAQ & Troubleshooting](docs/faq.md) | Common problems and known limitations |
-| [Releasing](docs/releasing.md) | Step checklist for publishing a release to Maven Central |
+| [Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/) | From zero to a running test in four steps |
+| [Writing Tests](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/writing-tests/) | Wrapper cheat sheet, structural and behavioural tests, independent tests (mocks), configuration |
+| [Ares 2 Setup in Detail](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/ares-setup/) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
+| [How Matching Works](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/matching/) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
+| [Architecture](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/architecture/) | Module overview and class diagrams |
+| [Versions and Migrating from 1000.x](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/migration/) | Version history and breaking changes in 2000.0.0 |
+| [FAQ & Troubleshooting](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/faq/) | Common problems and known limitations |
+| [API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/) | Every public class and method of the framework |
+| [Releasing](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/) | Step checklist for publishing a release to Maven Central |
 
 ## Development
 
@@ -70,6 +74,9 @@ results.
 
 # mutation testing of the framework with PIT (report: framework/target/pit-reports/index.html)
 ./mvnw -B -f framework/pom.xml -P mutation verify
+
+# docs site with live reload on http://localhost:8000 (Zensical, configured in zensical.toml)
+pip install zensical && zensical serve
 ```
 
 Inside this repository both examples compile the framework source (`../framework/src/main/java`) together with
@@ -94,7 +101,7 @@ release artifacts for every change. A version on Maven Central can never be chan
 candidate first (e.g. `2026.11.0-RC1` as a GitHub pre-release) and run the `Smoke test` workflow with that
 version: it runs both templates against Maven Central. Afterwards, bump the `<version>` in `framework/pom.xml`
 to the next SNAPSHOT; it is the only place that holds the framework version. The full step list is the
-[release checklist](docs/releasing.md).
+[release checklist](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/).
 
 ## References
 

@@ -1,7 +1,5 @@
 # Architecture
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · **Architecture** · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
-
 ```mermaid
 flowchart TB
     subgraph EX["Example exercise (test/)"]
@@ -81,13 +79,13 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 projects, one per build tool. Their `assignment/` and `test/` folders are identical (CI checks this) except
 for one line in `SecurityPolicy.yaml`.
 * `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`), explained
-  in [`SIMPLIFIED_CONCEPTS.md`](../example-maven/SIMPLIFIED_CONCEPTS.md)
+  in [`SIMPLIFIED_CONCEPTS.md`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/SIMPLIFIED_CONCEPTS.md)
 * `test/.../tests`: `TestManager` (tests), `TestAbstr`/`TestImpl`/`TestInterface` (test logic),
   `Constants` (Exercise Variants), `wrappers/*`, `SecurityPolicy.yaml`
 
 ## Class diagrams
 
-The diagrams are [Mermaid](https://mermaid.js.org/) and render directly on GitHub; keep them in sync
+The diagrams are [Mermaid](https://mermaid.js.org/) and render directly on GitHub and on the docs site; keep them in sync
 with the code when public signatures change.
 
 ### Framework: wrappers (`io.github.valentinherrmann.levenshtein`)

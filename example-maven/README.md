@@ -33,5 +33,5 @@ For a real exam, delete the self-checks `SecurityControlTest`, `TimeoutControlTe
 | `test/` | instructor tests, wrappers, `SecurityPolicy.yaml` |
 | `pom.xml` | Ares 2 wiring, reserved-package guard |
 
-Setting up your own exam from it: [Quick Start](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/quick-start.md). Why every setting exists:
-[Ares 2 Setup in Detail](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/docs/ares-setup.md).
+Setting up your own exam from it: [Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/). Why every setting exists:
+[Ares 2 Setup in Detail](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/ares-setup/).
