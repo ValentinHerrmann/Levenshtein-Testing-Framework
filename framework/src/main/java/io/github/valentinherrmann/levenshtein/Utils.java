@@ -247,8 +247,10 @@ public final class Utils
 
 
     /**
-     * Checks if the actual primitive type can contain the expected primitive type.
-     * For example, a long can contain an int, and a double can contain a float.
+     * Checks if the actual primitive type can contain the expected primitive type, i.e. whether Java's widening
+     * primitive conversion goes from the expected to the actual type.
+     * For example, a long can contain an int, a double can contain a float, and every numeric type except
+     * byte and short can contain a char.
      *
      * @param actualType the actual type to check
      * @param expectedType the expected type to verify containment for
@@ -267,8 +269,8 @@ public final class Utils
         return (actual == long.class && (expected == int.class || expected == short.class || expected == byte.class || expected == char.class)) ||
                 (actual == int.class && (expected == short.class || expected == byte.class || expected == char.class)) ||
                 (actual == short.class && expected == byte.class) ||
-                (actual == double.class && (expected == float.class || expected == long.class || expected == int.class || expected == short.class || expected == byte.class)) ||
-                (actual == float.class && (expected == long.class || expected == int.class || expected == short.class || expected == byte.class));
+                (actual == double.class && (expected == float.class || expected == long.class || expected == int.class || expected == short.class || expected == byte.class || expected == char.class)) ||
+                (actual == float.class && (expected == long.class || expected == int.class || expected == short.class || expected == byte.class || expected == char.class));
     }
 
     /**

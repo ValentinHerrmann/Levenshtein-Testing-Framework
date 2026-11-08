@@ -286,6 +286,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
 
     @Override
     public String actualToString() {
+        ensureChecked();
         if(field == null) {
             return "<missing>";
         }
