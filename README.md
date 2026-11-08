@@ -44,7 +44,7 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
-Then follow the **[Quick Start]([https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/](https://levenshtein.valentin-herrmann.com/quick-start/))**: copy the [Gradle](example-gradle) (or
+Then follow the **[Quick Start]([https://levenshtein.valentin-herrmann.com/quick-start/](https://levenshtein.valentin-herrmann.com/quick-start/))**: copy the [Gradle](example-gradle) (or
 [Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 
@@ -55,16 +55,18 @@ The sources are the Markdown files in [`docs/`](docs).
 
 | Guide | What's inside |
 |---|---|
-| [Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/) | From zero to a running test in four steps |
-| [Writing Tests](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/writing-tests/) | Wrapper cheat sheet, structural and behavioural tests, getters and setters, failure format, configuration |
-| [Independent Tests and Mocks](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/independent-tests/) | Objects without constructor, method overrides and call checks |
-| [Ares 2 Setup in Detail](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/ares-setup/) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
-| [How Matching Works](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/matching/) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
-| [Architecture](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/architecture/) | How the parts fit together, class overview and diagrams |
-| [API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/) | Every public class and method of the framework |
-| [FAQ & Troubleshooting](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/faq/) | Common problems and known limitations |
-| [Versions and Migrating](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/migration/) | What changed in each release and how to update existing tests |
-| [Development and Releasing](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/) | Building and testing the framework, mutation testing, publishing a release |
+| [Quick Start](https://levenshtein.valentin-herrmann.com/quick-start/) | From zero to a running test in four steps |
+| [Writing Tests](https://levenshtein.valentin-herrmann.com/writing-tests/) | Wrapper cheat sheet, structural and behavioural tests, getters and setters, failure format, configuration |
+| [Independent Tests and Mocks](https://levenshtein.valentin-herrmann.com/independent-tests/) | Objects without constructor, method overrides and call checks |
+| [Ares 2 Setup in Detail](https://levenshtein.valentin-herrmann.com/ares-setup/) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
+| [How Matching Works](https://levenshtein.valentin-herrmann.com/matching/) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
+| [Architecture](https://levenshtein.valentin-herrmann.com/architecture/) | How the parts fit together, class overview and diagrams |
+| [API Reference (Javadoc)](https://levenshtein.valentin-herrmann.com/api/) | Every public class and method of the framework |
+| [FAQ & Troubleshooting](https://levenshtein.valentin-herrmann.com/faq/) | Common problems and known limitations |
+| [Versions and Migrating](https://levenshtein.valentin-herrmann.com/migration/) | What changed in each release and how to update existing tests |
+| [Development and Releasing](https://levenshtein.valentin-herrmann.com/releasing/) | Building and testing the framework, mutation testing, publishing a release |
+
+Backup docs, in case Cloudflare pages is down: https://valentinherrmann.github.io/Levenshtein-Testing-Framework/
 
 ## Development
 
@@ -82,7 +84,7 @@ The sources are the Markdown files in [`docs/`](docs).
 pip install zensical && zensical serve
 ```
 
-How the repository is built, tested and released: [Development and Releasing](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/releasing/).
+How the repository is built, tested and released: [Development and Releasing](https://levenshtein.valentin-herrmann.com/releasing/).
 
 ## References
 
