@@ -231,14 +231,17 @@ public final class Mock<T> {
      * @param context supplies the text shown in front of the failure message (may be {@code null})
      */
     public void assertCalled(MethodWrapper<?, ?> method, int times, Supplier<String> context) {
-        long count = callCount(method);
+        Recorded calls = recorded.get(checkedKey(method));
+        long count = calls == null ? 0 : calls.count();
         if (count == times) {
             return;
         }
         String message = Messages.MOCK_CALL_COUNT.format(method.actualToString(),
                 method.getParentClassWrapper().getExpectedName(), times, count);
         if (count > 0) {
-            String list = calls(method).stream()
+            // the arguments as the student passed them: a value that does not fit the type the wrapper expects
+            // (e.g. 2.5 for a student's double where int is expected) must not replace this failure
+            String list = calls.first().stream()
                     .limit(Invocations.MAX_ELEMENTS)
                     .map(args -> "(" + Invocations.describeArguments(args) + ")")
                     .collect(Collectors.joining(", "));
