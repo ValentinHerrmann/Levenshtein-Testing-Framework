@@ -89,6 +89,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         super(parentClass, expectedName, modifiers);
         this.typeRef = typeRef;
         this.type = new WrapperProperty<>(typeRef != null && typeRef.isFixed() ? typeRef.resolve() : null);
+        StaticStateReset.register(this);
     }
 
 
@@ -101,12 +102,45 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     }
 
     /**
-     * Fields of interfaces are implicitly static, so an unexpected {@code static} is only reported for classes.
+     * Fields of interfaces are implicitly static, so the legacy mode only reports an unexpected {@code static}
+     * for classes.
      */
     @Override
-    protected boolean reportUnexpectedStatic() {
+    protected boolean legacyReportsUnexpectedStatic() {
         Class<T> parent = getParentClassWrapper().getClazz();
         return parent == null || !parent.isInterface();
+    }
+
+    @Override
+    protected int relevantModifierMask() {
+        return Modifier.fieldModifiers();
+    }
+
+    /**
+     * @return the student's field found by the lookup, or null if it is missing (does not trigger the lookup)
+     */
+    Field foundField() {
+        return field;
+    }
+
+    /**
+     * Constants of interfaces and enum constants are implicitly {@code static final}, the component fields of
+     * records implicitly {@code final}.
+     */
+    @Override
+    protected int implicitModifiers() {
+        int implicit = super.implicitModifiers();
+        Class<T> parent = getParentClassWrapper().getClazz();
+        if (parent != null && parent.isInterface()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (field != null && field.isEnumConstant()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (parent != null && parent.isRecord() && field != null && !Modifier.isStatic(field.getModifiers())) {
+            implicit |= Modifier.FINAL;
+        }
+        return implicit;
     }
 
     /**
@@ -289,6 +323,9 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         {
             verifyModifiers(field.getModifiers());
             verifyType(type, field.getType());
+            if (hasUnexpectedModifier("static")) {
+                StaticStateReset.snapshot(field); // reset before each test, see StaticStateReset
+            }
         }
     }
 

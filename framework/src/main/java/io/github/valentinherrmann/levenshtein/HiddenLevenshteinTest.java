@@ -3,6 +3,7 @@ package io.github.valentinherrmann.levenshtein;
 import de.tum.cit.ase.ares.api.MirrorOutput;
 import de.tum.cit.ase.ares.api.StrictTimeout;
 import de.tum.cit.ase.ares.api.jupiter.Hidden;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
@@ -15,7 +16,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Hidden counterpart of {@link LevenshteinTest}: composes {@link Hidden}, {@link StrictTimeout}{@code (5)}
- * and {@link MirrorOutput}.
+ * and {@link MirrorOutput}, plus {@link StaticStateReset}.
  *
  * <p>Ares requires a {@code @Deadline} for hidden tests; add it to the test class (or method) together
  * with the exam specific {@code @Policy}.</p>
@@ -24,6 +25,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 @Hidden
 @StrictTimeout(5)
+@ExtendWith(StaticStateReset.class)
 @MirrorOutput
 @Inherited
 @Documented

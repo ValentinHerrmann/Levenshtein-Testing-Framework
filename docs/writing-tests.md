@@ -322,8 +322,14 @@ static {
     LevenshteinSettings.setAttributeNameDeviationThreshold(20);
     // testGettersSetters: equal content (false, default) or the same object (true) for reference values
     LevenshteinSettings.setGettersSettersRequireSameObject(false);
+    // modifiers the test does not expect: DEVIATE (default) or IGNORE (behaviour before 2026.11.1)
+    LevenshteinSettings.setUnexpectedModifiers(LevenshteinSettings.UnexpectedModifiers.DEVIATE);
 }
 ```
+
+Set them in a static initializer or `@BeforeAll`, not in a test method or `@BeforeEach`: `@LevenshteinTest`
+looks up the attribute wrappers before each test (to reset attributes that are unexpectedly `static`), so a
+later change does not reach them.
 
 `LevenshteinSettings.reset()` restores the defaults. Timeouts: `@LevenshteinTest` carries
 `@StrictTimeout(5)`. A `@StrictTimeout` on the class or a method overrides it. (`regardingTimeouts` in the

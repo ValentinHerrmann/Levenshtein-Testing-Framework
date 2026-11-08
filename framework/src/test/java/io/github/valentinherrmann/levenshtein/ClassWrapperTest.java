@@ -487,7 +487,10 @@ class ClassWrapperTest {
             W<Object> w = classFixture("Plain");
             assertThat(w.expectedToString()).isEqualTo("class ClassFixtures$Plain");
             assertThat(w.actualToString()).isEqualTo("static class ClassFixtures$Plain");
-            assertThat(w.getOverallExistence()).isEqualTo(EXACT);
+            // the fixture is a nested static class: the static that is not expected is a deviation (#35)
+            assertThat(w.getOverallExistence()).isEqualTo(DEVIATES);
+            assertThat(w.getUnexpectedModifiers()).containsExactly("static");
+            assertThat(classFixture("Plain", "static").getOverallExistence()).isEqualTo(EXACT);
         }
 
         @Test

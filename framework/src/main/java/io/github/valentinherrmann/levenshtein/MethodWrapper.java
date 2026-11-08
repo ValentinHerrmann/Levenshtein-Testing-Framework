@@ -173,8 +173,22 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     }
 
     @Override
-    protected boolean reportUnexpectedStatic() {
+    protected boolean legacyReportsUnexpectedStatic() {
         return true;
+    }
+
+    @Override
+    protected int relevantModifierMask() {
+        return Modifier.methodModifiers();
+    }
+
+    /**
+     * Abstract methods of interfaces are implicitly {@code abstract}.
+     */
+    @Override
+    protected int implicitModifiers() {
+        Class<T> parent = getParentClassWrapper().getClazz();
+        return super.implicitModifiers() | (parent != null && parent.isInterface() ? Modifier.ABSTRACT : 0);
     }
 
     /**

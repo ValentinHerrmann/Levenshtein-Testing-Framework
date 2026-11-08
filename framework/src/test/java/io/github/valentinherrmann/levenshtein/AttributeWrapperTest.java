@@ -52,8 +52,9 @@ class AttributeWrapperTest {
         }
 
         @Test
-        void missingStaticIsMissingOtherModifiersDeviate() {
-            assertThat(grade("publicField", "public static")).isEqualTo(MISSING);
+        void missingModifiersDeviate() {
+            // a missing static is a deviation since #35: the attribute is used on the default object
+            assertThat(grade("publicField", "public static")).isEqualTo(DEVIATES);
             assertThat(grade("publicField", "public final")).isEqualTo(DEVIATES);
             assertThat(grade("privateField", "public")).isEqualTo(DEVIATES);
             assertThat(grade("publicField", "private")).isEqualTo(DEVIATES);
