@@ -1,9 +1,7 @@
 # FAQ & Troubleshooting
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · **FAQ** · [Releasing](releasing.md)
-
 **Does it work with Gradle?** Yes, and Gradle is the primary path of the [Quick Start](quick-start.md). The
-template is [`example-gradle/`](../example-gradle) and CI runs it next to the Maven build. The framework itself
+template is [`example-gradle/`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-gradle) and CI runs it next to the Maven build. The framework itself
 is built and published with Maven, but it is an ordinary Maven Central artifact that Gradle consumes like any
 other. See [Ares 2 Setup in Detail](ares-setup.md) for the Gradle specifics.
 

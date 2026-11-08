@@ -1,7 +1,5 @@
 # Releasing
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · **Releasing**
-
 A version on Maven Central can never be changed or removed, so every release goes through a release candidate first.
 The `Publish` workflow builds and deploys the framework when a GitHub release is published; the version comes from
 the tag (`2026.11.0` or `2026.11.0-RC1`, as with the existing tags; a leading `v` would be stripped). `framework/pom.xml` is the only place that
@@ -32,7 +30,7 @@ release (now `2026.11.0-SNAPSHOT` for the release `2026.11.0`).
 1. [ ] `main` is green: CI passes, including the `release-dry-run` job (it builds sources, javadoc and the version
    change like `publish.yml`, without GPG and without the upload).
 2. [ ] Docs match the code: [Migration](migration.md) lists the new version and its breaking changes; the
-   [README](../README.md) and the examples show current usage.
+   [README](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/README.md) and the examples show current usage.
 3. [ ] Check that the secrets `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`, `OSSRH_USER` and `OSSRH_TOKEN` are set and
    still valid.
 4. [ ] Create a **pre-release** on GitHub with the tag `<version>-RC1` on `main`. This starts `Publish`.
@@ -45,3 +43,10 @@ release (now `2026.11.0-SNAPSHOT` for the release `2026.11.0`).
    Central).
 10. [ ] Set `<version>` in `framework/pom.xml` to the next `-SNAPSHOT` and commit it to `main`. This is the only
     commit that changes the version.
+
+## Documentation site
+
+The docs site (`docs/` and the Javadoc of `framework/src/main`) is rebuilt and deployed to GitHub Pages by the
+`Docs` workflow on every push to `main` that touches them; nothing to do for a release. It always shows the state
+of `main`, so merge doc changes for a new version together with the code. Preview it locally with
+`pip install zensical && zensical serve`.

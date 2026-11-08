@@ -1,7 +1,5 @@
 # How Matching Works
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · **Matching** · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
-
 **In short**
 
 * A name matches if at most **20 %** (default) of the longer name differs (Levenshtein distance). The closest

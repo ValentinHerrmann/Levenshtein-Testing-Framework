@@ -1,0 +1,88 @@
+name: Docs
+
+# Builds the documentation site (docs/ with Zensical, see zensical.toml) plus the framework Javadoc (at /api/) and
+# publishes it to GitHub Pages: https://valentinherrmann.github.io/Levenshtein-Testing-Framework/
+# Pull requests only build it (strict: broken links fail the check); pushes to main also deploy it.
+# One-time repository setting: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'zensical.toml'
+      - 'framework/src/main/**'
+      - 'framework/pom.xml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'zensical.toml'
+      - 'framework/src/main/**'
+      - 'framework/pom.xml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one deployment at a time; never cancel a running deployment
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the docs site and Javadoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Zensical
+        run: pip install zensical==0.1.0
+
+      - name: Build the site (strict)
+        run: zensical build --clean --strict
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      # the release profile holds the javadoc plugin configuration of the published -javadoc.jar
+      - name: Build the Javadoc
+        run: ./mvnw -B -f framework/pom.xml -P release javadoc:javadoc
+
+      - name: Add the Javadoc to the site
+        run: |
+          test -s framework/target/reports/apidocs/index.html || { echo "::error::Javadoc missing"; exit 1; }
+          cp -r framework/target/reports/apidocs site/api
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

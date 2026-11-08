@@ -1,7 +1,5 @@
 # Writing Tests
 
-[README](../README.md) · [Quick Start](quick-start.md) · **Writing Tests** · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
-
 ## Wrapper cheat sheet
 
 | Wrapper | Constructor | Describes |
@@ -27,7 +25,7 @@ Where a type is expected, you can also pass the `ClassWrapper` of a student clas
 
 Pass the wrappers of the expected superclass and interfaces to the subclass wrapper, and create them in
 dependency order (see `beforeAll()` in
-[`TestManager`](../example-maven/test/io/github/valentinherrmann/example/tests/TestManager.java)):
+[`TestManager`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/test/io/github/valentinherrmann/example/tests/TestManager.java)):
 
 ```java
 // interface Driveable
@@ -332,7 +330,7 @@ policy is not enforced by Ares 2.2.1.)
 ## Exercise Variants
 
 Keep all expected names and types in one place and read them in the wrappers, as in
-[`example-maven/.../Constants.java`](../example-maven/test/io/github/valentinherrmann/example/tests/Constants.java):
+[`example-maven/.../Constants.java`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/test/io/github/valentinherrmann/example/tests/Constants.java):
 
 ```java
 public static String concreteClass() {

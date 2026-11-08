@@ -13,4 +13,4 @@ build/
 target/
 bin/
 private.key
-.claude/
+.claude/site/

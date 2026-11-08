@@ -1,7 +1,5 @@
 # Versions and Migrating from 1000.x
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · [Ares 2 Setup](ares-setup.md) · [Matching](matching.md) · [Architecture](architecture.md) · **Migration** · [FAQ](faq.md) · [Releasing](releasing.md)
-
 `0260.9.0` was published accidentally (instead of `0.9.0`); `1000.0.0` acts as `1.0.0`. **`2000.0.0`** is
 the first release of the Ares 2 / Java 25 line and contains the breaking changes below.
 
@@ -23,7 +21,7 @@ the first release of the Ares 2 / Java 25 line and contains the breaking changes
 **Gradle or Maven?** Both work with 2000.0.0. The coordinates are unchanged
 (`io.github.valentinherrmann:levenshtein-testing-framework`), but a 1000.x exam repository also needs the
 Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
-[Gradle](../example-gradle/build.gradle) or [Maven](../example-maven/pom.xml) template and see
+[Gradle](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/build.gradle) or [Maven](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/pom.xml) template and see
 [Ares 2 Setup in Detail](ares-setup.md).
 
 ## Changes in 2026.11.0

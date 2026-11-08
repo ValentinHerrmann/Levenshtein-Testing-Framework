@@ -1,9 +1,7 @@
 # Ares 2 Setup in Detail
 
-[README](../README.md) · [Quick Start](quick-start.md) · [Writing Tests](writing-tests.md) · **Ares 2 Setup** · [Matching](matching.md) · [Architecture](architecture.md) · [Migration](migration.md) · [FAQ](faq.md) · [Releasing](releasing.md)
-
-The templates [`example-gradle/build.gradle`](../example-gradle/build.gradle) (Gradle) and
-[`example-maven/pom.xml`](../example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
+The templates [`example-gradle/build.gradle`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/build.gradle) (Gradle) and
+[`example-maven/pom.xml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
 below. This page explains it, so you know what you may not remove. Both builds run the same pipeline:
 
 ```mermaid
@@ -19,7 +17,7 @@ wrapper for 9.8.0.
 **1. Dependencies.** Ares must be visible to the student sources (the weaver needs it there) *and* to the
 tests. In Maven that is the scope `provided`, *not* `test`: with test scope AspectJ silently weaves nothing.
 
-<details open>
+<details open markdown="1">
 <summary><b>Gradle</b></summary>
 
 ```groovy
@@ -51,7 +49,7 @@ dependencies {
 ```
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>Maven</b></summary>
 
 ```xml
@@ -80,14 +78,14 @@ Ares agent where the test JVM can find it, and start the tests with `-javaagent`
 
 * **Gradle:** the plugin `io.freefair.aspectj.post-compile-weaving` (weaves; it uses the `aspect`
   dependency above), a `Copy` task for the agent and `aspectjrt`, and `jvmArgs` plus `forkEvery = 1` on the
-  `test` task. Copy these blocks from [`example-gradle/build.gradle`](../example-gradle/build.gradle). Two
+  `test` task. Copy these blocks from [`example-gradle/build.gradle`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/build.gradle). Two
   details that are easy to miss:
   * `forkEvery = 1` is Gradle's counterpart of Surefire's `reuseForks=false` (see
     [below](#ares-2-behaviour-worth-knowing)).
   * `exclude '**/*$*'` keeps nested classes out of the test run. Surefire skips them by default, Gradle does
     not, and the example's `TimeoutControlTest$TimeoutProbe` deliberately halts its JVM.
 * **Maven:** `aspectj-maven-plugin` (weaves), `maven-dependency-plugin` (copies the agent) and Surefire. Copy
-  the plugin blocks from [`example-maven/pom.xml`](../example-maven/pom.xml); they follow the Ares guide
+  the plugin blocks from [`example-maven/pom.xml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/pom.xml); they follow the Ares guide
   "[transform an Ares 1 protected project into an Ares 2 protected project](https://ls1intum.github.io/Ares2/instructor/transform-ares-1-into-ares-2/)"
   (Postcompile, Maven).
 
@@ -116,8 +114,8 @@ class ExamTest {
   `@Policy` but without an Ares test-type annotation runs **completely unsupervised**, silently.
 * `@Policy` is exam specific and therefore not part of `@LevenshteinTest`. The nearest `@Policy` wins;
   policies are never merged.
-* `SecurityPolicy.yaml`: see [`example-gradle/test/SecurityPolicy.yaml`](../example-gradle/test/SecurityPolicy.yaml)
-  (Gradle) or [`example-maven/test/SecurityPolicy.yaml`](../example-maven/test/SecurityPolicy.yaml) (Maven). The two files
+* `SecurityPolicy.yaml`: see [`example-gradle/test/SecurityPolicy.yaml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/test/SecurityPolicy.yaml)
+  (Gradle) or [`example-maven/test/SecurityPolicy.yaml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/test/SecurityPolicy.yaml) (Maven). The two files
   differ in one line only.
   - Use `JAVA_USING_GRADLE_ARCHUNIT_AND_ASPECTJ` with Gradle and `JAVA_USING_MAVEN_ARCHUNIT_AND_ASPECTJ`
     with Maven. Ares uses it to find the build output. With the Gradle setting Ares reads the `build.gradle`
@@ -149,8 +147,8 @@ class ExamTest {
   classes that declare records.
 * The examples contain self-checks that fail if the sandbox is not active (for example when the weaving
   is missing):
-  [`SecurityControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
+  [`SecurityControlTest`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/test/io/github/valentinherrmann/example/tests/SecurityControlTest.java)
   (permitted/forbidden file read) and
-  [`TimeoutControlTest`](../example-maven/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
+  [`TimeoutControlTest`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/test/io/github/valentinherrmann/example/tests/TimeoutControlTest.java)
   (deadline). They need the `SandboxControl` class in the student sources, so do not copy them into a
   real exam. Use them to validate your setup once.
