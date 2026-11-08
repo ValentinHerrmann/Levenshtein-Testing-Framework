@@ -95,6 +95,11 @@ public final class BaseFixtures {
         public int getBroken() { return broken; }
         public void setBroken(int broken) { throw new IllegalStateException("nope"); }
 
+        // the getter always throws
+        private int fragile = 3;
+        public int getFragile() { throw new UnsupportedOperationException("later"); }
+        public void setFragile(int fragile) { this.fragile = fragile; }
+
         // the setter stores every value, but throws for negative ones
         private int positive = 1;
         public int getPositive() { return positive; }

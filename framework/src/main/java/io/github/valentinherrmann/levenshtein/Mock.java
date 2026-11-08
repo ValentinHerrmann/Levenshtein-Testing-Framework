@@ -173,7 +173,7 @@ public final class Mock<T> {
             }
             catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
                 return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(classWrapper.getExpectedName(),
-                        Invocations.describe(e)), e);
+                        Invocations.describe(e)));
             }
         }
         return obj;

@@ -25,6 +25,7 @@ Expect:	public void start()
 ✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces  
 ✅ **Behavioural testing** through wrappers that call the student's (possibly misspelled) members  
 ✅ **Abstract classes and interfaces** instantiated through Byte Buddy subclasses  
+✅ **One failure format**: every behaviour failure (also your own checks via `Failure`) shows Method, Scenario, Input, Expected and Actual, without stack traces  
 ✅ **Independent tests**: objects without running a student constructor, test-owned method overrides and call checks (`mock()`)  
 ✅ **Exercise Variants compatible**: names and types are plain strings and classes  
 ✅ **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision

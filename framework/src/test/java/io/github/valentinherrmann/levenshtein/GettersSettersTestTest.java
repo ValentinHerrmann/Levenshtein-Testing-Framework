@@ -200,9 +200,29 @@ class GettersSettersTestTest {
         void exceptionOfAValidSetterCallIsReported() {
             String message = failure(() -> w.testGettersSetters(attribute("broken", int.class),
                     getter("getBroken", int.class), setter("setBroken", int.class)));
-            assertThat(message)
-                    .contains("❌ setter -> attribute: setBroken(7) threw an exception: IllegalStateException: nope")
-                    .contains("✅ attribute -> getter: passed");
+            assertThat(message).isEqualTo("""
+                    Method:   setBroken(int)
+                    Scenario: setter -> attribute, attribute broken
+                    Input:    setBroken(7)
+                    Expected: 7
+                    Actual:   IllegalStateException: nope
+                    (10 of 15 cases failed)""");
+        }
+
+        @Test
+        void exceptionOfTheGetterIsReportedInGermanWithoutCause() {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.DEUTSCH);
+            AssertionError e = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                    () -> w.testGettersSetters(attribute("fragile", int.class),
+                            getter("getFragile", int.class), setter("setFragile", int.class)));
+            // setter -> attribute passes (5 cases), attribute -> getter fails 5 times, setter -> getter stops after 1
+            assertThat(e).hasNoCause().hasMessage("""
+                    Methode:     getFragile()
+                    Szenario:    Attribut -> Getter, Attribut fragile
+                    Eingabe:     fragile = 7
+                    Erwartet:    7
+                    Tatsächlich: UnsupportedOperationException: later
+                    (6 von 11 Fällen fehlgeschlagen)""");
         }
 
         @Test
@@ -221,7 +241,10 @@ class GettersSettersTestTest {
         @Test
         void actualNameOfADeviatingGetterIsShown() {
             String message = failure(() -> w.testGettersSetters(attribute("size", int.class), getter("getSize", int.class)));
-            assertThat(message).contains("attribute size has the value 7, but getSizee() returns 42");
+            assertThat(message)
+                    .startsWith("Method:   getSize()\nScenario: attribute -> getter, attribute size\nInput:    size = 7")
+                    .contains("Expected: 7\nActual:   42")
+                    .endsWith("(4 of 5 cases failed)");
         }
 
         @Test
@@ -235,7 +258,12 @@ class GettersSettersTestTest {
         @Test
         void getterOfAFinalAttributeIsChecked() {
             String message = failure(() -> w.testGettersSetters(attribute("limit", int.class), getter("getLimit", int.class)));
-            assertThat(message).contains("attribute limit has the value 5, but getLimit() returns 6");
+            assertThat(message).isEqualTo("""
+                    Method:   getLimit()
+                    Scenario: attribute -> getter, attribute limit
+                    Input:    limit = 5
+                    Expected: 5
+                    Actual:   6""");
         }
 
         @Test
@@ -247,11 +275,11 @@ class GettersSettersTestTest {
 
             String missingGetter = failure(() -> w.testGettersSetters(attribute("total", Integer.class),
                     getter("getGhostAttribute", Integer.class), setter("setTotal", Integer.class)));
+            // a missing getter is a structural failure: short form, no block
             assertThat(missingGetter)
-                    .contains("✅ setter -> attribute: passed")
-                    .contains("❌ attribute -> getter")
                     .contains("getGhostAttribute")
-                    .doesNotContain("threw an exception");
+                    .contains("is not implemented as expected")
+                    .doesNotContain("Actual:");
         }
 
         @Test

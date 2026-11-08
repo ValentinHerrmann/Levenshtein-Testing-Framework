@@ -9,12 +9,11 @@ import java.util.function.Predicate;
 import static io.github.valentinherrmann.levenshtein.Utils.isNumericDeviation;
 import static io.github.valentinherrmann.levenshtein.Utils.safeCast;
 import static io.github.valentinherrmann.levenshtein.Utils.toWrapperType;
-import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests the getter and/or setter of one attribute with several sample values in up to three subtests:
- * setter -> attribute, attribute -> getter and setter -> getter. Every applicable subtest runs, and all
- * results are reported together in one failure message.
+ * setter -> attribute, attribute -> getter and setter -> getter. Every applicable subtest runs with every sample
+ * value; the first failing case is reported as {@link Failure} block, followed by the number of failed cases.
  *
  * <p>Values are compared by content ({@link Objects#deepEquals(Object, Object)}, so arrays work), or by identity
  * for reference values if {@link LevenshteinSettings#isGettersSettersRequireSameObject()} is set. Generated sample
@@ -40,7 +39,9 @@ final class GettersSettersTest {
      */
     private final List<Object> samples;
 
-    private boolean failed;
+    private Failure firstFailure;
+    private int failedCases;
+    private int totalCases;
 
     @SuppressWarnings("unchecked")
     GettersSettersTest(ClassWrapper<?> classWrapper, AttributeWrapper<?, ?> attribute, List<?> sampleValues,
@@ -215,90 +216,126 @@ final class GettersSettersTest {
     }
 
     /**
-     * Runs all applicable subtests and fails with one message describing all of them if one failed.
+     * Runs all applicable subtests with all sample values and fails with the {@link Failure} block of the first
+     * failing case, followed by the number of failed cases.
      */
     void run() {
-        String report = String.join("\n",
-                subtest(Messages.GETTERS_SETTERS_SETTER_TO_ATTRIBUTE, setter != null, this::setterToAttribute),
-                subtest(Messages.GETTERS_SETTERS_ATTRIBUTE_TO_GETTER, getter != null, this::attributeToGetter),
-                subtest(Messages.GETTERS_SETTERS_SETTER_TO_GETTER, getter != null && setter != null, this::setterToGetter));
-        if (failed) {
-            fail(Messages.GETTERS_SETTERS_REPORT.format(attribute.getExpectedName(), classWrapper.getExpectedName(), report));
+        if (setter != null) {
+            setterToAttribute();
+        }
+        if (getter != null) {
+            attributeToGetter();
+        }
+        if (getter != null && setter != null) {
+            setterToGetter();
+        }
+        if (firstFailure != null) {
+            throw firstFailure.cases(failedCases, totalCases).error();
         }
     }
 
-    private String subtest(Messages label, boolean applicable, Runnable test) {
-        if (!applicable) {
-            return "➖ " + label.get() + ": " + Messages.GETTERS_SETTERS_NOT_TESTED.get();
+    /**
+     * Counts a checked case and remembers the first failure.
+     *
+     * @param failure the failure of the case, or {@code null} if it passed
+     */
+    private void record(Failure failure) {
+        totalCases++;
+        if (failure != null) {
+            failedCases++;
+            if (firstFailure == null) {
+                firstFailure = failure;
+            }
         }
-        try {
-            test.run();
-            return "✅ " + label.get() + ": " + Messages.GETTERS_SETTERS_PASSED.get();
-        }
-        catch (AssertionError e) {
-            failed = true;
-            return "❌ " + label.get() + ": " + String.valueOf(e.getMessage()).strip().replace("\n", "\n     ");
-        }
+    }
+
+    private String scenario(Messages label) {
+        return Messages.GETTERS_SETTERS_SCENARIO.format(label.get(), attribute.getExpectedName());
     }
 
     private void setterToAttribute() {
         Object obj = classWrapper.getObj(true);
-        String readFrom = Messages.GETTERS_SETTERS_ATTRIBUTE.format(attribute.getExpectedName());
+        String scenario = scenario(Messages.GETTERS_SETTERS_SETTER_TO_ATTRIBUTE);
         for (Object value : samples) {
             Object before = normalize(attribute.getValue(obj));
             Throwable thrown = callSetter(obj, value);
-            checkSet(value, before, thrown, normalize(attribute.getValue(obj)), readFrom);
+            record(checkSet(scenario, value, before, thrown, normalize(attribute.getValue(obj))));
         }
     }
 
     private void attributeToGetter() {
         Object obj = classWrapper.getObj(true);
-        String attributeName = Messages.GETTERS_SETTERS_ATTRIBUTE.format(attribute.getExpectedName());
+        String scenario = scenario(Messages.GETTERS_SETTERS_ATTRIBUTE_TO_GETTER);
         if (samples == null || attribute.isFinal()) {
             // no values can be set: compare the current value only
-            Object expected = normalize(attribute.getValue(obj));
-            checkReturned(attributeName, expected, normalize(callGetter(obj)));
+            record(checkReturned(scenario, normalize(attribute.getValue(obj)), callGetter(obj)));
             return;
         }
         for (Object value : samples) {
             attribute.setValue(obj, value);
-            checkReturned(attributeName, normalize(value), normalize(callGetter(obj)));
+            record(checkReturned(scenario, normalize(value), callGetter(obj)));
         }
     }
 
     private void setterToGetter() {
         Object obj = classWrapper.getObj(true);
+        String scenario = scenario(Messages.GETTERS_SETTERS_SETTER_TO_GETTER);
         for (Object value : samples) {
-            Object before = normalize(callGetter(obj));
+            GetterResult before = callGetter(obj);
+            if (before.thrown() != null) {
+                // nothing to compare with: the getter is broken for this object
+                record(Failure.of(getter).scenario(scenario).thrown(before.thrown()));
+                return;
+            }
             Throwable thrown = callSetter(obj, value);
-            checkSet(value, before, thrown, normalize(callGetter(obj)), name(getter) + "()");
+            GetterResult after = callGetter(obj);
+            if (after.thrown() != null) {
+                record(Failure.of(getter).scenario(scenario).input(name(setter) + "(" + show(value) + ")")
+                        .thrown(after.thrown()));
+                return;
+            }
+            record(checkSet(scenario, value, normalize(before.value()), thrown, normalize(after.value())));
         }
     }
 
     /**
      * Checks the outcome of a setter call: a valid value must be stored, an invalid one must be rejected.
+     *
+     * @return the failure, or {@code null} if the case passed
      */
-    private void checkSet(Object value, Object before, Throwable thrown, Object after, String readFrom) {
+    private Failure checkSet(String scenario, Object value, Object before, Throwable thrown, Object after) {
+        Failure failure = Failure.of(setter).scenario(scenario).input(name(setter) + "(" + show(value) + ")");
         if (isValid(value)) {
             if (thrown != null) {
-                throw new AssertionError(Messages.GETTERS_SETTERS_THREW.format(name(setter), show(value), Invocations.describe(thrown)));
+                return failure.expected(value).thrown(thrown);
             }
             if (!same(after, normalize(value))) {
-                throw new AssertionError(Messages.GETTERS_SETTERS_VALUE_NOT_STORED.format(
-                        name(setter), show(value), readFrom, show(after), show(value)));
+                return failure.expected(value).actual(after);
             }
         }
         else if (thrown == null && !same(after, before)) {
-            throw new AssertionError(Messages.GETTERS_SETTERS_INVALID_VALUE_STORED.format(
-                    name(setter), show(value), readFrom, show(after), show(before)));
+            return failure.expectedText(Messages.GETTERS_SETTERS_EXPECT_REJECTED.format(show(before))).actual(after);
         }
+        return null;
     }
 
-    private void checkReturned(String attributeName, Object expected, Object actual) {
-        if (!same(actual, expected)) {
-            throw new AssertionError(Messages.GETTERS_SETTERS_WRONG_VALUE_RETURNED.format(
-                    attributeName, show(expected), name(getter), show(actual)));
+    /**
+     * @return the failure, or {@code null} if the getter returned the expected value
+     */
+    private Failure checkReturned(String scenario, Object expected, GetterResult returned) {
+        if (returned.thrown() != null) {
+            return getterFailure(scenario, expected).thrown(returned.thrown());
         }
+        Object actual = normalize(returned.value());
+        if (!same(actual, expected)) {
+            return getterFailure(scenario, expected).actual(actual);
+        }
+        return null;
+    }
+
+    private Failure getterFailure(String scenario, Object attributeValue) {
+        return Failure.of(getter).scenario(scenario)
+                .input(attribute.getExpectedName() + " = " + show(attributeValue)).expected(attributeValue);
     }
 
     /**
@@ -317,14 +354,21 @@ final class GettersSettersTest {
         }
     }
 
-    private Object callGetter(Object obj) {
+    /**
+     * Calls the getter; an exception of the student code is returned instead of thrown.
+     */
+    private GetterResult callGetter(Object obj) {
         try {
-            return getter.invokeRaw(obj);
+            return new GetterResult(getter.invokeRaw(obj), null);
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
-            throw new AssertionError(Messages.GETTERS_SETTERS_THREW.format(name(getter), "", Invocations.describe(t)), t);
+            return new GetterResult(null, t);
         }
+    }
+
+    /** The value returned by the getter, or the exception it threw. */
+    private record GetterResult(Object value, Throwable thrown) {
     }
 
     /**

@@ -240,9 +240,9 @@ class InvocationsTest {
         assertThat(Invocations.withCallDetails(e, null, new Object[0])).isSameAs(e);
 
         AssertionError withArgs = Invocations.withCallDetails(e, null, new Object[]{1});
-        assertThat(withArgs).hasMessage("failed\nArguments: (1)").hasCause(e);
+        assertThat(withArgs).hasMessage("failed\nArguments: (1)").hasNoCause();
         AssertionError withContext = Invocations.withCallDetails(e, () -> "case 1", null);
-        assertThat(withContext).hasMessage("case 1\nfailed").hasCause(e);
+        assertThat(withContext).hasMessage("case 1\nfailed").hasNoCause();
         AssertionError withBoth = Invocations.withCallDetails(e, () -> "case 1", new Object[]{1});
         assertThat(withBoth).hasMessage("case 1\nfailed\nArguments: (1)");
 

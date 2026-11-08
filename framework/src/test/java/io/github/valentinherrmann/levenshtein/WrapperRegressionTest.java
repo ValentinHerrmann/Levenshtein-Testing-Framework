@@ -320,8 +320,8 @@ class WrapperRegressionTest {
             MethodWrapper<Object, Integer> m = new MethodWrapper<>(typos, "divide", int.class, new Class<?>[]{int.class, int.class}, "public");
             assertThatThrownBy(() -> m.invokeOnSpecificObject(new Fixtures.Typos(), 1, 0))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("ArithmeticException")
-                    .hasCauseInstanceOf(ArithmeticException.class);
+                    .hasMessageContaining("ArithmeticException: / by zero")
+                    .hasNoCause(); // no stack trace of the student code in the report
         }
 
         @Test
@@ -381,39 +381,45 @@ class WrapperRegressionTest {
         void hardCodedGetterFails() {
             String message = failure(() -> w.testGettersSetters(attribute("count", int.class),
                     getter("getCount", int.class), setter("setCount", int.class)));
-            assertThat(message)
-                    .contains("Getter/setter test for attribute count in class Fixtures$GettersSetters")
-                    .contains("✅ setter -> attribute: passed")
-                    .contains("❌ attribute -> getter: attribute count has the value 7, but getCount() returns 42")
-                    .contains("❌ setter -> getter: after setCount(7), getCount() yields 42, expected: 7");
+            // setter -> attribute passes; the first failing case is the first one of attribute -> getter
+            assertThat(message).isEqualTo("""
+                    Method:   getCount()
+                    Scenario: attribute -> getter, attribute count
+                    Input:    count = 7
+                    Expected: 7
+                    Actual:   42
+                    (8 of 15 cases failed)""");
         }
 
         @Test
         void setterIgnoringItsArgumentFails() {
             String message = failure(() -> w.testGettersSetters(attribute("name", String.class),
                     getter("getName", String.class), setter("setName", String.class)));
-            assertThat(message)
-                    .contains("❌ setter -> attribute: after setName(\"Alpha\"), attribute name yields null, expected: \"Alpha\"")
-                    .contains("✅ attribute -> getter: passed")
-                    .contains("❌ setter -> getter");
+            assertThat(message).isEqualTo("""
+                    Method:   setName(String)
+                    Scenario: setter -> attribute, attribute name
+                    Input:    setName("Alpha")
+                    Expected: "Alpha"
+                    Actual:   null
+                    (10 of 18 cases failed)""");
         }
 
         @Test
         void getterOfAnotherAttributeFails() {
             String message = failure(() -> w.testGettersSetters(attribute("other", int.class), getter("getWrong", int.class)));
             assertThat(message)
-                    .contains("➖ setter -> attribute: not tested")
-                    .contains("❌ attribute -> getter")
-                    .contains("➖ setter -> getter: not tested");
+                    .contains("Scenario: attribute -> getter, attribute other")
+                    .contains("Expected: 7\nActual:   0")
+                    .endsWith("(4 of 5 cases failed)"); // only attribute -> getter ran
         }
 
         @Test
         void onlyGivenSubtestsRun() {
             String message = failure(() -> w.testGettersSetters(attribute("name", String.class), setter("setName", String.class)));
             assertThat(message)
-                    .contains("❌ setter -> attribute")
-                    .contains("➖ attribute -> getter: not tested")
-                    .contains("➖ setter -> getter: not tested");
+                    .contains("Scenario: setter -> attribute, attribute name")
+                    .doesNotContain("getter")
+                    .endsWith("(5 of 6 cases failed)"); // only setter -> attribute ran
         }
 
         @Test
@@ -428,14 +434,19 @@ class WrapperRegressionTest {
         void setterConditionFailsSettersStoringInvalidValues() {
             String message = failure(() -> w.testGettersSetters(attribute("tag", String.class), (String v) -> v != null,
                     getter("getTag", String.class), setter("setTag", String.class)));
-            assertThat(message)
-                    .contains("❌ setter -> attribute: setTag(null) must reject the invalid value")
-                    .contains("✅ attribute -> getter: passed")
-                    .contains("❌ setter -> getter: setTag(null) must reject the invalid value");
+            assertThat(message).isEqualTo("""
+                    Method:   setTag(String)
+                    Scenario: setter -> attribute, attribute tag
+                    Input:    setTag(null)
+                    Expected: value rejected (unchanged "x" or exception)
+                    Actual:   null
+                    (2 of 18 cases failed)""");
 
             String negative = failure(() -> w.testGettersSetters(attribute("price", double.class), (Double p) -> p >= 0,
                     setter("setPrice", double.class)));
-            assertThat(negative).contains("setPrice(-1.25) must reject the invalid value");
+            assertThat(negative)
+                    .contains("Input:    setPrice(-1.25)")
+                    .contains("Expected: value rejected (unchanged 2.50 or exception)");
         }
 
         @Test
@@ -639,20 +650,25 @@ class WrapperRegressionTest {
         @Test
         void exceptionMessageShowsTheArguments() {
             assertThat(failure(() -> divide.invoke(2.5, 0.0)))
-                    .contains("ArithmeticException: division by zero")
-                    .contains("Arguments: (2.5, 0.0)");
+                    .isEqualTo("""
+                            Method:   divide(double, double)
+                            Input:    2.50, 0.00
+                            Actual:   ArithmeticException: division by zero""");
         }
 
         @Test
         void contextIsPutInFrontOfTheMessage() {
             assertThat(failure(() -> divide.invokeWithContext(() -> "Scenario 3, seed 42", 2.5, 0.0)))
-                    .startsWith("Scenario 3, seed 42\n")
-                    .contains("Arguments: (2.5, 0.0)");
+                    .isEqualTo("""
+                            Method:   divide(double, double)
+                            Scenario: Scenario 3, seed 42
+                            Input:    2.50, 0.00
+                            Actual:   ArithmeticException: division by zero""");
             Object obj = w.newObj();
             assertThat(failure(() -> divide.invokeOnSpecificObjectWithContext(() -> "case 7", obj, 1.0, 0.0)))
-                    .startsWith("case 7\n");
+                    .contains("\nScenario: case 7\n");
             assertThat(failure(() -> divide.invokeWithContext(() -> { throw new IllegalStateException(); }, 1.0, 0.0)))
-                    .startsWith("Calling method");
+                    .doesNotContain("Scenario:");
             assertThat(divide.invokeWithContext(() -> "unused", 3.0, 2.0)).isEqualTo(1.5);
         }
 
@@ -661,13 +677,13 @@ class WrapperRegressionTest {
             MethodWrapper<Object, Integer> sum =
                     new MethodWrapper<>(w, "sum", int.class, new Class<?>[]{List.class}, "public");
             List<Integer> values = java.util.stream.IntStream.range(0, 100).boxed().toList();
-            assertThat(failure(() -> sum.invoke(values))).contains("Arguments: ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)])");
+            assertThat(failure(() -> sum.invoke(values))).contains("Input:    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]");
         }
 
         @Test
         void constructorExceptionShowsTheArguments() {
             ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String[].class}, "public");
-            assertThat(failure(() -> ctor.invoke((Object) new String[0]))).contains("Arguments: ([])");
+            assertThat(failure(() -> ctor.invoke((Object) new String[0]))).contains("Input:    []");
             assertThat(ctor.invoke((Object) new String[]{"x"})).isInstanceOf(Fixtures.Calls.class);
         }
 
@@ -719,8 +735,11 @@ class WrapperRegressionTest {
             assertThat(ctor.invokeExpectingException(IllegalArgumentException.class, (Object) new String[0]))
                     .hasMessage("no names");
             assertThat(failure(() -> divide.invokeExpectingException(ArithmeticException.class, null, 4.0, 2.0)))
-                    .contains("no exception was thrown")
-                    .contains("Arguments: (4.0, 2.0)");
+                    .isEqualTo("""
+                            Method:   divide(double, double)
+                            Input:    4.00, 2.00
+                            Expected: ArithmeticException is thrown
+                            Actual:   no exception was thrown""");
         }
 
         @Test
@@ -742,15 +761,15 @@ class WrapperRegressionTest {
             W<Object> throwing = nested("AbstractThrowingCtor", "public static abstract");
             ConstructorWrapper<Object> broken = new ConstructorWrapper<>(throwing, new Class<?>[]{String.class}, "protected");
             assertThat(failure(() -> broken.invoke("Toyota")))
-                    .contains("broken Toyota")
-                    .contains("Arguments: (\"Toyota\")");
+                    .contains("Actual:   IllegalStateException: broken Toyota")
+                    .contains("Input:    \"Toyota\"");
         }
 
         @Test
         void emptyContextAddsNoLineAndIsOnlyEvaluatedOnFailure() {
-            assertThat(failure(() -> divide.invokeWithContext(() -> null, 1.0, 0.0))).startsWith("Calling method");
-            assertThat(failure(() -> divide.invokeWithContext(() -> "  ", 1.0, 0.0))).startsWith("Calling method");
-            assertThat(failure(() -> divide.invokeWithContext(null, 1.0, 0.0))).startsWith("Calling method");
+            assertThat(failure(() -> divide.invokeWithContext(() -> null, 1.0, 0.0))).doesNotContain("Scenario:");
+            assertThat(failure(() -> divide.invokeWithContext(() -> "  ", 1.0, 0.0))).doesNotContain("Scenario:");
+            assertThat(failure(() -> divide.invokeWithContext(null, 1.0, 0.0))).doesNotContain("Scenario:");
             java.util.concurrent.atomic.AtomicInteger evaluated = new java.util.concurrent.atomic.AtomicInteger();
             divide.invokeWithContext(() -> "n=" + evaluated.incrementAndGet(), 1.0, 2.0);
             divide.invokeOnSpecificObjectWithContext(() -> "n=" + evaluated.incrementAndGet(), w.newObj(), 1.0, 2.0);
@@ -781,7 +800,9 @@ class WrapperRegressionTest {
             assertThat(Invocations.describeValue(null)).isEqualTo("null");
             assertThat(Invocations.describeValue("text")).isEqualTo("\"text\"");
             assertThat(Invocations.describeValue('c')).isEqualTo("'c'");
-            assertThat(Invocations.describeValue(2.5)).isEqualTo("2.5");
+            assertThat(Invocations.describeValue(2.5)).isEqualTo("2.50");
+            assertThat(Invocations.describeValue(2.5f)).isEqualTo("2.50");
+            assertThat(Invocations.describeValue(7)).isEqualTo("7");
             assertThat(Invocations.describeValue(Fixtures.Color.RED)).isEqualTo("RED");
         }
 
@@ -819,7 +840,7 @@ class WrapperRegressionTest {
         void argumentListIsJoinedAndCut() {
             assertThat(Invocations.describeArguments(null)).isEqualTo("null");
             assertThat(Invocations.describeArguments(new Object[0])).isEmpty();
-            assertThat(Invocations.describeArguments(new Object[]{2.5, "a", null})).isEqualTo("2.5, \"a\", null");
+            assertThat(Invocations.describeArguments(new Object[]{2.5, "a", null})).isEqualTo("2.50, \"a\", null");
             Object[] many = new Object[10];
             java.util.Arrays.fill(many, "y".repeat(50));
             String described = Invocations.describeArguments(many);
@@ -1273,7 +1294,8 @@ class WrapperRegressionTest {
         void recursiveToStringDoesNotHideTheFailure() { // #2
             assertThat(failure(() -> take.invoke(new Fixtures.SelfRef())))
                     .contains("IllegalStateException: taken")
-                    .contains("Arguments: (SelfRef (toString() threw StackOverflowError))");
+                    .contains("Input:    SelfRef (toString() threw StackOverflowError)")
+                    .doesNotContain("Hint:"); // the student method threw no StackOverflowError
         }
 
         @Test
@@ -1289,7 +1311,7 @@ class WrapperRegressionTest {
         void argumentsAreShownAsPassed() { // #5
             MethodWrapper<Object, Void> sort =
                     new MethodWrapper<>(calls, "sortAndFail", void.class, new Class<?>[]{int[].class}, "public");
-            assertThat(failure(() -> sort.invoke((Object) new int[]{3, 1, 2}))).contains("Arguments: ([3, 1, 2])");
+            assertThat(failure(() -> sort.invoke((Object) new int[]{3, 1, 2}))).contains("Input:    [3, 1, 2]");
             List<Integer> values = java.util.stream.IntStream.range(0, 100).boxed().toList();
             assertThat(Invocations.describeArguments(Invocations.snapshotArguments(new Object[]{values})))
                     .isEqualTo("[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]");

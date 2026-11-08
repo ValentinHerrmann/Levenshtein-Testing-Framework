@@ -70,6 +70,11 @@ public final class LevenshteinSettings {
     private static volatile boolean gettersSettersRequireSameObject = false;
     private static volatile UnexpectedModifiers unexpectedModifiers = UnexpectedModifiers.DEVIATE;
 
+    /** Default number of decimals of {@code double} and {@code float} values in failure messages. */
+    public static final int DEFAULT_DECIMALS = 2;
+
+    private static volatile int decimals = DEFAULT_DECIMALS;
+
     private LevenshteinSettings() {
     }
 
@@ -159,8 +164,31 @@ public final class LevenshteinSettings {
     }
 
     /**
+     * @return the number of decimals of {@code double} and {@code float} values in failure messages
+     *         (default {@value #DEFAULT_DECIMALS})
+     * @see Failure#format(Object)
+     */
+    public static int getDecimals() {
+        return decimals;
+    }
+
+    /**
+     * Sets the number of decimals of {@code double} and {@code float} values in failure messages, e.g. {@code 2}
+     * shows {@code 31.25}. The decimal separator is always a dot, as in Java code.
+     *
+     * @param newDecimals the number of decimals (0-15)
+     * @see Failure#format(Object)
+     */
+    public static void setDecimals(int newDecimals) {
+        if (newDecimals < 0 || newDecimals > 15) {
+            throw new IllegalArgumentException("decimals must be between 0 and 15, but was " + newDecimals);
+        }
+        decimals = newDecimals;
+    }
+
+    /**
      * Restores all defaults (German messages, 20 % for every threshold, getter/setter values compared by content,
-     * unexpected modifiers deviate).
+     * unexpected modifiers deviate, {@value #DEFAULT_DECIMALS} decimals).
      */
     public static void reset() {
         language = Language.DEUTSCH;
@@ -169,6 +197,7 @@ public final class LevenshteinSettings {
         attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
         gettersSettersRequireSameObject = false;
         unexpectedModifiers = UnexpectedModifiers.DEVIATE;
+        decimals = DEFAULT_DECIMALS;
     }
 
     private static int checkThreshold(int threshold) {

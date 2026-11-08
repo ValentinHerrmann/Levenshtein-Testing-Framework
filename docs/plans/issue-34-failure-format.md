@@ -215,9 +215,14 @@ In `GettersSettersTest`:
   throwable left.
 - CI: `.github/workflows/ci.yml` must be green on the PR.
 
-## Open points to confirm with the owner
+## Decisions (confirmed by owner)
 
-- Decimal separator: the plan uses `Locale.ROOT` (`2.50`), also in German, to match Java literals. Change it if
-  `2,50` is wanted for German.
-- `Method:` line: reflection doesn't know parameter names, so the framework shows `calculateLoudness(double, double)`
-  and the `Input:` line holds only values. Authors who want names pass them via `.input("volume = 12.50, …")`.
+- Decimal separator: `Locale.ROOT` (`2.50`) in both languages.
+- `Method:` line: types only, no parameter names (`calculateLoudness(double, double)`).
+
+## Execution notes
+
+- `origin/main` has moved since the plan was written (#35/#37). First, rebase `claude/great-galileo-gjsqbv` onto
+  `origin/main`, then re-locate the call sites by grep (`fail(`, `new AssertionError(`, `Invocations.describe`).
+  The line numbers above are approximate.
+- Commit after each implementation step, push to `claude/great-galileo-gjsqbv` and update draft PR #38 (title/body).

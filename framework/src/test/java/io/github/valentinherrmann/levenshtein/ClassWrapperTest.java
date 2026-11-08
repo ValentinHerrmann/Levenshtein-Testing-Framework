@@ -355,10 +355,10 @@ class ClassWrapperTest {
             W<Object> w = classFixture("ThrowingDefaultCtor", "public static");
             assertThatThrownBy(w::newObj)
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("Creating instances of class ClassFixtures$ThrowingDefaultCtor failed")
-                    .hasMessageContaining("IllegalStateException")
-                    .hasMessageContaining("not today")
-                    .hasCauseInstanceOf(IllegalStateException.class);
+                    .hasMessage("""
+                            Method:   ClassFixtures$ThrowingDefaultCtor()
+                            Actual:   IllegalStateException: not today""")
+                    .hasNoCause();
         }
 
         @Test
@@ -399,16 +399,21 @@ class ClassWrapperTest {
                     .isInstanceOf(AssertionError.class)
                     .hasMessageContaining("student assertion x")
                     .hasMessageContaining("Arguments: (\"x\")")
-                    .hasCauseInstanceOf(AssertionError.class);
+                    .hasNoCause();
         }
 
         @Test
-        void criticalErrorsAreNotTurnedIntoTestFailures() {
+        void stackOverflowIsReportedWithARecursionHint() {
             W<Object> abstr = classFixture("AbstractCriticalCtors", "public static abstract");
             ConstructorWrapper<Object> abstractCtor = new ConstructorWrapper<>(abstr, new Class<?>[]{int.class}, "protected");
             assertThatThrownBy(() -> abstr.getDynamicSubclassObj(abstractCtor, 3))
-                    .isInstanceOf(StackOverflowError.class)
-                    .hasMessage("too deep 3");
+                    .isInstanceOf(AssertionError.class)
+                    .hasNoCause()
+                    .hasMessage("""
+                            Method:   ClassFixtures$AbstractCriticalCtors(int)
+                            Input:    3
+                            Actual:   StackOverflowError: too deep 3
+                            Hint: a StackOverflowError usually means endless recursion (a method keeps calling itself).""");
         }
 
         @Test
@@ -562,7 +567,8 @@ class ClassWrapperTest {
             MethodWrapper<Object, Integer> getCount = new MethodWrapper<>(w, "getCount", int.class, "public");
             assertThatThrownBy(() -> w.testGetter(count, getCount))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("getCount() returns 42");
+                    .hasMessageContaining("Method:   getCount()")
+                    .hasMessageContaining("Expected: 7\nActual:   42");
         }
 
         @Test
@@ -571,7 +577,13 @@ class ClassWrapperTest {
             MethodWrapper<Object, Void> setTag = new MethodWrapper<>(w, "setTag", void.class, new Class<?>[]{String.class}, "public");
             assertThatThrownBy(() -> w.testGettersSetters(tag, List.of("a", "", "b"), (String s) -> !s.isEmpty(), setTag))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("setTag(\"\") must reject the invalid value");
+                    .hasMessage("""
+                            Method:   setTag(String)
+                            Scenario: setter -> attribute, attribute tag
+                            Input:    setTag("")
+                            Expected: value rejected (unchanged "a" or exception)
+                            Actual:   ""
+                            (1 of 3 cases failed)""");
             AttributeWrapper<Object, String> title = new AttributeWrapper<>(w, "title", String.class, "private");
             MethodWrapper<Object, Void> setTitle = new MethodWrapper<>(w, "setTitle", void.class, new Class<?>[]{String.class}, "public");
             assertThatCode(() -> w.testGettersSetters(title, java.util.Arrays.asList("a", null, "b"), (String s) -> s != null, setTitle))

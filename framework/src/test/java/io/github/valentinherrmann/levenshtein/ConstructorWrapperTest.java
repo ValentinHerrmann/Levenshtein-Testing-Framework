@@ -118,16 +118,20 @@ class ConstructorWrapperTest {
                     .isInstanceOf(AssertionError.class)
                     .hasMessageContaining("student assertion x")
                     .hasMessageContaining("Arguments: (\"x\")")
-                    .hasCauseInstanceOf(AssertionError.class);
+                    .hasNoCause();
         }
 
         @Test
-        void criticalErrorsAreNotTurnedIntoTestFailures() {
+        void stackOverflowIsReportedWithARecursionHint() {
             assertThatThrownBy(() -> ctor(critical, "public", int.class).invoke(3))
-                    .isInstanceOf(StackOverflowError.class)
-                    .hasMessage("too deep 3");
+                    .isInstanceOf(AssertionError.class)
+                    .hasNoCause()
+                    .hasMessageContaining("Actual:   StackOverflowError: too deep 3")
+                    .hasMessageEndingWith("Hint: a StackOverflowError usually means endless recursion (a method keeps calling itself).");
             assertThatThrownBy(() -> ctor(critical, "public", int.class).invokeExpectingException(IllegalStateException.class, 3))
-                    .isInstanceOf(StackOverflowError.class);
+                    .isInstanceOf(AssertionError.class)
+                    .hasMessageContaining("Expected: IllegalStateException is thrown")
+                    .hasMessageContaining("Actual:   StackOverflowError: too deep 3");
         }
 
         @Test
@@ -136,14 +140,14 @@ class ConstructorWrapperTest {
             ConstructorWrapper<Object> c = ctor(calls, "public", String[].class);
             assertThatThrownBy(() -> c.invokeExpectingException(IllegalStateException.class, (Object) new String[0]))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("should throw IllegalStateException")
-                    .hasMessageContaining("IllegalArgumentException")
-                    .hasMessageContaining("no names");
+                    .hasMessageContaining("Expected: IllegalStateException is thrown")
+                    .hasMessageContaining("Actual:   IllegalArgumentException: no names");
             assertThat(c.invokeExpectingException(RuntimeException.class, (Object) new String[0]))
                     .isInstanceOf(IllegalArgumentException.class); // subclasses are accepted
             assertThatThrownBy(() -> c.invokeExpectingException(IllegalArgumentException.class, (Object) new String[]{"a"}))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("no exception was thrown\nArguments: ([\"a\"])"); // no generated subclass
+                    .hasMessageContaining("Input:    [\"a\"]")
+                    .hasMessageEndingWith("Actual:   no exception was thrown"); // no generated subclass
         }
 
         @Test
@@ -152,7 +156,11 @@ class ConstructorWrapperTest {
             ConstructorWrapper<Object> c = ctor(finalCar, "public", String.class);
             assertThatThrownBy(() -> c.invokeExpectingException(IllegalArgumentException.class, "BMW"))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("should throw IllegalArgumentException, but: no exception was thrown");
+                    .hasMessage("""
+                            Method:   Fixtures$FinalCar(String)
+                            Input:    "BMW"
+                            Expected: IllegalArgumentException is thrown
+                            Actual:   no exception was thrown""");
         }
 
         @Test
@@ -163,8 +171,8 @@ class ConstructorWrapperTest {
             assertThat(e).hasMessage("negative: -1");
             assertThatThrownBy(() -> c.invokeExpectingException(IllegalArgumentException.class, 4))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("no exception was thrown (")
-                    .hasMessageContaining("Arguments: (4)");
+                    .hasMessageContaining("Actual:   no exception was thrown (")
+                    .hasMessageContaining("Input:    4");
             // invoke still reports the exception as a failure
             assertThatThrownBy(() -> c.invoke(-1))
                     .isInstanceOf(AssertionError.class)

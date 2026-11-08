@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -51,7 +52,8 @@ final class Invocations {
     /**
      * Rethrows throwables that must never be turned into an ordinary test failure:
      * assertion failures (they already are failures, often from Ares), security violations reported by
-     * Ares, and virtual machine errors.
+     * Ares, and virtual machine errors other than a {@link StackOverflowError}: endless recursion is a mistake of
+     * the student code and is reported like an exception (with a hint, see {@link Failure#thrown(Throwable)}).
      *
      * @param t the throwable caught while running student code
      */
@@ -62,7 +64,7 @@ final class Invocations {
         if (t instanceof SecurityException e) {
             throw e;
         }
-        if (t instanceof VirtualMachineError e) {
+        if (t instanceof VirtualMachineError e && !(t instanceof StackOverflowError)) {
             throw e;
         }
     }
@@ -251,8 +253,17 @@ final class Invocations {
      * @return the message with the text of {@code context} in a line in front of it, if there is one
      */
     static String withContext(Supplier<String> context, String message) {
+        String text = contextText(context);
+        return text == null ? message : text + "\n" + message;
+    }
+
+    /**
+     * @param context supplies a text for the failure message; may be {@code null}, return {@code null} or throw
+     * @return the stripped text, or {@code null} if there is none
+     */
+    static String contextText(Supplier<String> context) {
         if (context == null) {
-            return message;
+            return null;
         }
         String text;
         try {
@@ -261,7 +272,7 @@ final class Invocations {
         catch (RuntimeException e) {
             text = null; // a broken context must not hide the actual failure
         }
-        return text == null || text.isBlank() ? message : text.strip() + "\n" + message;
+        return text == null || text.isBlank() ? null : text.strip();
     }
 
     /**
@@ -297,6 +308,9 @@ final class Invocations {
         }
         if (value instanceof Character c) {
             return "'" + c + "'";
+        }
+        if (value instanceof Double || value instanceof Float) {
+            return formatDecimal(((Number) value).doubleValue());
         }
         boolean container = value.getClass().isArray() || value instanceof Collection<?> || value instanceof Snapshot;
         if (container && depth >= MAX_DEPTH) {
@@ -367,7 +381,23 @@ final class Invocations {
             return e;
         }
         String message = e.getMessage() != null ? e.getMessage() : describe(e);
-        return new AssertionError(withContext(context, withArguments(message, args)), e);
+        return new AssertionError(withContext(context, withArguments(message, args))); // no cause: no stack trace
+    }
+
+    /**
+     * @param value a decimal number
+     * @return the number with {@link LevenshteinSettings#getDecimals()} decimals and a dot as separator; very
+     *         large numbers and numbers that would round to 0 as in Java (e.g. {@code 1.0E300}, {@code 1.0E-5})
+     */
+    static String formatDecimal(double value) {
+        int decimals = LevenshteinSettings.getDecimals();
+        double magnitude = Math.abs(value);
+        if (Double.isNaN(value) || Double.isInfinite(value) || magnitude >= 1e15
+                || (magnitude != 0 && magnitude < 0.5 * Math.pow(10, -decimals))) {
+            // too large for fixed decimals, or a value that would be shown as 0: Java's own representation
+            return String.valueOf(value);
+        }
+        return String.format(Locale.ROOT, "%." + decimals + "f", value);
     }
 
     private static String describeElements(List<Object> elements, int size, int depth) {
