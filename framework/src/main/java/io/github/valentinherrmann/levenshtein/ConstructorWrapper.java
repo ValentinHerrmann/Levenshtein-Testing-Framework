@@ -291,8 +291,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                 throw Invocations.withCallDetails(e, null, shown);
             }
             Invocations.rethrowIfCritical(t);
-            return Assertions.fail(Invocations.withArguments(Messages.CONSTRUCTOR_INVOCATION_FAILED.format(
-                    this.expectedToString(), getParentClassWrapper().name.expected, Invocations.describe(t)), shown), t);
+            throw Failure.of(this).arguments(shown).thrown(t).error();
         }
     }
 
@@ -323,21 +322,21 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                 throw Invocations.withCallDetails(failure, null, shown);
             }
         }
-        String outcome;
+        Failure failure = Failure.of(this).arguments(shown)
+                .expectedText(Messages.FAILURE_EXPECTED_EXCEPTION.format(expected.getSimpleName()));
         try {
             Invocations.newInstance(target, withOuterInstance(checked));
-            outcome = Messages.NOTHING_THROWN.get()
-                    + (dynamic ? " (" + target.getDeclaringClass().getSimpleName() + ")" : "");
+            failure.actualText(Messages.NOTHING_THROWN.get()
+                    + (dynamic ? " (" + target.getDeclaringClass().getSimpleName() + ")" : ""));
         }
         catch (Throwable t) {
             if (expected.isInstance(t)) {
                 return expected.cast(t);
             }
             Invocations.rethrowIfCritical(t);
-            outcome = Invocations.describe(t);
+            failure.thrown(t);
         }
-        return Assertions.fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(expectedToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), shown));
+        throw failure.error();
     }
 
     private boolean isParentAbstract() {
@@ -357,6 +356,19 @@ public class ConstructorWrapper<T> extends Wrapper<T>
 
     private static String typeNames(Class<?>[] types) {
         return Arrays.stream(types).map(Class::getSimpleName).collect(Collectors.joining(", "));
+    }
+
+    /**
+     * @return the class name and parameter types of the student's constructor (the expected ones if it is missing),
+     *         e.g. {@code Car(String, int)}, for the Method line of a {@link Failure}
+     */
+    String signature() {
+        ensureChecked();
+        String actualName = getParentClassWrapper().name.actual;
+        if (constructor == null || actualName == null) {
+            return getParentClassWrapper().name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        }
+        return actualName + "(" + Failure.simpleNames(visibleParamTypes()) + ")";
     }
 
     @Override

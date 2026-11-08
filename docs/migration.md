@@ -26,6 +26,23 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 
 ## Changes in 2026.11.1
 
+* **One failure format for behaviour failures (#34).** Exceptions of student code (`invoke`, `newObj`,
+  `ConstructorWrapper.invoke`), `invokeExpectingException` and `testGettersSetters` report with the same
+  block of `Method:` / `Scenario:` / `Input:` / `Expected:` / `Actual:` lines (German: `Methode:`,
+  `Szenario:`, `Eingabe:`, `Erwartet:`, `Tatsächlich:`). Tests that assert on message texts need updating:
+  * "Calling method ... threw an exception: ...", "Failed to invoke constructor ...", "... should throw X,
+    but: ..." and "Getter/setter test for attribute ...: ✅/❌ ..." are gone.
+  * `Arguments: (...)` became the `Input:` line; the text of `invokeWithContext` is the `Scenario:` line.
+  * `testGettersSetters` shows only the first failing case plus "(n of m cases failed)" instead of one line
+    per subtest. A missing getter or setter fails with the short structural message.
+  * Values in messages: `double`/`float` with two decimals (`2.50`, `LevenshteinSettings.setDecimals`).
+  * The `AssertionError` no longer has the student's exception as cause (no stack trace, no `Caused by`).
+    Read the exception from `invokeExpectingException` if a test needs it.
+  * A `StackOverflowError` of student code is a normal failure with a hint on endless recursion instead of
+    being rethrown.
+  * New: `Failure` for your own checks, see [Reporting failures](writing-tests.md#reporting-failures). The old
+    message constants are kept but `@Deprecated`.
+
 * **Unexpected modifiers are reported (#35).** A modifier of the student's element that is neither expected,
   optional nor implicit (e.g. `private static boolean[] spotlights` where `private` is expected, an extra
   `abstract`, `final` or `synchronized`) is now a deviation: the structural test fails with "unexpected

@@ -33,10 +33,12 @@ Tatsächlich:	protected long getYear()
 Erwartet:	public class Car extends AbstractVehicle implements Driveable
 Tatsächlich:	public class Car extends AbstractVehicle
 
-Getter/Setter-Test für Attribut price in Klasse Car:
-❌ Setter -> Attribut: setPrice(-1.25) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber Attribut price liefert jetzt -1.25 statt 2.5
-✅ Attribut -> Getter: bestanden
-❌ Setter -> Getter: setPrice(-1.25) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber getPrice() liefert jetzt -1.25 statt 2.5
+Methode:     setPrice(double)
+Szenario:    Setter -> Attribut, Attribut price
+Eingabe:     setPrice(-1.25)
+Erwartet:    Wert abgelehnt (unverändert 2.50 oder Ausnahme)
+Tatsächlich: -1.25
+(2 von 15 Fällen fehlgeschlagen)
 ```
 
 The messages are German by default; `LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH)` switches

@@ -218,7 +218,7 @@ class MockTest {
         ((Fixtures.FloatParams) mock.obj()).half(2.5f);
         assertThat(failure(() -> mock.assertCalled(half, 2)))
                 .isEqualTo("public float half(float) in class Fixtures$FloatParams should be called 2 time(s),"
-                        + " but was called 1 time(s).\nCalls: (2.5)");
+                        + " but was called 1 time(s).\nCalls: (2.50)");
     }
 
     @Test

@@ -249,6 +249,13 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
     }
 
+    /**
+     * @return the name of the student's class, or the expected name if it is missing
+     */
+    private String actualOrExpectedName() {
+        return name.actual != null ? name.actual : name.expected;
+    }
+
     private String binaryName(Class<?> c) {
         return binaryNameIn(c);
     }
@@ -545,7 +552,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return MockClasses.allocate(outer);
         }
         catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(outer.getSimpleName()) + "\n" + Invocations.describe(e), e);
+            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(outer.getSimpleName()) + "\n" + Invocations.describe(e));
         }
     }
 
@@ -577,7 +584,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
-            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(name.expected) + "\n" + Invocations.describe(t), t);
+            throw Failure.of(actualOrExpectedName() + "()").thrown(t).error();
         }
     }
 
@@ -634,8 +641,8 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
                 throw Invocations.withCallDetails(failure, null, shown);
             }
             Invocations.rethrowIfCritical(e);
-            return fail(Invocations.withArguments(
-                    Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), shown), e);
+            throw Failure.of(constructorWrapper != null ? constructorWrapper.signature() : actualOrExpectedName() + "()")
+                    .arguments(shown).thrown(e).error();
         }
     }
 
@@ -659,7 +666,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return dynamicSubclass.getDeclaredConstructor(types);
         }
         catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
+            return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)));
         }
     }
 
@@ -722,7 +729,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return MockClasses.allocate(c);
         }
         catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(name.expected) + "\n" + Invocations.describe(e), e);
+            return fail(Messages.CLASS_INSTANTIATION_FAILED.format(name.expected) + "\n" + Invocations.describe(e));
         }
     }
 
@@ -735,7 +742,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
                 mockSubclass = MockClasses.subclass(getClazz());
             }
             catch (RuntimeException | LinkageError e) {
-                return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
+                return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)));
             }
         }
         return mockSubclass;

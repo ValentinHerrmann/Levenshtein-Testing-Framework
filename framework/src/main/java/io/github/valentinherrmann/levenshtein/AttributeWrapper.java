@@ -194,12 +194,11 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
             }
             catch (Throwable t) {
                 Invocations.rethrowIfCritical(t);
-                return fail(Messages.ATTRIBUTE_ACCESS_FAILED.format(name.expected, getParentClassWrapper().name.expected,
-                        Invocations.describe(t)), t);
+                throw Failure.of(getterName + "()").thrown(t).error();
             }
         }
         return fail(Messages.ATTRIBUTE_ACCESS_FAILED.format(name.expected, getParentClassWrapper().name.expected,
-                Invocations.describe(accessFailure)), accessFailure);
+                Invocations.describe(accessFailure)));
     }
 
     private static Method findNoArgMethod(Class<?> start, String methodName) {
@@ -289,7 +288,8 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
             field.set(target, converted);
         }
         catch (ReflectiveOperationException | RuntimeException e) {
-            Assertions.fail(Messages.ATTRIBUTE_SET_FAILED.format(name.expected, getParentClassWrapper().name.expected), e);
+            Assertions.fail(Messages.ATTRIBUTE_SET_FAILED.format(name.expected, getParentClassWrapper().name.expected)
+                    + "\n" + Invocations.describe(e));
         }
     }
 

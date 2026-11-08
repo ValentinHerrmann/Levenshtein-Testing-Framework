@@ -242,11 +242,11 @@ class MethodWrapperTest {
                 new MethodWrapper<>(outcomes, "clearAndFail", void.class, new Class<?>[]{java.util.Collection.class}, "public");
         List<Integer> values = new ArrayList<>(List.of(1, 2, 3));
         assertThat(failure(() -> clear.invokeOnSpecificObject(obj, values)))
-                .contains("IllegalStateException: cleared")
-                .endsWith("Arguments: ([1, 2, 3])");
+                .contains("Input:    [1, 2, 3]")
+                .endsWith("Actual:   IllegalStateException: cleared");
         assertThat(values).isEmpty();
 
         CallFixtures.StudentCollection own = new CallFixtures.StudentCollection(new ArrayList<>(List.of(4, 5)));
-        assertThat(failure(() -> clear.invokeOnSpecificObject(obj, own))).endsWith("Arguments: ([])");
+        assertThat(failure(() -> clear.invokeOnSpecificObject(obj, own))).contains("Input:    []");
     }
 }

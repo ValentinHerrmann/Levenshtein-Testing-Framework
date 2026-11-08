@@ -253,13 +253,82 @@ public enum Messages {
             "Calls: %s"),
 
     // -------------------------------------------------------------------------
+    // Failure – the block of every behaviour failure
+    // -------------------------------------------------------------------------
+
+    /** Label of the line naming the method or constructor in a {@link Failure} block. */
+    FAILURE_METHOD(
+            "Methode",
+            "Method"),
+
+    /** Label of the line describing the scenario (e.g. a generated case) in a {@link Failure} block. */
+    FAILURE_SCENARIO(
+            "Szenario",
+            "Scenario"),
+
+    /** Label of the line with the input (e.g. the arguments) in a {@link Failure} block. */
+    FAILURE_INPUT(
+            "Eingabe",
+            "Input"),
+
+    /** Label of the line with the expected outcome in a {@link Failure} block. */
+    FAILURE_EXPECTED(
+            "Erwartet",
+            "Expected"),
+
+    /** Label of the line with the actual outcome in a {@link Failure} block. */
+    FAILURE_ACTUAL(
+            "Tatsächlich",
+            "Actual"),
+
+    /**
+     * Appended below a {@link Failure} block when several cases were checked.
+     * Placeholders: (1) failed cases, (2) all cases.
+     */
+    FAILURE_CASES(
+            "(%d von %d Fällen fehlgeschlagen)",
+            "(%d of %d cases failed)"),
+
+    /** Appended below a {@link Failure} block whose actual outcome is a {@link StackOverflowError}. */
+    FAILURE_STACK_OVERFLOW_HINT(
+            "Hinweis: Ein StackOverflowError deutet meist auf eine endlose Rekursion hin (eine Methode ruft sich immer wieder selbst auf).",
+            "Hint: a StackOverflowError usually means endless recursion (a method keeps calling itself)."),
+
+    /**
+     * Expected outcome of a call that should throw an exception.
+     * Placeholder: (1) the exception type.
+     */
+    FAILURE_EXPECTED_EXCEPTION(
+            "%s wird geworfen",
+            "%s is thrown"),
+
+    /**
+     * Expected outcome of a setter call with an invalid value.
+     * Placeholder: (1) the value before the call.
+     */
+    GETTERS_SETTERS_EXPECT_REJECTED(
+            "Wert abgelehnt (unverändert %s oder Ausnahme)",
+            "value rejected (unchanged %s or exception)"),
+
+    /**
+     * Scenario of a getter/setter case.
+     * Placeholders: (1) subtest label, e.g. "setter -> attribute", (2) attribute name.
+     */
+    GETTERS_SETTERS_SCENARIO(
+            "%s, Attribut %s",
+            "%s, attribute %s"),
+
+    // -------------------------------------------------------------------------
     // ClassWrapper – testGettersSetters
     // -------------------------------------------------------------------------
 
     /**
      * Report of a failed getter/setter test, one line per subtest.
      * Placeholders: (1) attribute name, (2) class name, (3) subtest lines.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_REPORT(
             "Getter/Setter-Test für Attribut %s in Klasse %s:\n%s",
             "Getter/setter test for attribute %s in class %s:\n%s"),
@@ -279,12 +348,18 @@ public enum Messages {
             "Setter -> Getter",
             "setter -> getter"),
 
-    /** Result of a passed subtest. */
+    /** Result of a passed subtest.     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
+ */
+    @Deprecated
     GETTERS_SETTERS_PASSED(
             "bestanden",
             "passed"),
 
-    /** Result of a subtest whose getter or setter was not given. */
+    /** Result of a subtest whose getter or setter was not given.     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
+ */
+    @Deprecated
     GETTERS_SETTERS_NOT_TESTED(
             "nicht getestet",
             "not tested"),
@@ -292,7 +367,10 @@ public enum Messages {
     /**
      * Names the attribute as the place a value is read from.
      * Placeholders: (1) attribute name.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_ATTRIBUTE(
             "Attribut %s",
             "attribute %s"),
@@ -300,7 +378,10 @@ public enum Messages {
     /**
      * Shown when a valid value is not stored by the setter.
      * Placeholders: (1) setter name, (2) value, (3) where the value is read from, (4) actual, (5) expected.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_VALUE_NOT_STORED(
             "nach %s(%s) liefert %s den Wert %s, erwartet: %s",
             "after %s(%s), %s yields %s, expected: %s"),
@@ -308,7 +389,10 @@ public enum Messages {
     /**
      * Shown when the setter stores a value that violates the setter condition.
      * Placeholders: (1) setter name, (2) value, (3) where the value is read from, (4) actual, (5) value before.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_INVALID_VALUE_STORED(
             "%s(%s) muss den ungültigen Wert ablehnen (Wert unverändert lassen oder Ausnahme werfen), aber %s liefert jetzt %s statt %s",
             "%s(%s) must reject the invalid value (keep the value unchanged or throw an exception), but %s now yields %s instead of %s"),
@@ -316,7 +400,10 @@ public enum Messages {
     /**
      * Shown when the getter does not return the value of the attribute.
      * Placeholders: (1) attribute, (2) attribute value, (3) getter name, (4) returned value.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_WRONG_VALUE_RETURNED(
             "%s hat den Wert %s, aber %s() liefert %s",
             "%s has the value %s, but %s() returns %s"),
@@ -324,7 +411,10 @@ public enum Messages {
     /**
      * Shown when a getter or setter throws an exception for a valid value.
      * Placeholders: (1) method name, (2) argument (empty for getters), (3) exception.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     GETTERS_SETTERS_THREW(
             "%s(%s) hat eine Ausnahme geworfen: %s",
             "%s(%s) threw an exception: %s"),
@@ -367,7 +457,10 @@ public enum Messages {
     /**
      * Shown when invoking a method throws an unexpected exception.
      * Placeholders: (1) method signature, (2) class name.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     METHOD_INVOCATION_EXCEPTION(
             "Der Aufruf der Methode %s auf Klasse %s hat eine Ausnahme geworfen: %s",
             "Calling method %s on class %s threw an exception: %s"),
@@ -453,7 +546,10 @@ public enum Messages {
     /**
      * Shown when invoking a constructor throws an unexpected exception.
      * Placeholders: (1) constructor signature, (2) class name, (3) exception message.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     CONSTRUCTOR_INVOCATION_FAILED(
             "Konstruktor '%s' in Klasse %s konnte nicht aufgerufen werden: %s",
             "Failed to invoke constructor '%s' in class %s: %s"),
@@ -465,7 +561,10 @@ public enum Messages {
     /**
      * Shown when student code was expected to throw an exception but did not, or threw a different one.
      * Placeholders: (1) member signature, (2) class name, (3) expected exception type, (4) actual outcome.
+     *
+     * @deprecated no longer used, behaviour failures are reported as {@link Failure} block
      */
+    @Deprecated
     EXPECTED_EXCEPTION_NOT_THROWN(
             "%s in Klasse %s sollte eine %s werfen, aber: %s",
             "%s in class %s should throw %s, but: %s"),

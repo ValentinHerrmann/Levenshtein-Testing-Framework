@@ -430,9 +430,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
                 throw Invocations.withCallDetails(e, context, shown);
             }
             Invocations.rethrowIfCritical(t);
-            String message = Messages.METHOD_INVOCATION_EXCEPTION.format(actualToString(),
-                    getParentClassWrapper().name.expected, Invocations.describe(t));
-            return fail(Invocations.withContext(context, Invocations.withArguments(message, shown)), t);
+            throw Failure.of(this).scenario(Invocations.contextText(context)).arguments(shown).thrown(t).error();
         }
         if (val == null || returnType.expected == null || returnType.expected == void.class) {
             return (R) val;
@@ -457,20 +455,20 @@ public class MethodWrapper<T, R> extends Wrapper<T>
         Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
         Object[] shown = Invocations.snapshotArguments(args);
         Object target = resolveTarget(obj);
-        String outcome;
+        Failure failure = Failure.of(this).arguments(shown)
+                .expectedText(Messages.FAILURE_EXPECTED_EXCEPTION.format(expected.getSimpleName()));
         try {
             Invocations.invoke(method, target, args);
-            outcome = Messages.NOTHING_THROWN.get();
+            failure.actualText(Messages.NOTHING_THROWN.get());
         }
         catch (Throwable t) {
             if (expected.isInstance(t)) {
                 return expected.cast(t);
             }
             Invocations.rethrowIfCritical(t);
-            outcome = Invocations.describe(t);
+            failure.thrown(t);
         }
-        return fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(actualToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), shown));
+        throw failure.error();
     }
 
     /**
@@ -533,6 +531,18 @@ public class MethodWrapper<T, R> extends Wrapper<T>
 
     private static String typeNames(Class<?>[] types) {
         return Arrays.stream(types).map(Class::getSimpleName).collect(Collectors.joining(", "));
+    }
+
+    /**
+     * @return the name and parameter types of the student's method (the expected ones if it is missing), e.g.
+     *         {@code calculateLoudness(double, double)}, for the Method line of a {@link Failure}
+     */
+    String signature() {
+        ensureChecked();
+        if (method == null) {
+            return name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        }
+        return method.getName() + "(" + Failure.simpleNames(method.getParameterTypes()) + ")";
     }
 
     @Override

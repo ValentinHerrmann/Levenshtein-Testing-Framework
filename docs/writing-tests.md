@@ -139,14 +139,15 @@ IllegalArgumentException e = carWrapper.setYear()
 
 * If the student's element is `MISSING`, the call fails with "... is not implemented as expected. See
   structural Tests for details".
-* An exception thrown by student code fails the test with its type, its message and the argument values
-  (arrays and collections with more than ten elements shortened, e.g. `Arguments: ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)])`); the original
-  exception is attached as the cause. Ares security violations are passed through unchanged, also when a
-  student's `toString()` causes one while the message is built; an endlessly recursing `toString()` is shown
-  as `(toString() threw StackOverflowError)`.
+* An exception thrown by student code fails the test with a [failure block](#reporting-failures): the method,
+  the argument values (arrays and collections with more than ten elements shortened, e.g.
+  `[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]`) and the exception's type and message as `Actual:`. No stack trace
+  and no cause are attached. A `StackOverflowError` adds a hint on endless recursion. Ares security violations
+  are passed through unchanged, also when a student's `toString()` causes one while the message is built; an
+  endlessly recursing `toString()` is shown as `(toString() threw StackOverflowError)`.
 * Many generated inputs? `invokeWithContext(() -> "Scenario " + i + ", seed " + seed, args...)` and
-  `invokeOnSpecificObjectWithContext(context, obj, args...)` put the text in front of the failure message.
-  The supplier is only evaluated if the call fails.
+  `invokeOnSpecificObjectWithContext(context, obj, args...)` show the text in the `Scenario:` line of the
+  failure. The supplier is only evaluated if the call fails.
 * **Arrays as arguments:** `invoke`, `invokeOnSpecificObject`, `invokeExpectingException`, `getObj(forceNew,
   constructorWrapper, args...)` and `ConstructorWrapper.invoke` take `Object... args`. Java spreads an object
   array (`String[]`, `Integer[]`, ...) passed there into several arguments; a primitive array (`boolean[]`)
@@ -158,9 +159,9 @@ IllegalArgumentException e = carWrapper.setYear()
   `float`) fails with a readable message instead of being changed; see [Matching](matching.md#types).
 * `Utils.safeCast(value, type)` converts numeric results in the same way (e.g. `int` → `double`). It fails with
   a readable message instead of producing a `ClassCastException` later.
-* The `Arguments:` line shows arrays and collections as they were passed, even if the student's code changed
-  them. A failure inside the call (from Ares, a mock or a conversion) also gets the arguments and the text of
-  `invokeWithContext`.
+* The `Input:` line shows arrays and collections as they were passed, even if the student's code changed
+  them. A failure inside the call (from Ares, a mock or a conversion) keeps its own message and gets an
+  `Arguments:` line and the text of `invokeWithContext`.
 * Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
 
 ## Getters and setters
@@ -183,7 +184,7 @@ void priceGettersSetters() {
 * Up to three subtests run, each on a new instance: **setter -> attribute** (the setter stores the value),
   **attribute -> getter** (a value written into the attribute via reflection is returned; for a `final`
   attribute only the current value is compared) and **setter -> getter**. Subtests whose getter or setter
-  was not given are reported as "not tested". The cached default instance (`getObj()`) is not changed.
+  was not given are skipped. The cached default instance (`getObj()`) is not changed.
 * Sample values are generated for primitives, their wrappers, `String` and enums: five different values (so
   hard-coded getters and setters ignoring their argument fail), plus `null` for reference types if no
   primitive is involved. Other types (arrays, own classes, ...) need own sample values.
@@ -198,17 +199,66 @@ void priceGettersSetters() {
   values the setter must keep the old value or throw an exception. A condition that throws itself (e.g. a
   `NullPointerException` for `null`) marks the value invalid. Only setters are checked; more complex rules
   need a behavioural test of your own.
-* If a subtest fails, the test fails with one message about all three subtests:
+* Every subtest runs with every sample value. If a case fails, the test fails with the
+  [failure block](#reporting-failures) of the first failing case and the number of failed cases. The
+  `Scenario:` line names the subtest:
 
 ```text
-Getter/setter test for attribute price in class Car:
-✅ setter -> attribute: passed
-❌ attribute -> getter: attribute price has the value 2.5, but getPrice() returns 30000.0
-❌ setter -> getter: after setPrice(2.5), getPrice() yields 30000.0, expected: 2.5
+Method:   getPrice()
+Scenario: attribute -> getter, attribute price
+Input:    price = 2.50
+Expected: 2.50
+Actual:   30000.00
+(10 of 15 cases failed)
 ```
+
+* An exception of the getter or setter is shown as `Actual: IllegalStateException: message`. For an invalid
+  value (setter condition) `Expected:` reads `value rejected (unchanged 2.50 or exception)`.
+* A missing getter, setter or attribute fails with the usual short "... is not implemented as expected".
 
 * Wrong use (two getters, a method with two parameters, a condition without setter, no sample values for an
   unsupported type) throws an `IllegalArgumentException`.
+
+## Reporting failures
+
+Every behaviour failure has the same format, also the ones of the framework (exceptions of student code,
+`invokeExpectingException`, `testGettersSetters`). The labels follow `LevenshteinSettings.setLanguage(...)`;
+lines that are not set are left out:
+
+```text
+Method:   calculateLoudness(double, double)
+Scenario: generated case 3, seed 2040003
+Input:    volume = 12.50, crowdNoise = 3.00
+Expected: 31.25
+Actual:   27.00
+```
+
+Use `Failure` for your own checks, so students see the same format there:
+
+```java
+double actual = wrapper.calculateLoudness().invoke(12.5, 3.0);
+if (Math.abs(actual - 31.25) > 1e-9) {
+    throw Failure.of(wrapper.calculateLoudness())          // Method line: name and parameter types
+            .scenario("generated case 3, seed 2040003")
+            .input("volume = 12.50, crowdNoise = 3.00")    // or .arguments(12.5, 3.0)
+            .expected(31.25).actual(actual)
+            .cases(2, 10)                                 // adds "(2 of 10 cases failed)"
+            .error();
+}
+```
+
+* `Failure.of(methodWrapper)`, `Failure.of(constructorWrapper)` or `Failure.of("any text")` start a block.
+* `.expected(value)` / `.actual(value)` format values the same way everywhere (`Failure.format`): `double` and
+  `float` with two decimals (`LevenshteinSettings.setDecimals(n)` changes that; the separator is always a
+  dot), strings in double quotes, characters in single quotes, `null`, arrays and lists in brackets.
+  `.expectedText(...)` / `.actualText(...)` show a text as it is.
+* `.thrown(exception)` shows an exception as `Actual: IllegalStateException: message`.
+* `.error()` returns the `AssertionError` to throw. It never has a cause, so students see no stack trace.
+* `Failure.call(() -> ...)` runs student code and turns any exception into a block (`Actual:` only); failures
+  and Ares security violations are passed on unchanged.
+* Report the first failing case only and count the others with `.cases(failed, total)`.
+
+Structural failures ("Class X in package Y is not implemented as expected.") keep their short form.
 
 ## Abstract classes and interfaces (Byte Buddy)
 

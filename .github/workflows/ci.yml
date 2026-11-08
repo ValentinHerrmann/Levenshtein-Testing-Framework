@@ -224,9 +224,10 @@ jobs:
           private float prize
           calculateCost(long)
           protected Car(String, Integer)
-          muss den ungültigen Wert ablehnen
-          aber getSpeed() liefert 0.0
-          hat eine Ausnahme geworfen
+          Wert abgelehnt (unverändert 2.50 oder Ausnahme)
+          Methode:     getSpeed()
+          Tatsächlich: 0.00
+          Tatsächlich: UnsupportedOperationException: getInfo not implemented yet
           MARKERS
           exit $status
 
