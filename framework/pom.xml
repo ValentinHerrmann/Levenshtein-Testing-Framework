@@ -6,7 +6,7 @@
 
     <groupId>io.github.valentinherrmann</groupId>
     <artifactId>levenshtein-testing-framework</artifactId>
-    <version>2026.11.0-SNAPSHOT</version>
+    <version>2026.11.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Levenshtein Testing Framework</name>
