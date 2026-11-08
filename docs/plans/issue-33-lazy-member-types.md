@@ -124,3 +124,21 @@ cd /home/user/Levenshtein-Testing-Framework && ./mvnw -q -pl framework verify
 ```
 (includes PIT gate at 90 % – new code paths need tests). Then build both examples
 (`example-maven`: `./mvnw test`; `example-gradle`: `./gradlew test`) to confirm no overload ambiguity.
+
+## Addendum: decisions made during implementation
+
+- **Mutual references need a reference that exists before the full wrapper**, because member wrappers are
+  built in the `ClassWrapper` subclass constructor. Both are supported:
+  `ClassWrapper.reference(name, package)` is a member-less wrapper found by the normal lookup and `equals` to the
+  full wrapper; a `Supplier<? extends ClassWrapper<?>>` is evaluated when the member is checked (a `null` result
+  throws `IllegalStateException`, and messages show `<unknown>`).
+- `TypeRef` has three variants: `Fixed`, `Wrapped` and `Supplied`. The new constructors take
+  `ClassWrapper<? extends V>` / `Supplier<? extends ClassWrapper<? extends V>>`, so wildcard wrappers bind with
+  the diamond operator. `MethodWrapper.getExpectedReturnType()` is new.
+- Resolved open points: `ClassWrapper.findWithDeviation()` never checks members, so resolving types inside a
+  member's check cannot recurse. A `MISSING` type makes the member `MISSING`, so `getValue` / `invoke` fail with
+  the usual "not implemented" message before any cast. The `Mock` argument conversion needs no guard: a method
+  with an unresolved parameter is `MISSING` and is rejected first. `GettersSettersTest` fails with the
+  attribute's "not implemented" message.
+- Compatibility: a literal `null` return type is now ambiguous (one test changed to `(Class<Object>) null`), and
+  a `null` entry in a parameter type array throws `IllegalArgumentException`. Both are in `docs/migration.md`.
