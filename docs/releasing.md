@@ -47,6 +47,7 @@ release (now `2026.11.0-SNAPSHOT` for the release `2026.11.0`).
 ## Documentation site
 
 The docs site (`docs/` and the Javadoc of `framework/src/main`) is rebuilt and deployed to GitHub Pages by the
-`Docs` workflow on every push to `main` that touches them; nothing to do for a release. It always shows the state
-of `main`, so merge doc changes for a new version together with the code. Preview it locally with
+`Docs` workflow on every push to `main` that touches them; nothing to do for a release. It shows the state
+of `main` (or of the branch of the last manual run: *Actions > Docs > Run workflow* deploys any branch, the next
+push to `main` restores it), so merge doc changes for a new version together with the code. Preview it locally with
 `pip install zensical && zensical serve`.
