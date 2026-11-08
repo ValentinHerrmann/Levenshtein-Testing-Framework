@@ -184,6 +184,18 @@ class UtilsTest {
         }
 
         @Test
+        void bigDecimalsAreConvertedExactly() {
+            // 2^53 + 1 cannot be represented as double; the conversion must not round it to 2^53.
+            assertThat(Utils.safeCast(new BigDecimal("9007199254740993"), long.class)).isEqualTo(9007199254740993L);
+            assertThat(Utils.safeCast(new BigDecimal("4.000"), int.class)).isEqualTo(4);
+            assertThat(Utils.safeCast(new BigDecimal(Long.MIN_VALUE), long.class)).isEqualTo(Long.MIN_VALUE);
+            assertThatThrownBy(() -> Utils.safeCast(new BigDecimal("9007199254740993.5"), long.class))
+                    .isInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> Utils.safeCast(new BigDecimal(BigInteger.ONE.shiftLeft(63)), long.class))
+                    .isInstanceOf(AssertionError.class);
+        }
+
+        @Test
         void floatTakesEveryDoubleThatDoesNotOverflow() {
             assertThat(Utils.safeCast((double) Float.MAX_VALUE, float.class)).isEqualTo(Float.MAX_VALUE);
             assertThat(Utils.safeCast(-(double) Float.MAX_VALUE, float.class)).isEqualTo(-Float.MAX_VALUE);

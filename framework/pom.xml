@@ -164,7 +164,13 @@
                                 <format>HTML</format>
                                 <format>XML</format>
                             </outputFormats>
-                            <mutationThreshold>0</mutationThreshold>
+                            <!--
+                              Gate: about 3 points below the measured score (93 % mutants killed, 97 % lines
+                              covered), so a change that adds untested code fails CI. Raise it as the score
+                              rises; the remaining survivors are mostly equivalent mutants (see the PR of #23).
+                            -->
+                            <mutationThreshold>90</mutationThreshold>
+                            <coverageThreshold>95</coverageThreshold>
                         </configuration>
                     </plugin>
                 </plugins>

@@ -153,7 +153,21 @@ public final class Utils
             return Double.isFinite(d) && Math.abs(d) > Float.MAX_VALUE ? null : (float) d;
         }
         long whole;
-        if (n instanceof Double || n instanceof Float || n instanceof BigDecimal) {
+        if (n instanceof BigDecimal bd) {
+            // Exact: going through doubleValue() would silently round integers beyond 2^53.
+            BigInteger exact;
+            try {
+                exact = bd.toBigIntegerExact();
+            }
+            catch (ArithmeticException notWhole) {
+                return null;
+            }
+            if (exact.bitLength() > 63) {
+                return null;
+            }
+            whole = exact.longValue();
+        }
+        else if (n instanceof Double || n instanceof Float) {
             double d = n.doubleValue();
             if (!Double.isFinite(d) || d != Math.rint(d) || d < -0x1p63 || d >= 0x1p63) {
                 return null;
