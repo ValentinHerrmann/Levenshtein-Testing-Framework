@@ -13,6 +13,12 @@ public final class Utils
     }
 
     /**
+     * Score of a parameter whose expected type is a missing student class, when the closest method or
+     * constructor is searched: higher than every other deviation, so exact and primitive/wrapper matches win.
+     */
+    static final int UNRESOLVED_PARAMETER_SCORE = 3;
+
+    /**
      * Calculates the Levenshtein distance between two strings.
      * @param s1 First string
      * @param s2 Second string

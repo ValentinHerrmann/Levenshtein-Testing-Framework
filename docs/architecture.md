@@ -67,6 +67,9 @@ the structural tests from the wrappers and uses them for the behavioural tests, 
 * `ClassWrapper<T>`: classes, abstract classes and interfaces, including superclass, interfaces and instantiation
 * `AttributeWrapper<T,V>`, `MethodWrapper<T,R>`, `ConstructorWrapper<T>`: members
 * `GenericClassWrapper<T>`: wraps an already loaded class (actual superclass and interfaces)
+* `TypeRef` (package-private): an expected member type, a fixed `Class` or a student class given by its
+  `ClassWrapper` (or a supplier of one), resolved when the member is checked; `ClassWrapper.reference(name, package)`
+  refers to a student class by name only
 * `WrapperProperty<T>`: expected vs. actual value plus existence
 * `StructuralLevenshtein`: JUnit `DynamicTest` factory
 * `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
@@ -124,6 +127,7 @@ classDiagram
         ~WrapperProperty superClassWrapper
         ~WrapperProperty interfaceWrappers
         +getClazz() Class~T~
+        +reference(String name, String package)$ ClassWrapper~V~
         +getExpectedPackage() String
         +getObj(boolean forceNew)* Object
         +getObj() Object
@@ -152,12 +156,16 @@ classDiagram
     class AttributeWrapper["AttributeWrapper&lt;T, V&gt;"] {
         -Field field
         -WrapperProperty type
+        -TypeRef typeRef
+        +getExpectedType() Class
         +getValue() V
         +getValue(Object obj) V
         +setValue(Object value)
         +setValue(Object obj, Object value)
     }
     class MethodWrapper["MethodWrapper&lt;T, R&gt;"] {
+        -TypeRef[] paramRefs
+        -TypeRef returnRef
         -Class[] paramTypes
         -WrapperProperty params
         -WrapperProperty returnType
@@ -168,9 +176,11 @@ classDiagram
         +invokeOnSpecificObjectWithContext(Supplier~String~ context, Object obj, Object... params) R
         +invokeExpectingException(Class~X~ expected, Object obj, Object... params) X
         +getParamTypes() Class[]
+        +getExpectedReturnType() Class
     }
     class ConstructorWrapper~T~ {
-        ~Class[] paramTypes
+        -TypeRef[] paramRefs
+        -Class[] paramTypes
         -WrapperProperty params
         ~Constructor~T~ constructor
         +invoke(Object... args) T
@@ -189,6 +199,11 @@ classDiagram
         +assertCalled(MethodWrapper method, int times, Supplier~String~ context)
         +assertNotCalled(MethodWrapper method)
         +resetCalls()
+    }
+    class TypeRef {
+        <<interface>>
+        +resolve() Class
+        +expectedSimpleName() String
     }
     class WrapperProperty~T~ {
         ~T expected
@@ -219,6 +234,10 @@ classDiagram
     AttributeWrapper *-- WrapperProperty : type
     MethodWrapper *-- WrapperProperty : params, returnType
     ConstructorWrapper *-- WrapperProperty : params
+    AttributeWrapper *-- TypeRef : typeRef
+    MethodWrapper *-- TypeRef : returnRef, paramRefs
+    ConstructorWrapper *-- TypeRef : paramRefs
+    TypeRef --> ClassWrapper : resolves via getClazz()
     WrapperProperty --> Existence : existence
     ClassWrapper ..> Mock : mock()
     Mock --> MethodWrapper : overrides, calls

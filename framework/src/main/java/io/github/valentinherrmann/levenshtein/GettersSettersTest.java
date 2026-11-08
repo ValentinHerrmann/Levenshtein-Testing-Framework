@@ -69,6 +69,10 @@ final class GettersSettersTest {
         if (setterCondition != null && foundSetter == null) {
             throw new IllegalArgumentException("testGettersSetters: a setter condition needs a setter");
         }
+        if (attribute.getExpectedType() == null) {
+            // the attribute's type is a student class that is missing: the attribute cannot be used
+            attribute.verifyExistence(true);
+        }
         this.classWrapper = classWrapper;
         this.attribute = attribute;
         this.getter = foundGetter;

@@ -21,9 +21,15 @@ import java.util.stream.Collectors;
 public class ConstructorWrapper<T> extends Wrapper<T>
 {
     /**
-     * The expected parameter types for the constructor.
+     * The expected parameter types as specified; student classes are only resolved when the constructor is checked.
      */
-    Class<?>[] paramTypes;
+    private final TypeRef[] paramRefs;
+
+    /**
+     * The resolved expected parameter types; a missing student class is {@code null}. Set when the constructor is
+     * checked (immediately if all types are fixed classes).
+     */
+    private Class<?>[] paramTypes;
 
     /**
      * Expected and actual parameter types and their existence (EXACT, DEVIATES for primitive/wrapper
@@ -44,8 +50,30 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      * @param modifiers the expected modifiers (e.g., "public", "protected")
      */
     public ConstructorWrapper(ClassWrapper<T> parentClass, Class<?>[] paramTypes, String... modifiers) {
+        this(parentClass, TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Constructs a new ConstructorWrapper whose parameter types may include student classes. Each parameter type
+     * is a {@link Class}, a {@link ClassWrapper} (e.g. {@code ClassWrapper.reference("Guitarist", "band")}) or a
+     * {@link java.util.function.Supplier} of a class wrapper (needs a cast in an array:
+     * {@code (Supplier<ClassWrapper<?>>) () -> x}). Student classes are only looked up when the constructor is
+     * checked; if one is missing, only the parameters count as missing.
+     *
+     * @param parentClass the class wrapper containing this constructor
+     * @param paramTypes the expected parameter types for the constructor
+     * @param modifiers the expected modifiers (e.g., "public", "protected")
+     * @throws IllegalArgumentException if a parameter type is {@code null} or of another kind
+     */
+    public ConstructorWrapper(ClassWrapper<T> parentClass, Object[] paramTypes, String... modifiers) {
+        this(parentClass, TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    private ConstructorWrapper(ClassWrapper<T> parentClass, TypeRef[] paramRefs, String... modifiers) {
         super(parentClass, "", modifiers);
-        this.paramTypes = paramTypes == null ? new Class<?>[0] : paramTypes.clone();
+        this.paramRefs = paramRefs;
+        boolean fixed = Arrays.stream(paramRefs).allMatch(TypeRef::isFixed);
+        this.paramTypes = fixed ? TypeRef.resolveAll(paramRefs) : null;
         this.params = new WrapperProperty<>(this.paramTypes);
     }
 
@@ -73,9 +101,15 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     @SuppressWarnings("unchecked")
     protected void findWithDeviation()
     {
+        paramTypes = getParamTypes();
+        params.expected = paramTypes;
+        boolean unresolved = Arrays.asList(paramTypes).contains(null);
         Class<T> clazz = getParentClassWrapper().getClazz();
         if(clazz != null) {
             try {
+                if (unresolved) {
+                    throw new NoSuchMethodException(); // not with the exact types: look for the closest candidate
+                }
                 constructor = clazz.getDeclaredConstructor(paramTypes);
                 params.existence = EXACT;
             }
@@ -87,7 +121,8 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                         if (score >= 0 && score < bestScore) {
                             bestScore = score;
                             constructor = (Constructor<T>) candidate;
-                            params.existence = DEVIATES;
+                            // a parameter whose student class is missing cannot match
+                            params.existence = unresolved ? MISSING : DEVIATES;
                         }
                     }
                 }
@@ -107,7 +142,8 @@ public class ConstructorWrapper<T> extends Wrapper<T>
 
     /**
      * @return -1 if the parameters cannot match, otherwise a score where lower is closer: 0 for identical types,
-     *         1 per primitive/wrapper difference and 2 per numeric difference (e.g. {@code long} vs. {@code int})
+     *         1 per primitive/wrapper difference, 2 per numeric difference (e.g. {@code long} vs. {@code int}) and
+     *         {@value Utils#UNRESOLVED_PARAMETER_SCORE} per reference type in place of a missing student class
      */
     private int parameterDeviation(Class<?>[] actual) {
         if (actual.length != paramTypes.length) {
@@ -115,6 +151,13 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         }
         int score = 0;
         for (int i = 0; i < actual.length; i++) {
+            if (paramTypes[i] == null) {
+                if (actual[i].isPrimitive()) {
+                    return -1;
+                }
+                score += Utils.UNRESOLVED_PARAMETER_SCORE;
+                continue;
+            }
             if (actual[i].equals(paramTypes[i])) {
                 continue;
             }
@@ -233,7 +276,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                 "%s %s(%s)",
                 modifiers.expected,
                 getParentClassWrapper().name.expected,
-                typeNames(paramTypes)
+                TypeRef.simpleNames(paramRefs)
         ).trim();
     }
 
@@ -252,12 +295,12 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Retrieves the parameter types expected for this constructor.
+     * Retrieves the parameter types expected for this constructor, resolving student classes given as types.
      *
-     * @return an array of parameter types
+     * @return an array of parameter types; a student class that is missing is {@code null}
      */
     public Class<?>[] getParamTypes() {
-        return paramTypes.clone();
+        return paramTypes != null ? paramTypes.clone() : TypeRef.resolveAll(paramRefs);
     }
 
     /**
