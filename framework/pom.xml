@@ -115,6 +115,68 @@
     </build>
 
     <profiles>
+        <!--
+          Mutation testing of the framework itself (PIT). Activate with -P mutation:
+            ./mvnw -f framework/pom.xml -P mutation verify
+          The report lands in target/pit-reports/index.html; the build fails below mutationThreshold.
+          Only framework classes are mutated, never the test fixtures or the example exercises.
+        -->
+        <profile>
+            <id>mutation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.30.2</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <executions>
+                            <execution>
+                                <id>mutation-coverage</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.valentinherrmann.levenshtein.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.valentinherrmann.levenshtein.*</param>
+                            </targetTests>
+                            <excludedClasses>
+                                <param>io.github.valentinherrmann.levenshtein.fixtures.*</param>
+                            </excludedClasses>
+                            <mutators>
+                                <mutator>STRONGER</mutator>
+                            </mutators>
+                            <threads>2</threads>
+                            <timestampedReports>false</timestampedReports>
+                            <outputFormats>
+                                <format>HTML</format>
+                                <format>XML</format>
+                            </outputFormats>
+                            <!--
+                              Gate: about 3 points below the measured score (93 % mutants killed, 97 % lines
+                              covered), so a change that adds untested code fails CI. Raise it as the score
+                              rises; the remaining survivors are mostly equivalent mutants (see the PR of #23).
+                            -->
+                            <mutationThreshold>90</mutationThreshold>
+                            <coverageThreshold>95</coverageThreshold>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Everything needed for Maven Central only. Activate with -P release. -->
         <profile>
             <id>release</id>

@@ -153,7 +153,24 @@ public final class Utils
             return Double.isFinite(d) && Math.abs(d) > Float.MAX_VALUE ? null : (float) d;
         }
         long whole;
-        if (n instanceof Double || n instanceof Float || n instanceof BigDecimal) {
+        if (n instanceof BigDecimal bd) {
+            // Exact: going through doubleValue() would silently round integers beyond 2^53.
+            if (bd.precision() - bd.scale() > 19) {
+                return null; // more than 19 integer digits never fit a long; avoids building a huge BigInteger
+            }
+            BigInteger exact;
+            try {
+                exact = bd.toBigIntegerExact();
+            }
+            catch (ArithmeticException notWhole) {
+                return null;
+            }
+            if (exact.bitLength() > 63) {
+                return null;
+            }
+            whole = exact.longValue();
+        }
+        else if (n instanceof Double || n instanceof Float) {
             double d = n.doubleValue();
             if (!Double.isFinite(d) || d != Math.rint(d) || d < -0x1p63 || d >= 0x1p63) {
                 return null;
@@ -221,7 +238,7 @@ public final class Utils
         else if (actualType.isAssignableFrom(expected)) {
             typeWrapperProperty.existence = DEVIATES;
         }
-        else if (canContain(actualType, expected) || isNumericDeviation(expected, actualType)) {
+        else if (isNumericDeviation(expected, actualType)) {
             typeWrapperProperty.existence = DEVIATES;
         }
         else {
@@ -247,8 +264,10 @@ public final class Utils
 
 
     /**
-     * Checks if the actual primitive type can contain the expected primitive type.
-     * For example, a long can contain an int, and a double can contain a float.
+     * Checks if the actual primitive type can contain the expected primitive type, i.e. whether Java's widening
+     * primitive conversion goes from the expected to the actual type.
+     * For example, a long can contain an int, a double can contain a float, and every numeric type except
+     * byte and short can contain a char.
      *
      * @param actualType the actual type to check
      * @param expectedType the expected type to verify containment for
@@ -267,8 +286,8 @@ public final class Utils
         return (actual == long.class && (expected == int.class || expected == short.class || expected == byte.class || expected == char.class)) ||
                 (actual == int.class && (expected == short.class || expected == byte.class || expected == char.class)) ||
                 (actual == short.class && expected == byte.class) ||
-                (actual == double.class && (expected == float.class || expected == long.class || expected == int.class || expected == short.class || expected == byte.class)) ||
-                (actual == float.class && (expected == long.class || expected == int.class || expected == short.class || expected == byte.class));
+                (actual == double.class && (expected == float.class || expected == long.class || expected == int.class || expected == short.class || expected == byte.class || expected == char.class)) ||
+                (actual == float.class && (expected == long.class || expected == int.class || expected == short.class || expected == byte.class || expected == char.class));
     }
 
     /**

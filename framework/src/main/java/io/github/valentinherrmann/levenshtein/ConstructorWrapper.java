@@ -184,16 +184,23 @@ public class ConstructorWrapper<T> extends Wrapper<T>
         verifyExistence(true);
         Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
         Object[] shown = Invocations.snapshotArguments(checked);
+        boolean dynamic = isParentAbstract();
+        // abstract classes: the generated subclass calls the student's constructor, whose exception is not wrapped
+        Constructor<?> target = constructor;
+        if (dynamic) {
+            try {
+                target = getParentClassWrapper().dynamicSubclassConstructor(constructor.getParameterTypes());
+            }
+            catch (AssertionError failure) {
+                // generating the subclass failed: show the arguments, as getDynamicSubclassObj does
+                throw Invocations.withCallDetails(failure, null, shown);
+            }
+        }
         String outcome;
         try {
-            if (isParentAbstract()) {
-                Class<?> dynamic = getParentClassWrapper().getDynamicSubclassObj(this, checked).getClass();
-                outcome = Messages.NOTHING_THROWN.get() + " (" + dynamic.getSimpleName() + ")";
-            }
-            else {
-                Invocations.newInstance(constructor, checked);
-                outcome = Messages.NOTHING_THROWN.get();
-            }
+            Invocations.newInstance(target, checked);
+            outcome = Messages.NOTHING_THROWN.get()
+                    + (dynamic ? " (" + target.getDeclaringClass().getSimpleName() + ")" : "");
         }
         catch (Throwable t) {
             if (expected.isInstance(t)) {
@@ -232,6 +239,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
 
     @Override
     public String actualToString() {
+        ensureChecked();
         if(constructor == null) {
             return "<missing>";
         }
