@@ -47,11 +47,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # The PIT goal directly instead of "verify": the unit tests already run in their own job, and PIT runs them
-      # for its coverage analysis anyway
       - name: Run PIT
-        run: >-
-          ./mvnw -B -f framework/pom.xml -P mutation test-compile org.pitest:pitest-maven:mutationCoverage
+        run: ./mvnw -B -f framework/pom.xml -P mutation verify
 
       - name: Summarize the mutation score
         if: always()
