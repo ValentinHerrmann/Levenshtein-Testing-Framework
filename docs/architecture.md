@@ -131,6 +131,9 @@ classDiagram
         +getObj(boolean forceNew, ConstructorWrapper ctor, Object... args) T
         +setCachedObj(Object obj)
         +getDynamicSubclassObj(ConstructorWrapper ctor, Object... args) Object
+        +newObjWithoutConstructor() Object
+        +newObjOverriding(Map overrides) Object
+        +mock() Mock~T~
         +verifySuperClass()
         +verifyInterfaces()
         +getAttributeWrappers() List~Wrapper~T~~
@@ -175,6 +178,18 @@ classDiagram
         +getParamTypes() Class[]
         +getActualParamTypes() Class[]
     }
+    class Mock~T~ {
+        -ClassWrapper~T~ classWrapper
+        +override(MethodWrapper method, Function function) Mock~T~
+        +returning(MethodWrapper method, Object value) Mock~T~
+        +othersReturnDefaults() Mock~T~
+        +obj() Object
+        +calls(MethodWrapper method) List~Object[]~
+        +assertCalled(MethodWrapper method, int times)
+        +assertCalled(MethodWrapper method, int times, Supplier~String~ context)
+        +assertNotCalled(MethodWrapper method)
+        +resetCalls()
+    }
     class WrapperProperty~T~ {
         ~T expected
         ~T actual
@@ -205,6 +220,8 @@ classDiagram
     MethodWrapper *-- WrapperProperty : params, returnType
     ConstructorWrapper *-- WrapperProperty : params
     WrapperProperty --> Existence : existence
+    ClassWrapper ..> Mock : mock()
+    Mock --> MethodWrapper : overrides, calls
     Wrapper --> ClassWrapper : parentClassWrapper
 ```
 

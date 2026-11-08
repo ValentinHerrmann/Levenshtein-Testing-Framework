@@ -61,3 +61,6 @@ arrays are compared by content. If the same object is required, set
   been checked.
 * Method parameter types must match (up to primitive ⇄ wrapper or numeric type); reordered parameters are
   `MISSING`.
+* Mocks (`mock()`, `newObjOverriding`) cannot replace `final` classes or methods, records, enums, sealed
+  classes, `static` or `private` methods, or constructors, and an attribute read directly by student code
+  bypasses every override. See [Independent tests](writing-tests.md#independent-tests).

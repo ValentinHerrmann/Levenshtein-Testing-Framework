@@ -2,6 +2,9 @@ package io.github.valentinherrmann.levenshtein;
 
 import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence.*;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import org.assertj.core.api.Assertions;
 
 public final class Utils
@@ -79,7 +82,10 @@ public final class Utils
     /**
      * Converts a value to the given type: returns the value itself if it already is an instance,
      * or converts between numeric types (e.g. an {@code int} result where a {@code double} is expected;
-     * {@code char} counts as numeric type).
+     * {@code char} counts as numeric type). A numeric conversion must not change the value beyond rounding:
+     * an integral type ({@code int}, {@code long}, {@code short}, {@code byte}, {@code char}) only takes a whole
+     * number within its range (2.5 or 300 do not fit into a {@code byte}, 65 becomes {@code 'A'}); a {@code float}
+     * takes every {@code double} that does not overflow it.
      * Fails with a readable assertion message if neither is possible.
      *
      * @param val the value to convert (must not be null)
@@ -108,18 +114,71 @@ public final class Utils
         if (castTo == null || castTo == void.class || toWrapperType(castTo).isInstance(val)) {
             return val;
         }
-        Class<?> target = toWrapperType(castTo);
-        Object numeric = val instanceof Character c ? Integer.valueOf(c) : val;
-        if (numeric instanceof Number n) {
-            if (target == Integer.class) return n.intValue();
-            if (target == Long.class) return n.longValue();
-            if (target == Float.class) return n.floatValue();
-            if (target == Double.class) return n.doubleValue();
-            if (target == Short.class) return n.shortValue();
-            if (target == Byte.class) return n.byteValue();
-            if (target == Character.class) return (char) n.intValue();
+        Object converted = convertNumber(val, castTo);
+        if (converted != null) {
+            return converted;
         }
         return Assertions.fail(Messages.CAST_FAILED.format(val, val.getClass().getSimpleName(), castTo.getSimpleName()));
+    }
+
+    /**
+     * @param type a type
+     * @return whether the type is a numeric primitive or wrapper type, or {@code char}/{@link Character}
+     */
+    static boolean isNumericOrChar(Class<?> type) {
+        Class<?> t = toWrapperType(type);
+        return t == Integer.class || t == Long.class || t == Short.class || t == Byte.class
+                || t == Double.class || t == Float.class || t == Character.class;
+    }
+
+    /**
+     * Converts a number or character to a numeric type (or {@code char}) as described in
+     * {@link #safeCast(Object, Class)}.
+     *
+     * @param val the value
+     * @param castTo the target type (primitive or wrapper)
+     * @return the converted value, or {@code null} if the value is no number or does not fit
+     */
+    static Object convertNumber(Object val, Class<?> castTo) {
+        Object numeric = val instanceof Character c ? Integer.valueOf(c) : val;
+        if (!(numeric instanceof Number n)) {
+            return null;
+        }
+        Class<?> target = toWrapperType(castTo);
+        if (target == Double.class) {
+            return n.doubleValue();
+        }
+        if (target == Float.class) {
+            double d = n.doubleValue();
+            return Double.isFinite(d) && Math.abs(d) > Float.MAX_VALUE ? null : (float) d;
+        }
+        long whole;
+        if (n instanceof Double || n instanceof Float || n instanceof BigDecimal) {
+            double d = n.doubleValue();
+            if (!Double.isFinite(d) || d != Math.rint(d) || d < -0x1p63 || d >= 0x1p63) {
+                return null;
+            }
+            whole = (long) d;
+        }
+        else if (n instanceof BigInteger b) {
+            if (b.bitLength() > 63) {
+                return null;
+            }
+            whole = b.longValue();
+        }
+        else {
+            whole = n.longValue();
+        }
+        if (target == Long.class) return whole;
+        if (target == Integer.class) return fits(whole, Integer.MIN_VALUE, Integer.MAX_VALUE) ? (int) whole : null;
+        if (target == Short.class) return fits(whole, Short.MIN_VALUE, Short.MAX_VALUE) ? (short) whole : null;
+        if (target == Byte.class) return fits(whole, Byte.MIN_VALUE, Byte.MAX_VALUE) ? (byte) whole : null;
+        if (target == Character.class) return fits(whole, Character.MIN_VALUE, Character.MAX_VALUE) ? (char) whole : null;
+        return null;
+    }
+
+    private static boolean fits(long value, long min, long max) {
+        return value >= min && value <= max;
     }
 
 

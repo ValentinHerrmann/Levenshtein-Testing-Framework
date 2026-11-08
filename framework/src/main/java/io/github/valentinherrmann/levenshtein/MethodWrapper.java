@@ -85,11 +85,28 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * @return {@code "name(Type1,Type2)"} of the expected signature; used to keep other wrappers' members
      */
     String expectedSignatureKey() {
-        return name.expected + Arrays.stream(paramTypes).map(Class::getName).collect(Collectors.joining(",", "(", ")"));
+        return signatureKey(name.expected, paramTypes);
     }
 
-    private static String signatureKey(Method m) {
-        return m.getName() + Arrays.stream(m.getParameterTypes()).map(Class::getName).collect(Collectors.joining(",", "(", ")"));
+    /**
+     * @return {@code "name(Type1,Type2)"} of the method; identifies a method within a class hierarchy
+     */
+    static String signatureKey(Method m) {
+        return signatureKey(m.getName(), m.getParameterTypes());
+    }
+
+    /**
+     * @return {@code "name(Type1,Type2)"} with the binary names of the parameter types
+     */
+    static String signatureKey(String name, Class<?>[] parameterTypes) {
+        StringBuilder key = new StringBuilder(name).append('(');
+        for (int i = 0; i < parameterTypes.length; i++) {
+            if (i > 0) {
+                key.append(',');
+            }
+            key.append(parameterTypes[i].getName());
+        }
+        return key.append(')').toString();
     }
 
     @Override
@@ -273,15 +290,19 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     {
         verifyExistence(true);
         Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
+        Object[] shown = Invocations.snapshotArguments(args); // as passed, before the student code can change them
         Object val;
         try {
             val = Invocations.invoke(method, resolveTarget(obj), args);
         }
         catch (Throwable t) {
+            if (t instanceof AssertionError e) {
+                throw Invocations.withCallDetails(e, context, shown);
+            }
             Invocations.rethrowIfCritical(t);
             String message = Messages.METHOD_INVOCATION_EXCEPTION.format(actualToString(),
                     getParentClassWrapper().name.expected, Invocations.describe(t));
-            return fail(Invocations.withContext(context, Invocations.withArguments(message, args)), t);
+            return fail(Invocations.withContext(context, Invocations.withArguments(message, shown)), t);
         }
         if (val == null || returnType.expected == null || returnType.expected == void.class) {
             return (R) val;
@@ -304,6 +325,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object obj, Object... params) {
         verifyExistence(true);
         Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
+        Object[] shown = Invocations.snapshotArguments(args);
         Object target = resolveTarget(obj);
         String outcome;
         try {
@@ -318,7 +340,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             outcome = Invocations.describe(t);
         }
         return fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(actualToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), args));
+                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), shown));
     }
 
     /**
@@ -358,6 +380,14 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     Class<?> actualReturnType() {
         ensureChecked();
         return method == null ? null : method.getReturnType();
+    }
+
+    /**
+     * @return the student's method, or {@code null} if it is missing
+     */
+    Method actualMethod() {
+        ensureChecked();
+        return method;
     }
 
     private static String typeNames(Class<?>[] types) {

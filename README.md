@@ -25,6 +25,7 @@ Expect:	public void start()
 ✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces  
 ✅ **Behavioural testing** through wrappers that call the student's (possibly misspelled) members  
 ✅ **Abstract classes and interfaces** instantiated through Byte Buddy subclasses  
+✅ **Independent tests**: objects without running a student constructor, test-owned method overrides and call checks (`mock()`)  
 ✅ **Exercise Variants compatible**: names and types are plain strings and classes  
 ✅ **Secure by default**: `@LevenshteinTest` runs every test under Ares 2 supervision
 
@@ -47,7 +48,7 @@ results.
 | Guide | What's inside |
 |---|---|
 | [Quick Start](docs/quick-start.md) | From zero to a running test in four steps |
-| [Writing Tests](docs/writing-tests.md) | Wrapper cheat sheet, structural and behavioural tests, configuration |
+| [Writing Tests](docs/writing-tests.md) | Wrapper cheat sheet, structural and behavioural tests, independent tests (mocks), configuration |
 | [Ares 2 Setup in Detail](docs/ares-setup.md) | Dependencies, build wiring, reserved-package guard, security policy, Ares 2 pitfalls |
 | [How Matching Works](docs/matching.md) | How the student's elements are found and graded as `EXACT`, `DEVIATES` or `MISSING` |
 | [Architecture](docs/architecture.md) | Module overview and class diagrams |

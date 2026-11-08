@@ -361,5 +361,32 @@ public class TestAbstr {
             .isNotNull()
             .contains(man, ""+year);
     }
+
+    /**
+     * Like {@link #testGetInfo()}, but independent of the constructor: the object is created without running any
+     * constructor, and the test sets the attributes itself. A missing or broken constructor then fails only the
+     * constructor tests, not this one. For an abstract class the object belongs to a generated subclass (a
+     * {@link io.github.valentinherrmann.levenshtein.Mock} without overrides); its concrete methods run the
+     * student's code.
+     *
+     * <pre>{@code
+     * Object obj = vehicleAbstr().newObjWithoutConstructor();   // attributes: null / 0
+     * vehicleAbstr().manufacturer().setValue(obj, "BMW");
+     * }</pre>
+     *
+     * <p>See "Independent tests" in {@code docs/writing-tests.md}, also for replacing methods the code under
+     * test calls ({@code mock().override(...)}).</p>
+     */
+    public static void testGetInfoWithoutConstructor() {
+        Object obj = vehicleAbstr().newObjWithoutConstructor();
+        vehicleAbstr().manufacturer().setValue(obj, "Tesla");
+        vehicleAbstr().year().setValue(obj, 2031);
+        String info = vehicleAbstr().getInfo().invokeOnSpecificObject(obj);
+        Assertions.assertThat(info)
+            .withFailMessage("Method %s should return vehicle information, e.g. for manufacturer Tesla and year"
+                           + " 2031, but returned: %s", vehicleAbstr().getInfo().getExpectedName(), info)
+            .isNotNull()
+            .contains("Tesla", "2031");
+    }
 }
 

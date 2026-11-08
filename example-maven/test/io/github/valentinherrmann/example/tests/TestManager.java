@@ -121,13 +121,14 @@ import java.util.List;
  * <h3>5. Test Categories</h3>
  * <p>Tests are grouped by the class they test:</p>
  *
- * <h4>AbstractVehicle Tests (5 tests)</h4>
+ * <h4>AbstractVehicle Tests (6 tests)</h4>
  * <ul>
  *   <li>{@link #testAbstrConstructorManufacturer()} - Constructor initialization</li>
  *   <li>{@link #testAbstrConstructorYear()} - Constructor initialization</li>
  *   <li>{@link #testAbstrGetManufacturer()} - Getter method</li>
  *   <li>{@link #testAbstrGetYear()} - Getter method</li>
  *   <li>{@link #testAbstrGetInfo()} - Business logic method</li>
+ *   <li>{@link #testAbstrGetInfoWithoutConstructor()} - Independent test: no constructor runs</li>
  * </ul>
  *
  * <h4>Car Implementation Tests (8 tests)</h4>
@@ -403,7 +404,7 @@ public class TestManager {
     }
 
     // ============================================================================
-    // AbstractVehicle Tests (5 tests)
+    // AbstractVehicle Tests (6 tests)
     // ============================================================================
 
     /**
@@ -499,6 +500,21 @@ public class TestManager {
     void testAbstrGetInfo() {
         try {
             TestAbstr.testGetInfo();
+        }
+        catch (AssertionError e) {
+            fail(e.getMessage());
+        }
+    }
+
+    /**
+     * Tests getInfo() of AbstractVehicle independently of its constructor.
+     *
+     * @see TestAbstr#testGetInfoWithoutConstructor()
+     */
+    @Test
+    void testAbstrGetInfoWithoutConstructor() {
+        try {
+            TestAbstr.testGetInfoWithoutConstructor();
         }
         catch (AssertionError e) {
             fail(e.getMessage());

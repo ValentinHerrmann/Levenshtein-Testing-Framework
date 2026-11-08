@@ -186,6 +186,11 @@ public final class Fixtures {
         public int countFlags(boolean[] flags) { return flags.length; }
         public boolean isNull(String s) { return s == null; }
         public void boom() { throw new IllegalStateException("boom"); }
+        public void take(Object o) { throw new IllegalStateException("taken"); }
+        public void sortAndFail(int[] values) {
+            java.util.Arrays.sort(values);
+            throw new IllegalStateException("sorted");
+        }
     }
 
     /** An abstract class whose constructor always throws (#27). */
@@ -204,5 +209,135 @@ public final class Fixtures {
             }
             VALUE = 1;
         }
+    }
+
+    /** A class whose constructor must never run in the mock tests (#30). */
+    public static class Guitarist {
+        public static int constructed;
+        private int factor = 10;
+
+        public Guitarist() {
+            constructed++;
+            throw new IllegalStateException("broken constructor");
+        }
+
+        int calculateLoudness(int volume) { return volume * 10; } // package-private on purpose
+        public String getName() { return "real"; }
+        public int getFactor() { return factor; }
+        public double calc(int x) { return x; }
+        public double calc(double x) { return x * 2; }
+        public int calculateVolumme() { return 1; } // misspelt "calculateVolume"
+        public long louder(long volume) { return volume; } // long instead of the expected int
+        public final int tune() { return 440; }
+        public static int count() { return 0; }
+        public void fail() { throw new IllegalStateException("student bug"); }
+        public int sumAndClear(int[] values) {
+            int sum = 0;
+            for (int i = 0; i < values.length; i++) {
+                sum += values[i];
+                values[i] = 0;
+            }
+            return sum;
+        }
+    }
+
+    /** Calls a method of another student class (#30, SE01E04). */
+    public static class Drummer {
+        private Guitarist guitarist;
+
+        public Drummer() { throw new IllegalStateException("broken constructor"); }
+
+        public int calculateLoudness(int volume, int crowdNoise) { return guitarist.calculateLoudness(volume) + crowdNoise; }
+        public void setGuitarist(Guitarist guitarist) { this.guitarist = guitarist; }
+    }
+
+    /** Calls one of its own methods (#30, SE01E03). */
+    public static class Stage {
+        private boolean[] spotlights;
+
+        public int getNumberOfSpotlights() { return spotlights.length; }
+        public boolean isShowReady() { return getNumberOfSpotlights() >= 2; }
+    }
+
+    /** Inherited methods (#30). */
+    public static class Musician {
+        public String instrument() { return "nothing"; }
+        public String greet() { return "I play " + instrument(); }
+    }
+
+    public static class Bassist extends Musician { }
+
+    /** A mock whose clone shares the handler (code review #1). */
+    public static class Counter implements Cloneable {
+        private int value;
+
+        public int get() { return value; }
+        public Counter copy() {
+            try {
+                return (Counter) super.clone();
+            }
+            catch (CloneNotSupportedException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    /** Own equals, hashCode and toString (code review #8). */
+    public static class Eq {
+        @Override public boolean equals(Object o) { return o instanceof Eq; }
+        @Override public int hashCode() { return 1; }
+        @Override public String toString() { return "Eq"; }
+    }
+
+    /** A static initializer that fails when a mock is created (code review #9). */
+    public static class BrokenStaticInit {
+        static {
+            if (true) {
+                throw new IllegalStateException("broken static");
+            }
+        }
+
+        public int value() { return 1; }
+    }
+
+    /** toString() recurses endlessly (code review #2). */
+    public static class SelfRef {
+        @Override public String toString() { return "S" + this; }
+    }
+
+    /** toString() does something Ares forbids (code review #7). */
+    public static class ForbiddenToString {
+        @Override public String toString() { throw new SecurityException("forbidden by the sandbox"); }
+    }
+
+    /** A concrete method that calls an abstract one (code review #10). */
+    public abstract static class AbstractCaller {
+        public abstract double cost();
+        public double times(int n) { return cost() * n; }
+    }
+
+    /** A constructor with a single reference parameter (code review #11). */
+    public static class Holder {
+        public final String value;
+        public Holder(String value) { this.value = value; }
+    }
+
+    /** float where double is expected, for arguments (code review #6). */
+    public static class FloatParams {
+        public final float price;
+        public FloatParams() { this(0f); }
+        public FloatParams(float price) { this.price = price; }
+        public float half(float x) { return x / 2; }
+    }
+
+    /** Narrower types where wider ones are expected (code review #12). */
+    public static class Narrow {
+        private int count;
+        private byte tiny;
+        private char letter;
+
+        public int getCount() { return count; }
+        public byte getTiny() { return tiny; }
+        public char getLetter() { return letter; }
     }
 }

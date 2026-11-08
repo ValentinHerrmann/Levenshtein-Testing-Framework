@@ -155,13 +155,17 @@ public class ConstructorWrapper<T> extends Wrapper<T>
             return (T) getParentClassWrapper().getDynamicSubclassObj(this, args);
         }
         Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
+        Object[] shown = Invocations.snapshotArguments(checked); // as passed, before the student code can change them
         try {
             return (T) Invocations.newInstance(constructor, checked);
         }
         catch (Throwable t) {
+            if (t instanceof AssertionError e) {
+                throw Invocations.withCallDetails(e, null, shown);
+            }
             Invocations.rethrowIfCritical(t);
             return Assertions.fail(Invocations.withArguments(Messages.CONSTRUCTOR_INVOCATION_FAILED.format(
-                    this.expectedToString(), getParentClassWrapper().name.expected, Invocations.describe(t)), checked), t);
+                    this.expectedToString(), getParentClassWrapper().name.expected, Invocations.describe(t)), shown), t);
         }
     }
 
@@ -179,6 +183,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object... args) {
         verifyExistence(true);
         Object[] checked = Invocations.checkArguments(constructor.getParameterTypes(), args, actualToString());
+        Object[] shown = Invocations.snapshotArguments(checked);
         String outcome;
         try {
             if (isParentAbstract()) {
@@ -198,7 +203,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
             outcome = Invocations.describe(t);
         }
         return Assertions.fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(expectedToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), checked));
+                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), shown));
     }
 
     private boolean isParentAbstract() {
