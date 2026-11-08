@@ -82,6 +82,12 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     private MockClasses.Generated mockSubclass;
 
     /**
+     * The object of the enclosing class that all objects of an inner (non-static nested) class share, created once
+     * by {@link #outerObj()}.
+     */
+    private Object outerObj;
+
+    /**
      * Wrapper for the expected and actual superclass.
      */
     WrapperProperty<ClassWrapper<?>> superClassWrapper;
@@ -163,9 +169,6 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * A class can be used in behavioral tests as soon as it was found, even if e.g. its superclass deviates.
-     */
-    /**
      * Interfaces are implicitly {@code abstract}, enums {@code final} (or {@code abstract} if a constant has a
      * body), records {@code final}; nested interfaces, enums and records as well as types declared in an
      * interface are implicitly {@code static}.
@@ -193,6 +196,9 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         return implicit;
     }
 
+    /**
+     * A class can be used in behavioral tests as soon as it was found, even if e.g. its superclass deviates.
+     */
     @Override
     protected Existence usability() {
         return clazz == null ? MISSING : EXACT;
@@ -543,11 +549,25 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
     }
 
+    /**
+     * The outer instance for objects of this class if it is an inner class (e.g. the test expects a {@code static}
+     * nested class but the student left out {@code static}). It is created once, so all objects of the inner
+     * class created by the framework share one outer object, as they would in the student's program.
+     *
+     * @return the shared object of the enclosing class
+     */
+    Object outerObj() {
+        if (outerObj == null) {
+            outerObj = outerInstance(getClazz().getEnclosingClass());
+        }
+        return outerObj;
+    }
+
     private Object instantiateWithNoArgConstructor(Class<T> c) {
         try {
             if (ConstructorWrapper.isInnerClass(c)) { // the constructor takes the outer instance
                 Constructor<T> withOuter = c.getDeclaredConstructor(c.getEnclosingClass());
-                return Invocations.newInstance(withOuter, outerInstance(c.getEnclosingClass()));
+                return Invocations.newInstance(withOuter, outerObj());
             }
             Constructor<T> noArg = c.getDeclaredConstructor();
             return Invocations.newInstance(noArg);
@@ -604,7 +624,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
         else if (ConstructorWrapper.isInnerClass(getClazz())) {
             fullTypes = new Class<?>[] {getClazz().getEnclosingClass()};
-            fullArgs = new Object[] {outerInstance(getClazz().getEnclosingClass())};
+            fullArgs = new Object[] {outerObj()};
         }
         try {
             return Invocations.newInstance(dynamicSubclassConstructor(fullTypes), fullArgs);

@@ -117,7 +117,8 @@ difference from the specified modifiers makes the structural test fail, but neve
 | no modifier expected, but the element is `public`, `protected` or `private` | `DEVIATES` (no modifier means package-private) | |
 
 A different **visibility** is reported as the missing expected visibility only, never as an unexpected
-modifier. If the specification contains other modifiers but no visibility, the visibility is not checked.
+modifier. If the specification contains other modifiers (required or optional) but no visibility, the
+visibility is not checked; only a specification without any modifier means package-private.
 
 **Optional modifiers.** A `?` suffix marks a modifier that may be present or not, e.g. a utility class that
 may be `final`:
@@ -152,16 +153,22 @@ compiles to the same class file and cannot be told apart.
   test, `@LevenshteinTest`/`@HiddenLevenshteinTest` reset the attribute to the value it had after the class was
   initialised (`StaticStateReset`), so results do not depend on the order of the tests. Arrays are copied
   deeply; other objects (e.g. lists) are restored by reference, so their content is not reset. `static final`
-  attributes cannot be reset.
+  attributes cannot be reset, and an attribute that any wrapper expects to be `static` is never reset.
+  Strictly, the restored value is the one the attribute had when a wrapper first reported it (all wrappers are
+  looked up before the first test); if student code changed it earlier, that value is restored.
+  Because the lookups run before each test, configure `LevenshteinSettings` in a static initializer or
+  `@BeforeAll`, not inside a test method.
 * **`static` method:** called without an object.
 * **`abstract` class:** objects are created through a generated subclass, as for expected abstract classes.
 * **`final` attribute:** `setValue` fails with a message; reading works.
 * **nested class with a different `static`:** an inner (non-static) class where a `static` nested class is
-  expected still works: its constructors get a default object of the outer class as hidden first argument.
+  expected still works: its constructors get an object of the outer class as hidden first argument (one per
+  class wrapper, shared by all its inner objects).
 
-`LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` restores the behaviour before
-2026.11.1: only an unexpected `static` of attributes and methods is reported, and a missing expected `static`
-makes the element `MISSING`.
+`LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` behaves like before 2026.11.1: only
+an unexpected `static` of attributes and methods is reported, and a missing expected `static` makes the element
+`MISSING`. (Implicit modifiers such as the `static` of enum constants, and bits that are no modifiers such as
+varargs, are not reported in this mode either.)
 
 An unknown modifier in the specification (a typo) throws `IllegalArgumentException` when the wrapper is
 created.

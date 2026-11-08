@@ -208,7 +208,8 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * Prepends a default object of the outer class if the constructor belongs to an inner class.
+     * Prepends the shared object of the outer class ({@link ClassWrapper#outerObj()}) if the constructor belongs
+     * to an inner class.
      *
      * @param args the (checked) arguments passed by the test
      * @return the arguments for the actual constructor
@@ -218,7 +219,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
             return args;
         }
         Object[] all = new Object[args.length + 1];
-        all[0] = ClassWrapper.outerInstance(outerType);
+        all[0] = getParentClassWrapper().outerObj();
         System.arraycopy(args, 0, all, 1, args.length);
         return all;
     }

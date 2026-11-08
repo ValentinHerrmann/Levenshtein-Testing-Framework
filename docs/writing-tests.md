@@ -327,6 +327,10 @@ static {
 }
 ```
 
+Set them in a static initializer or `@BeforeAll`, not in a test method or `@BeforeEach`: `@LevenshteinTest`
+looks up the attribute wrappers before each test (to reset attributes that are unexpectedly `static`), so a
+later change does not reach them.
+
 `LevenshteinSettings.reset()` restores the defaults. Timeouts: `@LevenshteinTest` carries
 `@StrictTimeout(5)`. A `@StrictTimeout` on the class or a method overrides it. (`regardingTimeouts` in the
 policy is not enforced by Ares 2.2.1.)

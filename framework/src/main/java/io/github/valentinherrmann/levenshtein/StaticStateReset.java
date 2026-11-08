@@ -10,9 +10,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Resets attributes that the student declared {@code static} although the test expects an instance attribute
@@ -24,8 +26,9 @@ import java.util.Map;
  * after the class was initialised.</p>
  *
  * <ul>
- *   <li>Only attributes reported with an unexpected {@code static} are reset; intended static attributes are
- *       never touched.</li>
+ *   <li>Only attributes that a live attribute wrapper reports with an unexpected {@code static} are reset.
+ *       An attribute that any live wrapper expects to be {@code static} is never reset, even if another wrapper
+ *       (e.g. of an earlier test class) reported it.</li>
  *   <li>Arrays (also nested ones) are copied deeply, so a test gets a fresh array with the initial content.
  *       Other objects (e.g. lists) are restored by reference: their content stays as an earlier test left it.</li>
  *   <li>{@code static final} attributes cannot be reset.</li>
@@ -35,8 +38,21 @@ import java.util.Map;
  * <p>The extension is part of {@link LevenshteinTest} and {@link HiddenLevenshteinTest}. Once per test, before
  * the first {@code @BeforeEach} method or else before the test method, it first checks all attribute wrappers
  * created so far (their lookup runs once anyway), so the initial value is recorded before the first test can
- * change it, and then resets. It is an interceptor registered after Ares' {@code @Public}/{@code @Hidden}, so
- * the lookups and class initialisations run inside the supervised invocation, like every other lookup.</p>
+ * change it, and then resets. Consequences:</p>
+ * <ul>
+ *   <li>Wrappers are looked up before the test runs, so {@link LevenshteinSettings} must be configured in a static
+ *       initializer or {@code @BeforeAll}; a change inside a test method or {@code @BeforeEach} comes too late for
+ *       the attribute wrappers that exist already.</li>
+ *   <li>The initial value is the value when the first wrapper reported the attribute. If student code changed the
+ *       attribute before (e.g. a test class without a wrapper for it ran first), that changed value is restored;
+ *       the real initial value cannot be recovered without reloading the class.</li>
+ * </ul>
+ *
+ * <p><b>Supervision:</b> Ares arms its security policy in its own invocation interceptor
+ * ({@code JupiterSecurityExtension.interceptBeforeEachMethod}/{@code interceptTestMethod}). The composed
+ * annotations declare {@code @Public}/{@code @Hidden} <em>before</em> {@code @ExtendWith(StaticStateReset.class)}, so
+ * JUnit registers Ares first and its interceptor wraps this one: the lookups and class initialisations triggered
+ * here run supervised, like every other lookup. Keep that order.</p>
  */
 public class StaticStateReset implements InvocationInterceptor {
 
@@ -89,13 +105,27 @@ public class StaticStateReset implements InvocationInterceptor {
      * {@code static}) and writes the recorded initial values back.
      */
     static void resetAll() {
+        Set<Field> unexpectedStatic = new HashSet<>();
+        Set<Field> expectedStatic = new HashSet<>();
         for (AttributeWrapper<?, ?> wrapper : liveWrappers()) {
             wrapper.ensureChecked();
+            Field field = wrapper.foundField();
+            if (field == null) {
+                continue;
+            }
+            if (wrapper.hasUnexpectedModifier("static")) {
+                unexpectedStatic.add(field);
+            }
+            if (wrapper.isModifierExpected("static")) {
+                expectedStatic.add(field);
+            }
         }
+        unexpectedStatic.removeAll(expectedStatic);
         Map<Field, Object> snapshots;
         synchronized (SNAPSHOTS) {
             snapshots = new LinkedHashMap<>(SNAPSHOTS);
         }
+        snapshots.keySet().retainAll(unexpectedStatic);
         for (Map.Entry<Field, Object> entry : snapshots.entrySet()) {
             try {
                 entry.getKey().set(null, deepCopy(entry.getValue()));

@@ -303,7 +303,8 @@ public abstract class Wrapper<T>
      *   <li>An actual modifier that is neither expected, optional ({@code "final?"}) nor implicit (see
      *       {@link #implicitModifiers()}) is a deviation as well. A different visibility is only reported as a
      *       missing expected visibility.</li>
-     *   <li>If no modifier is expected at all, package-private access is expected.</li>
+     *   <li>If no modifier is specified at all (neither required nor optional), package-private access is
+     *       expected. Otherwise a visibility is only checked if one is specified.</li>
      * </ul>
      * With {@link LevenshteinSettings.UnexpectedModifiers#IGNORE} the previous behaviour applies: a missing
      * {@code static} makes the element {@link Existence#MISSING} and only an unexpected {@code static} of
@@ -319,8 +320,8 @@ public abstract class Wrapper<T>
         boolean legacy = LevenshteinSettings.getUnexpectedModifiers() == LevenshteinSettings.UnexpectedModifiers.IGNORE;
 
         Existence worst = EXACT; // the worst existence defines if the modifiers deviate or are wrong
-        if (expectedModifierSet.isEmpty() && (actual & VISIBILITY) != 0) {
-            worst = DEVIATES; // package-private expected
+        if (expectedModifierSet.isEmpty() && optionalModifierSet.isEmpty() && (actual & VISIBILITY) != 0) {
+            worst = DEVIATES; // package-private expected; optional modifiers alone leave the visibility unchecked
         }
         for (String modifier : expectedModifierSet) {
             if ((actual & bit(modifier)) == 0) {

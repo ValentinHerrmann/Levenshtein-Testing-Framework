@@ -149,6 +149,15 @@ class UnexpectedModifiersTest {
         }
 
         @Test
+        void optionalModifiersAloneLeaveTheVisibilityUnchecked() {
+            assertThat(new W<>("SetlistTools", "static", "final?").getOverallExistence()).isEqualTo(EXACT);
+            assertThat(new W<>("SetlistToolsNotFinal", "static final?").getOverallExistence()).isEqualTo(EXACT);
+            W<Object> onlyOptional = new W<>("SetlistToolsNotFinal", "final?");
+            assertThat(onlyOptional.getUnexpectedModifiers()).containsExactly("static");
+            assertThat(onlyOptional.getMissingModifiers()).isEmpty(); // public is not reported
+        }
+
+        @Test
         void optionalModifierIsNotShownAsExpected() {
             assertThat(new W<>("SetlistTools", "public", "static", "final?").expectedToString())
                     .isEqualTo("public static class ModifierFixtures$SetlistTools");
@@ -211,6 +220,26 @@ class UnexpectedModifiersTest {
         }
 
         @Test
+        void innerObjectsShareOneOuterObject() {
+            W<Object> inner = new W<>("Inner", "public static");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(inner, new Class<?>[]{int.class}, "public");
+            MethodWrapper<Object, Object> outer =
+                    new MethodWrapper<>(inner, "outer", Object.class, new Class<?>[0], "public");
+            Object first = outer.invokeOnSpecificObject(ctor.invoke(1));
+            Object second = outer.invokeOnSpecificObject(ctor.invoke(2));
+            assertThat(first).isNotNull().isSameAs(second).isSameAs(inner.outerObj());
+        }
+
+        @Test
+        void outerWithoutNoArgConstructorIsCreatedWithoutConstructor() {
+            W<Object> part = new W<>("OuterWithArgs$Part", "public static");
+            assertThat(part.getMissingModifiers()).containsExactly("static");
+            MethodWrapper<Object, Integer> outerId =
+                    new MethodWrapper<>(part, "outerId", int.class, new Class<?>[0], "public");
+            assertThat(outerId.invoke()).isZero(); // the outer constructor did not run
+        }
+
+        @Test
         void innerClassDefaultObject() {
             W<Object> inner = new W<>("InnerNoArg", "public static");
             MethodWrapper<Object, Integer> v = new MethodWrapper<>(inner, "v", int.class, new Class<?>[0], "public");
@@ -262,6 +291,44 @@ class UnexpectedModifiersTest {
         }
 
         @Test
+        void attributeExpectedStaticByAnyLiveWrapperIsNotReset() {
+            W<Object> counter = new W<>("SharedCounter", "public static");
+            AttributeWrapper<Object, int[]> asInstance =
+                    new AttributeWrapper<>(counter, "count", int[].class, "private");
+            AttributeWrapper<Object, int[]> asStatic =
+                    new AttributeWrapper<>(counter, "count", int[].class, "private", "static");
+            MethodWrapper<Object, Void> increment =
+                    new MethodWrapper<>(counter, "increment", void.class, new Class<?>[0], "public");
+            StaticStateReset.resetAll();
+            increment.invoke();
+            StaticStateReset.resetAll();
+            assertThat(asInstance.hasUnexpectedModifier("static")).isTrue();
+            assertThat(asStatic.getOverallExistence()).isEqualTo(EXACT);
+            assertThat(asInstance.getValue()[0]).isEqualTo(1); // not reset: another wrapper expects static
+        }
+
+        @Test
+        void finalAndBrokenAttributesAreSkipped() {
+            AttributeWrapper<Object, int[]> fixed =
+                    attribute("SharedCounter", "public static", "FIXED", int[].class, "public", "final");
+            assertThat(fixed.getUnexpectedModifiers()).containsExactly("static");
+            AttributeWrapper<Object, int[]> broken =
+                    attribute("BrokenInit", "public static", "values", int[].class, "private");
+            assertThat(broken.getUnexpectedModifiers()).containsExactly("static");
+            org.assertj.core.api.Assertions.assertThatCode(StaticStateReset::resetAll).doesNotThrowAnyException();
+            assertThat(fixed.getValue()).containsExactly(1);
+        }
+
+        @Test
+        void missingElementHasNoModifierDeviations() {
+            AttributeWrapper<Object, Integer> ghost =
+                    attribute("Extras", "public static", "doesNotExistAtAll", int.class, "private", "static");
+            assertThat(ghost.getOverallExistence()).isEqualTo(MISSING);
+            assertThat(ghost.getMissingModifiers()).isEmpty();
+            assertThat(ghost.getUnexpectedModifiers()).isEmpty();
+        }
+
+        @Test
         void deepCopyCopiesNestedArraysOnly() {
             int[][] original = {{1}, {2}};
             int[][] copy = (int[][]) StaticStateReset.deepCopy(original);
@@ -270,6 +337,24 @@ class UnexpectedModifiersTest {
             Object other = new Object();
             assertThat(StaticStateReset.deepCopy(other)).isSameAs(other);
             assertThat(StaticStateReset.deepCopy(null)).isNull();
+        }
+
+        @Test
+        void aresIsRegisteredBeforeTheResetSoTheResetRunsSupervised() {
+            assertThat(indexOf(LevenshteinTest.class, de.tum.cit.ase.ares.api.jupiter.Public.class))
+                    .isLessThan(indexOf(LevenshteinTest.class, ExtendWith.class));
+            assertThat(indexOf(HiddenLevenshteinTest.class, de.tum.cit.ase.ares.api.jupiter.Hidden.class))
+                    .isLessThan(indexOf(HiddenLevenshteinTest.class, ExtendWith.class));
+        }
+
+        private static int indexOf(Class<?> annotated, Class<? extends java.lang.annotation.Annotation> type) {
+            java.lang.annotation.Annotation[] annotations = annotated.getDeclaredAnnotations();
+            for (int i = 0; i < annotations.length; i++) {
+                if (annotations[i].annotationType() == type) {
+                    return i;
+                }
+            }
+            throw new AssertionError(type + " missing on " + annotated);
         }
 
         @Test
@@ -330,6 +415,24 @@ class UnexpectedModifiersTest {
             assertThat(attribute("FestivalStage", "public static", "spotlights", boolean[].class, "private")
                     .getOverallExistence()).isEqualTo(DEVIATES);
             assertThat(new W<>("AbstractButShouldNotBe", "public static").getOverallExistence()).isEqualTo(EXACT);
+        }
+
+        @Test
+        void legacyIgnoresUnexpectedStaticOnClasses() {
+            LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE);
+            assertThat(new W<>("SetlistToolsNotFinal", "public").getOverallExistence()).isEqualTo(EXACT);
+            assertThat(attribute("Api", "public static interface", "LIMIT", int.class, "public")
+                    .getOverallExistence()).isEqualTo(EXACT);
+        }
+
+        @Test
+        void germanMessages() {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.DEUTSCH);
+            MethodWrapper<Object, Integer> m = method("Extras", "public static", "instanceMethod", int.class,
+                    new Class<?>[0], "public", "static");
+            assertThat(m.toString()).contains("fehlender Modifikator: static");
+            assertThat(attribute("Extras", "public static", "finalField", int.class, "public").toString())
+                    .contains("unerwarteter Modifikator: final");
         }
 
         @Test

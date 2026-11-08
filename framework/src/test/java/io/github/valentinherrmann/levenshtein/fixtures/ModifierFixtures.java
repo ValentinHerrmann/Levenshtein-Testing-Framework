@@ -35,6 +35,42 @@ public final class ModifierFixtures {
         }
     }
 
+    /** One test class expects the counter to be static, another one an instance attribute (#35 review). */
+    public static class SharedCounter {
+        private static int[] count = new int[1];
+        public static final int[] FIXED = {1};
+
+        public void increment() {
+            count[0]++;
+        }
+    }
+
+    /** A static attribute whose class cannot be initialised. */
+    public static class BrokenInit {
+        private static int[] values = new int[1];
+
+        static {
+            if (true) {
+                throw new IllegalStateException("broken static");
+            }
+        }
+    }
+
+    /** An outer class without a no-argument constructor: its inner objects get an outer object without constructor. */
+    public static class OuterWithArgs {
+        private final int id;
+
+        public OuterWithArgs(int id) {
+            this.id = id;
+        }
+
+        public class Part {
+            public int outerId() {
+                return id;
+            }
+        }
+    }
+
     /** SE01E02: a utility class that may be final. */
     public static final class SetlistTools {
         private SetlistTools() {
@@ -117,6 +153,10 @@ public final class ModifierFixtures {
 
         public int v() {
             return v;
+        }
+
+        public Object outer() {
+            return ModifierFixtures.this;
         }
     }
 

@@ -41,7 +41,10 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
   test (`StaticStateReset`).
 * An inner class where a `static` nested class is expected can still be instantiated (the outer instance is
   created automatically).
-* `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` restores the previous behaviour.
+* `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` behaves like before (only an
+  unexpected `static` of attributes and methods is reported; a missing `static` is `MISSING`).
+* With `@LevenshteinTest`, attribute wrappers are looked up before each test. Configure `LevenshteinSettings`
+  in a static initializer or `@BeforeAll`; changes inside a test method come too late for them.
 
 ## Changes in 2026.11.0
 

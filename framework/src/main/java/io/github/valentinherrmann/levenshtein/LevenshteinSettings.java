@@ -5,7 +5,9 @@ package io.github.valentinherrmann.levenshtein;
  *
  * <p>All values are read when they are needed, never inlined at compile time, so an exam repository
  * configures the framework from its own test code, typically in a static initializer or a
- * {@code @BeforeAll} method of the test class:</p>
+ * {@code @BeforeAll} method of the test class. Do not change them inside a test method or {@code @BeforeEach}:
+ * {@link LevenshteinTest} looks up the attribute wrappers before each test (see {@link StaticStateReset}), and
+ * every wrapper looks up its element only once.</p>
  *
  * <pre>{@code
  * static {
@@ -46,8 +48,9 @@ public final class LevenshteinSettings {
      */
     public enum UnexpectedModifiers {
         /**
-         * The behaviour before 2026.11.1: only an unexpected {@code static} of attributes and methods is reported,
-         * and a missing expected {@code static} makes the element missing.
+         * Like before 2026.11.1: only an unexpected {@code static} of attributes and methods is reported, and a
+         * missing expected {@code static} makes the element missing. (Implicit modifiers, e.g. of enum constants,
+         * and bits that are no modifiers, e.g. varargs, are no longer reported in this mode either.)
          */
         IGNORE,
         /**

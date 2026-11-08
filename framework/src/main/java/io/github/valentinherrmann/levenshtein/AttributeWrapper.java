@@ -117,6 +117,13 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     }
 
     /**
+     * @return the student's field found by the lookup, or null if it is missing (does not trigger the lookup)
+     */
+    Field foundField() {
+        return field;
+    }
+
+    /**
      * Constants of interfaces and enum constants are implicitly {@code static final}, the component fields of
      * records implicitly {@code final}.
      */
