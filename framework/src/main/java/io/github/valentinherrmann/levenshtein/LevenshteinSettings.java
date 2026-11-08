@@ -41,6 +41,22 @@ public final class LevenshteinSettings {
      */
     public enum Language { DEUTSCH, ENGLISH }
 
+    /**
+     * How modifiers of the student's element that the test does not expect are treated.
+     */
+    public enum UnexpectedModifiers {
+        /**
+         * The behaviour before 2026.11.1: only an unexpected {@code static} of attributes and methods is reported,
+         * and a missing expected {@code static} makes the element missing.
+         */
+        IGNORE,
+        /**
+         * Default: every modifier that is neither expected, optional ({@code "final?"}) nor implicit is a
+         * deviation, and a missing expected {@code static} is a deviation as well.
+         */
+        DEVIATE
+    }
+
     /** Default threshold (percent) for all name deviations. */
     public static final int DEFAULT_THRESHOLD = 20;
 
@@ -49,6 +65,7 @@ public final class LevenshteinSettings {
     private static volatile int methodNameDeviationThreshold = DEFAULT_THRESHOLD;
     private static volatile int attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
     private static volatile boolean gettersSettersRequireSameObject = false;
+    private static volatile UnexpectedModifiers unexpectedModifiers = UnexpectedModifiers.DEVIATE;
 
     private LevenshteinSettings() {
     }
@@ -119,7 +136,28 @@ public final class LevenshteinSettings {
     }
 
     /**
-     * Restores all defaults (German messages, 20 % for every threshold, getter/setter values compared by content).
+     * @return how unexpected modifiers are treated (default {@link UnexpectedModifiers#DEVIATE})
+     */
+    public static UnexpectedModifiers getUnexpectedModifiers() {
+        return unexpectedModifiers;
+    }
+
+    /**
+     * Chooses how modifiers that the test does not expect are treated, see {@link UnexpectedModifiers}.
+     * Set it before the wrappers are checked, e.g. in a static initializer or {@code @BeforeAll}.
+     *
+     * @param mode {@link UnexpectedModifiers#DEVIATE} (default) or {@link UnexpectedModifiers#IGNORE}
+     */
+    public static void setUnexpectedModifiers(UnexpectedModifiers mode) {
+        if (mode == null) {
+            throw new IllegalArgumentException("mode must not be null");
+        }
+        unexpectedModifiers = mode;
+    }
+
+    /**
+     * Restores all defaults (German messages, 20 % for every threshold, getter/setter values compared by content,
+     * unexpected modifiers deviate).
      */
     public static void reset() {
         language = Language.DEUTSCH;
@@ -127,6 +165,7 @@ public final class LevenshteinSettings {
         methodNameDeviationThreshold = DEFAULT_THRESHOLD;
         attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
         gettersSettersRequireSameObject = false;
+        unexpectedModifiers = UnexpectedModifiers.DEVIATE;
     }
 
     private static int checkThreshold(int threshold) {

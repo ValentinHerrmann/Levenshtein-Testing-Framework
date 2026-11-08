@@ -281,6 +281,8 @@ static {
     LevenshteinSettings.setAttributeNameDeviationThreshold(20);
     // testGettersSetters: equal content (false, default) or the same object (true) for reference values
     LevenshteinSettings.setGettersSettersRequireSameObject(false);
+    // modifiers the test does not expect: DEVIATE (default) or IGNORE (behaviour before 2026.11.1)
+    LevenshteinSettings.setUnexpectedModifiers(LevenshteinSettings.UnexpectedModifiers.DEVIATE);
 }
 ```
 

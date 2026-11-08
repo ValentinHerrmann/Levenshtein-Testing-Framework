@@ -47,6 +47,7 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     public AttributeWrapper(ClassWrapper<T> parentClass, String expectedName, Class<V> expectedType, String... modifiers) {
         super(parentClass, expectedName, modifiers);
         this.type = new WrapperProperty<>(expectedType);
+        StaticStateReset.register(this);
     }
 
 
@@ -59,12 +60,38 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
     }
 
     /**
-     * Fields of interfaces are implicitly static, so an unexpected {@code static} is only reported for classes.
+     * Fields of interfaces are implicitly static, so the legacy mode only reports an unexpected {@code static}
+     * for classes.
      */
     @Override
-    protected boolean reportUnexpectedStatic() {
+    protected boolean legacyReportsUnexpectedStatic() {
         Class<T> parent = getParentClassWrapper().getClazz();
         return parent == null || !parent.isInterface();
+    }
+
+    @Override
+    protected int relevantModifierMask() {
+        return Modifier.fieldModifiers();
+    }
+
+    /**
+     * Constants of interfaces and enum constants are implicitly {@code static final}, the component fields of
+     * records implicitly {@code final}.
+     */
+    @Override
+    protected int implicitModifiers() {
+        int implicit = super.implicitModifiers();
+        Class<T> parent = getParentClassWrapper().getClazz();
+        if (parent != null && parent.isInterface()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (field != null && field.isEnumConstant()) {
+            implicit |= Modifier.STATIC | Modifier.FINAL;
+        }
+        if (parent != null && parent.isRecord() && field != null && !Modifier.isStatic(field.getModifiers())) {
+            implicit |= Modifier.FINAL;
+        }
+        return implicit;
     }
 
     /**
@@ -244,6 +271,9 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         {
             verifyModifiers(field.getModifiers());
             verifyType(type, field.getType());
+            if (hasUnexpectedModifier("static")) {
+                StaticStateReset.snapshot(field); // reset before each test, see StaticStateReset
+            }
         }
     }
 

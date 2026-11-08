@@ -26,6 +26,23 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 [Gradle](../example-gradle/build.gradle) or [Maven](../example-maven/pom.xml) template and see
 [Ares 2 Setup in Detail](ares-setup.md).
 
+## Changes in 2026.11.1
+
+* **Unexpected modifiers are reported (#35).** A modifier of the student's element that is neither expected,
+  optional nor implicit (e.g. `private static boolean[] spotlights` where `private` is expected, an extra
+  `abstract`, `final` or `synchronized`) is now a deviation: the structural test fails with "unexpected
+  modifier: ...". Existing structural tests can turn red on student code with extra modifiers. Mark harmless
+  extras as optional with a `?` suffix, e.g. `"public", "final?"` for a utility class. See
+  [Modifiers](matching.md#modifiers).
+* Nested classes: a wrapper of a `static` nested class must now expect `static`.
+* **A missing expected `static` is a deviation instead of `MISSING`:** behavioural tests go on and call the
+  method or read the attribute on the default object.
+* `@LevenshteinTest` and `@HiddenLevenshteinTest` reset attributes that are unexpectedly `static` before each
+  test (`StaticStateReset`).
+* An inner class where a `static` nested class is expected can still be instantiated (the outer instance is
+  created automatically).
+* `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)` restores the previous behaviour.
+
 ## Changes in 2026.11.0
 
 * `structuralTestFactory` no longer generates tests for empty groups (e.g. `Attributes[X]` for a class

@@ -59,6 +59,22 @@ public enum Messages {
               """),
 
     /**
+     * Appended to a deviation when expected modifiers are missing.
+     * Placeholders: (1) the missing modifiers, e.g. {@code "static"}.
+     */
+    MISSING_MODIFIERS(
+            "fehlender Modifikator: %s",
+            "missing modifier: %s"),
+
+    /**
+     * Appended to a deviation when the actual element has modifiers that are not expected.
+     * Placeholders: (1) the unexpected modifiers, e.g. {@code "static"}.
+     */
+    UNEXPECTED_MODIFIERS(
+            "unerwarteter Modifikator: %s",
+            "unexpected modifier: %s"),
+
+    /**
      * Shown when a structural element has not been checked yet (debug / internal state).
      * Placeholders: (1) parent class name, (2) expected toString.
      */

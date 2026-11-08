@@ -6,6 +6,7 @@ import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence;
 import static io.github.valentinherrmann.levenshtein.WrapperProperty.Existence.*;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,6 +28,9 @@ public abstract class Wrapper<T>
     private static final List<String> KNOWN_MODIFIERS = List.of(
             "public", "private", "protected", "static", "final", "abstract", "synchronized",
             "native", "transient", "volatile", "strictfp", "interface");
+
+    /** The visibility bits; a different visibility is reported as a missing expected modifier only. */
+    private static final int VISIBILITY = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 
     /**
      * The expected and actual name of the wrapped element.
@@ -52,9 +56,26 @@ public abstract class Wrapper<T>
     private final ClassWrapper<T> parentClassWrapper;
 
     /**
-     * The expected modifier keywords, parsed once at construction.
+     * The expected (required) modifier keywords, parsed once at construction.
      */
     private final Set<String> expectedModifierSet;
+
+    /**
+     * The optional modifier keywords (written with a {@code ?} suffix, e.g. {@code "final?"}): they may be
+     * present or absent without a deviation.
+     */
+    private final Set<String> optionalModifierSet;
+
+    /**
+     * Expected modifiers that the actual element lacks (filled by {@link #verifyModifiers(int)}).
+     */
+    private final List<String> missingModifiers = new ArrayList<>();
+
+    /**
+     * Modifiers of the actual element that are neither expected, optional nor implicit
+     * (filled by {@link #verifyModifiers(int)}).
+     */
+    private final List<String> unexpectedModifiers = new ArrayList<>();
 
     /**
      * Whether the lookup in the student code already ran.
@@ -68,18 +89,31 @@ public abstract class Wrapper<T>
      * @param parentClass the class wrapper containing this element
      * @param expectedName the expected name of the element
      * @param expectedModifiers the expected modifiers (e.g., "public", "static", "final"); a single string may
-     *                          also contain several space separated modifiers
-     * @throws IllegalArgumentException if an expected modifier is unknown (a typo in the test specification)
+     *                          also contain several space separated modifiers. A {@code ?} suffix marks an
+     *                          optional modifier that may be present or absent (e.g. {@code "final?"}).
+     * @throws IllegalArgumentException if an expected modifier is unknown (a typo in the test specification),
+     *                                  if a visibility is marked optional or if a modifier is both required and
+     *                                  optional
      */
     public Wrapper(ClassWrapper<T> parentClass, String expectedName, String... expectedModifiers) {
-        this.expectedModifierSet = parseModifiers(expectedModifiers);
+        this.expectedModifierSet = parseModifiers(false, expectedModifiers);
+        this.optionalModifierSet = parseModifiers(true, expectedModifiers);
+        for (String optional : optionalModifierSet) {
+            if (expectedModifierSet.contains(optional)) {
+                throw new IllegalArgumentException("Modifier '" + optional + "' is both required and optional in "
+                        + Arrays.toString(expectedModifiers));
+            }
+        }
         this.name = new WrapperProperty<>(expectedName);
         this.parentClassWrapper = parentClass;
         this.modifiers = new WrapperProperty<>(String.join(" ", expectedModifierSet));
         this.existence = UNCHECKED;
     }
 
-    private static Set<String> parseModifiers(String... expectedModifiers) {
+    /**
+     * Parses the required ({@code optional == false}) or the optional ({@code optional == true}) modifiers.
+     */
+    private static Set<String> parseModifiers(boolean optional, String... expectedModifiers) {
         Set<String> result = new LinkedHashSet<>();
         if (expectedModifiers == null) {
             return result;
@@ -92,11 +126,64 @@ public abstract class Wrapper<T>
                 if (token.isEmpty()) {
                     continue;
                 }
-                if (!KNOWN_MODIFIERS.contains(token)) {
+                boolean isOptional = token.endsWith("?");
+                String keyword = isOptional ? token.substring(0, token.length() - 1) : token;
+                if (!KNOWN_MODIFIERS.contains(keyword)) {
                     throw new IllegalArgumentException("Unknown modifier '" + token + "' in expected modifiers "
                             + Arrays.toString(expectedModifiers) + ". Known modifiers: " + KNOWN_MODIFIERS);
                 }
-                result.add(token);
+                if (isOptional && (bit(keyword) & VISIBILITY) != 0) {
+                    throw new IllegalArgumentException("A visibility cannot be optional: '" + token
+                            + "' in expected modifiers " + Arrays.toString(expectedModifiers));
+                }
+                if (isOptional == optional) {
+                    result.add(keyword);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Maps a modifier keyword to its {@link Modifier} bit.
+     *
+     * @param keyword a keyword of {@link #KNOWN_MODIFIERS}
+     * @return the bit, e.g. {@link Modifier#STATIC} for {@code "static"}
+     */
+    static int bit(String keyword) {
+        return switch (keyword) {
+            case "public" -> Modifier.PUBLIC;
+            case "private" -> Modifier.PRIVATE;
+            case "protected" -> Modifier.PROTECTED;
+            case "static" -> Modifier.STATIC;
+            case "final" -> Modifier.FINAL;
+            case "abstract" -> Modifier.ABSTRACT;
+            case "synchronized" -> Modifier.SYNCHRONIZED;
+            case "native" -> Modifier.NATIVE;
+            case "transient" -> Modifier.TRANSIENT;
+            case "volatile" -> Modifier.VOLATILE;
+            case "strictfp" -> Modifier.STRICT;
+            case "interface" -> Modifier.INTERFACE;
+            default -> throw new IllegalArgumentException("Unknown modifier: " + keyword);
+        };
+    }
+
+    private static int bits(Set<String> keywords) {
+        int result = 0;
+        for (String keyword : keywords) {
+            result |= bit(keyword);
+        }
+        return result;
+    }
+
+    /**
+     * The keywords of all modifier bits set in the given mask, in the order of {@link #KNOWN_MODIFIERS}.
+     */
+    private static List<String> keywords(int mask) {
+        List<String> result = new ArrayList<>();
+        for (String keyword : KNOWN_MODIFIERS) {
+            if ((mask & bit(keyword)) != 0) {
+                result.add(keyword);
             }
         }
         return result;
@@ -175,59 +262,110 @@ public abstract class Wrapper<T>
 
 
     /**
-     * Whether an unexpected {@code static} modifier on the actual element is reported as a deviation.
-     * Off by default (classes, constructors); attributes and methods of classes turn it on.
+     * The modifier bits that are meaningful for this kind of element. Other bits of the bitmask are ignored:
+     * for methods, the bits of {@code volatile} and {@code transient} mean bridge and varargs.
+     * The default fits classes; methods, attributes and constructors override it.
      *
-     * @return true if an unexpected {@code static} should be reported
+     * @return the mask of relevant modifier bits
      */
-    protected boolean reportUnexpectedStatic() {
+    protected int relevantModifierMask() {
+        return Modifier.classModifiers() | Modifier.INTERFACE;
+    }
+
+    /**
+     * The modifier bits that the actual element has implicitly, e.g. {@code abstract} for interfaces or
+     * {@code static final} for constants of interfaces. They are never reported as unexpected.
+     * Called after the element was found.
+     *
+     * @return the mask of implicit modifier bits
+     */
+    protected int implicitModifiers() {
+        return Modifier.STRICT; // strictfp has no effect since Java 17 and is not emitted by javac any more
+    }
+
+    /**
+     * Whether an unexpected {@code static} is reported with
+     * {@link LevenshteinSettings.UnexpectedModifiers#IGNORE} (the behaviour before unexpected modifiers were
+     * reported in general). Attributes and methods turn it on.
+     *
+     * @return true if an unexpected {@code static} is reported in the legacy mode
+     */
+    protected boolean legacyReportsUnexpectedStatic() {
         return false;
     }
 
     /**
      * Verifies that the actual modifiers match the expected modifiers.
-     * Compares the expected modifiers (e.g., "public", "static", "final") with the actual modifier bitmask.
-     * Updates the modifiers property with EXACT if all match, DEVIATES for non-critical mismatches,
-     * or MISSING for critical mismatches (e.g., missing "static").
-     * If no modifier is expected at all, package-private access is expected.
+     * <ul>
+     *   <li>An expected modifier that is missing is a deviation ({@link Existence#DEVIATES}): behaviour tests go
+     *       on with the actual element, e.g. a method that should be {@code static} is called on the default
+     *       object.</li>
+     *   <li>An actual modifier that is neither expected, optional ({@code "final?"}) nor implicit (see
+     *       {@link #implicitModifiers()}) is a deviation as well. A different visibility is only reported as a
+     *       missing expected visibility.</li>
+     *   <li>If no modifier is expected at all, package-private access is expected.</li>
+     * </ul>
+     * With {@link LevenshteinSettings.UnexpectedModifiers#IGNORE} the previous behaviour applies: a missing
+     * {@code static} makes the element {@link Existence#MISSING} and only an unexpected {@code static} of
+     * attributes and methods is reported.
      *
      * @param modifierBitmask the actual modifiers as a bitmask (from {@link java.lang.reflect.Member#getModifiers()})
      */
     public void verifyModifiers(int modifierBitmask) {
-        modifiers.actual = Modifier.toString(modifierBitmask);
+        int actual = modifierBitmask & relevantModifierMask();
+        modifiers.actual = Modifier.toString(actual);
+        missingModifiers.clear();
+        unexpectedModifiers.clear();
+        boolean legacy = LevenshteinSettings.getUnexpectedModifiers() == LevenshteinSettings.UnexpectedModifiers.IGNORE;
 
         Existence worst = EXACT; // the worst existence defines if the modifiers deviate or are wrong
-        if (expectedModifierSet.isEmpty()) {
-            boolean packagePrivate = !Modifier.isPublic(modifierBitmask)
-                    && !Modifier.isPrivate(modifierBitmask)
-                    && !Modifier.isProtected(modifierBitmask);
-            worst = packagePrivate ? worst : selectWorstExistence(worst, DEVIATES);
+        if (expectedModifierSet.isEmpty() && (actual & VISIBILITY) != 0) {
+            worst = DEVIATES; // package-private expected
         }
         for (String modifier : expectedModifierSet) {
-            boolean present = switch (modifier) {
-                case "public" -> Modifier.isPublic(modifierBitmask);
-                case "private" -> Modifier.isPrivate(modifierBitmask);
-                case "protected" -> Modifier.isProtected(modifierBitmask);
-                case "static" -> Modifier.isStatic(modifierBitmask);
-                case "final" -> Modifier.isFinal(modifierBitmask);
-                case "abstract" -> Modifier.isAbstract(modifierBitmask);
-                case "synchronized" -> Modifier.isSynchronized(modifierBitmask);
-                case "native" -> Modifier.isNative(modifierBitmask);
-                case "transient" -> Modifier.isTransient(modifierBitmask);
-                case "volatile" -> Modifier.isVolatile(modifierBitmask);
-                case "strictfp" -> Modifier.isStrict(modifierBitmask);
-                case "interface" -> Modifier.isInterface(modifierBitmask);
-                default -> throw new IllegalStateException("Unknown modifier: " + modifier); // rejected in constructor
-            };
-            if (!present) {
-                // a missing "static" makes the element unusable as specified; everything else is a deviation
-                worst = selectWorstExistence(worst, modifier.equals("static") ? MISSING : DEVIATES);
+            if ((actual & bit(modifier)) == 0) {
+                missingModifiers.add(modifier);
+                // legacy: a missing "static" made the element unusable; now it is used on the default object
+                worst = selectWorstExistence(worst, legacy && modifier.equals("static") ? MISSING : DEVIATES);
             }
         }
-        if (reportUnexpectedStatic() && !expectedModifierSet.contains("static") && Modifier.isStatic(modifierBitmask)) {
+        int unexpected = actual & ~VISIBILITY & ~bits(expectedModifierSet) & ~bits(optionalModifierSet)
+                & ~implicitModifiers();
+        if (legacy) {
+            unexpected &= legacyReportsUnexpectedStatic() ? Modifier.STATIC : 0;
+        }
+        if (unexpected != 0) {
+            unexpectedModifiers.addAll(keywords(unexpected));
             worst = selectWorstExistence(worst, DEVIATES);
         }
         modifiers.existence = worst;
+    }
+
+    /**
+     * Returns whether the actual element has the given modifier although it is neither expected, optional nor
+     * implicit. Only meaningful after the lookup ran.
+     *
+     * @param modifier the modifier keyword, e.g. {@code "static"}
+     * @return true if the modifier was reported as unexpected
+     */
+    protected boolean hasUnexpectedModifier(String modifier) {
+        return unexpectedModifiers.contains(modifier);
+    }
+
+    /**
+     * @return the expected modifiers the actual element lacks (empty if the element is missing or matches)
+     */
+    public List<String> getMissingModifiers() {
+        ensureChecked();
+        return List.copyOf(missingModifiers);
+    }
+
+    /**
+     * @return the modifiers of the actual element that are neither expected, optional nor implicit
+     */
+    public List<String> getUnexpectedModifiers() {
+        ensureChecked();
+        return List.copyOf(unexpectedModifiers);
     }
 
     /**
@@ -269,7 +407,7 @@ public abstract class Wrapper<T>
             case EXACT -> expectedToString();
             case DEVIATES -> Messages.WRAPPER_DEVIATION.format(
                     getParentClassWrapper().name.expected, expectedToString(), actualToString()
-            );
+            ) + modifierNotes();
             case MISSING -> Messages.WRAPPER_MISSING.format(
                     getParentClassWrapper().name.expected, expectedToString()
             );
@@ -277,6 +415,20 @@ public abstract class Wrapper<T>
                     getParentClassWrapper().name.expected, expectedToString()
             );
         };
+    }
+
+    /**
+     * @return one line per kind of modifier deviation (missing, unexpected), or an empty string
+     */
+    private String modifierNotes() {
+        StringBuilder notes = new StringBuilder();
+        if (!missingModifiers.isEmpty()) {
+            notes.append(Messages.MISSING_MODIFIERS.format(String.join(" ", missingModifiers))).append('\n');
+        }
+        if (!unexpectedModifiers.isEmpty()) {
+            notes.append(Messages.UNEXPECTED_MODIFIERS.format(String.join(" ", unexpectedModifiers))).append('\n');
+        }
+        return notes.toString();
     }
 
     /**

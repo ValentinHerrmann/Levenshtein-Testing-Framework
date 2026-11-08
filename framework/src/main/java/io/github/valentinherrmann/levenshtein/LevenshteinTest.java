@@ -3,6 +3,7 @@ package io.github.valentinherrmann.levenshtein;
 import de.tum.cit.ase.ares.api.MirrorOutput;
 import de.tum.cit.ase.ares.api.StrictTimeout;
 import de.tum.cit.ase.ares.api.jupiter.Public;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
@@ -24,6 +25,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *   <li>{@link StrictTimeout}{@code (5)} - default deadline per test. Put your own {@code @StrictTimeout}
  *       on the class or a method to override it.</li>
  *   <li>{@link MirrorOutput} - mirror student console output into the test log.</li>
+ *   <li>{@link StaticStateReset} - resets attributes that are {@code static} although an instance attribute is
+ *       expected, before each test.</li>
  * </ul>
  *
  * <p>The security policy is exam specific and therefore <b>not</b> part of this annotation. Every exam
@@ -40,6 +43,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 @Public
 @StrictTimeout(5)
+@ExtendWith(StaticStateReset.class)
 @MirrorOutput
 @Inherited
 @Documented
