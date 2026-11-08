@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.assertj.core.api.Assertions;
+
 /**
  * Invocation of student code through Ares 2's {@link ReflectionTestUtils}.
  *
@@ -120,34 +122,115 @@ final class Invocations {
      * A wrong number of arguments is an error of the test, not of the student, so it is reported as
      * {@link IllegalArgumentException} with a hint on the most common cause: Java spreads an object array
      * passed to an {@code Object...} parameter into several arguments ({@code (Object) array} prevents that).
+     * A number (or character) for a parameter of another numeric type, e.g. {@code 2.5} for the student's
+     * {@code float}, is converted as in {@link Utils#safeCast(Object, Class)}; a value that does not fit fails
+     * the test with a readable message.
      *
      * @param parameterTypes the parameter types of the student's constructor or method
      * @param args the arguments as passed to the {@code Object...} parameter (may be {@code null})
      * @param signature the signature for the message
-     * @return the arguments to pass on; {@code null} becomes one {@code null} argument for a single parameter
-     *         and no arguments otherwise
+     * @return the arguments to pass on (a new array); {@code null} becomes one {@code null} argument for a single
+     *         parameter and no arguments otherwise
      * @throws IllegalArgumentException if the arguments cannot fit the parameters
      */
     static Object[] checkArguments(Class<?>[] parameterTypes, Object[] args, String signature) {
-        Object[] actual = args != null ? args : parameterTypes.length == 1 ? new Object[] {null} : new Object[0];
-        boolean arrayParameter = Arrays.stream(parameterTypes).anyMatch(t -> t.isArray() && !t.getComponentType().isPrimitive());
-        String hint = arrayParameter
-                ? " Note: Java spreads an object array passed to an Object... parameter into several arguments;"
-                  + " pass a single array argument as (Object) array."
-                : "";
+        Object[] actual = normalizeNull(parameterTypes, args).clone();
         if (actual.length != parameterTypes.length) {
             throw new IllegalArgumentException(signature + " expects " + parameterTypes.length + " argument(s), but "
-                    + actual.length + " were passed: (" + describeArguments(actual) + ")." + hint);
+                    + actual.length + " were passed: (" + describeArguments(actual) + ")." + arrayHint(parameterTypes));
         }
         for (int i = 0; i < actual.length; i++) {
             Class<?> type = parameterTypes[i];
-            if (actual[i] != null && type.isArray() && !type.isInstance(actual[i]) && !actual[i].getClass().isArray()) {
+            Object arg = actual[i];
+            if (arg == null) {
+                continue;
+            }
+            if (type.isArray() && !type.isInstance(arg) && !arg.getClass().isArray()) {
                 throw new IllegalArgumentException(signature + " expects an array of type " + type.getSimpleName()
-                        + " as argument " + (i + 1) + ", but got " + describeValue(actual[i]) + " ("
-                        + actual[i].getClass().getSimpleName() + ")." + hint);
+                        + " as argument " + (i + 1) + ", but got " + describeValue(arg) + " ("
+                        + arg.getClass().getSimpleName() + ")." + arrayHint(parameterTypes));
+            }
+            if (Utils.isNumericOrChar(type) && !Utils.toWrapperType(type).isInstance(arg)
+                    && (arg instanceof Number || arg instanceof Character)) {
+                Object converted = Utils.convertNumber(arg, type);
+                if (converted == null) {
+                    Assertions.fail(Messages.ARGUMENT_DOES_NOT_FIT.format(i + 1, describeValue(arg),
+                            type.getSimpleName(), signature));
+                }
+                actual[i] = converted;
             }
         }
         return actual;
+    }
+
+    /**
+     * @return the arguments, with {@code null} (no array) as one {@code null} argument for a single parameter
+     *         and as no arguments otherwise
+     */
+    static Object[] normalizeNull(Class<?>[] parameterTypes, Object[] args) {
+        return args != null ? args : parameterTypes.length == 1 ? new Object[] {null} : new Object[0];
+    }
+
+    private static String arrayHint(Class<?>[] parameterTypes) {
+        boolean arrayParameter = Arrays.stream(parameterTypes).anyMatch(t -> t.isArray() && !t.getComponentType().isPrimitive());
+        return arrayParameter
+                ? " Note: Java spreads an object array passed to an Object... parameter into several arguments;"
+                  + " pass a single array argument as (Object) array."
+                : "";
+    }
+
+    /**
+     * An array or JDK collection as it was before a call: its first {@value #MAX_ELEMENTS} elements and its size.
+     * Shown like the array or collection itself.
+     */
+    record Snapshot(List<Object> head, int size) {
+    }
+
+    /**
+     * Takes the arguments of a call as they are <b>before</b> the call, for the failure message: arrays and JDK
+     * collections (also nested ones) become {@link Snapshot}s, so a change made by the student's code is not
+     * shown as the passed value. Other objects (and collections of student classes, which are not iterated
+     * before the call) are kept as they are. The cost does not depend on the size of an array or collection.
+     *
+     * @param args the arguments of a call
+     * @return the snapshot of each argument
+     */
+    static Object[] snapshotArguments(Object[] args) {
+        Object[] snapshot = args.clone();
+        for (int i = 0; i < snapshot.length; i++) {
+            snapshot[i] = snapshot(snapshot[i], 0);
+        }
+        return snapshot;
+    }
+
+    private static Object snapshot(Object value, int depth) {
+        if (value == null || depth >= MAX_DEPTH) {
+            return value;
+        }
+        try {
+            if (value.getClass().isArray()) {
+                int length = Array.getLength(value);
+                List<Object> head = new ArrayList<>();
+                for (int i = 0; i < Math.min(length, MAX_ELEMENTS); i++) {
+                    head.add(snapshot(Array.get(value, i), depth + 1));
+                }
+                return new Snapshot(head, length);
+            }
+            if (value instanceof Collection<?> collection && value.getClass().getName().startsWith("java.")) {
+                List<Object> head = new ArrayList<>();
+                for (Object element : collection) {
+                    if (head.size() == MAX_ELEMENTS) {
+                        break;
+                    }
+                    head.add(snapshot(element, depth + 1));
+                }
+                return new Snapshot(head, collection.size());
+            }
+        }
+        catch (RuntimeException e) {
+            // e.g. a concurrently changed collection: show it as it is later
+        }
+        return value;
     }
 
     /**
@@ -215,9 +298,12 @@ final class Invocations {
         if (value instanceof Character c) {
             return "'" + c + "'";
         }
-        boolean container = value.getClass().isArray() || value instanceof Collection<?>;
+        boolean container = value.getClass().isArray() || value instanceof Collection<?> || value instanceof Snapshot;
         if (container && depth >= MAX_DEPTH) {
             return "[" + ELLIPSIS + "]";
+        }
+        if (value instanceof Snapshot snapshot) {
+            return describeElements(snapshot.head(), snapshot.size(), depth);
         }
         if (value.getClass().isArray()) {
             int length = Array.getLength(value);
@@ -232,16 +318,56 @@ final class Invocations {
                 List<Object> elements = collection.stream().limit(MAX_ELEMENTS).collect(Collectors.toList());
                 return describeElements(elements, collection.size(), depth);
             }
-            catch (RuntimeException e) {
+            catch (StackOverflowError e) {
+                // fall back to toString()
+            }
+            catch (Throwable t) {
+                rethrowIfMessageMustNotHideIt(t);
                 // fall back to toString()
             }
         }
         try {
             return cut(String.valueOf(value), MAX_VALUE_LENGTH);
         }
-        catch (RuntimeException e) {
-            return value.getClass().getSimpleName() + " (toString() threw " + e.getClass().getSimpleName() + ")";
+        catch (StackOverflowError e) {
+            // e.g. toString() of two objects that refer to each other
+            return value.getClass().getSimpleName() + " (toString() threw StackOverflowError)";
         }
+        catch (Throwable t) {
+            rethrowIfMessageMustNotHideIt(t);
+            return value.getClass().getSimpleName() + " (toString() threw " + t.getClass().getSimpleName() + ")";
+        }
+    }
+
+    /**
+     * Rethrows what must not become part of a failure message while student code ({@code toString()}, a
+     * collection) is shown: security violations reported by Ares and virtual machine errors other than a
+     * {@link StackOverflowError} (which the caller handles).
+     */
+    private static void rethrowIfMessageMustNotHideIt(Throwable t) {
+        if (t instanceof SecurityException e) {
+            throw e;
+        }
+        if (t instanceof VirtualMachineError e) {
+            throw e;
+        }
+    }
+
+    /**
+     * Adds the context and the arguments of a call to an assertion failure from inside the call (a failure of
+     * Ares, of a mock or of a conversion), which is otherwise passed on unchanged.
+     *
+     * @param e the failure
+     * @param context supplies the text shown in front of the message (may be {@code null})
+     * @param args the snapshot of the arguments, see {@link #snapshotArguments(Object[])}
+     * @return the failure with context and arguments, or {@code e} itself if there are neither
+     */
+    static AssertionError withCallDetails(AssertionError e, Supplier<String> context, Object[] args) {
+        if (context == null && (args == null || args.length == 0)) {
+            return e;
+        }
+        String message = e.getMessage() != null ? e.getMessage() : describe(e);
+        return new AssertionError(withContext(context, withArguments(message, args)), e);
     }
 
     private static String describeElements(List<Object> elements, int size, int depth) {

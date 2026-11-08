@@ -102,8 +102,9 @@ IllegalArgumentException e = carWrapper.setYear()
   structural Tests for details".
 * An exception thrown by student code fails the test with its type, its message and the argument values
   (arrays and collections with more than ten elements shortened, e.g. `Arguments: ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)])`); the original
-  exception is attached as the cause. Ares security violations and assertion failures are passed through
-  unchanged.
+  exception is attached as the cause. Ares security violations are passed through unchanged, also when a
+  student's `toString()` causes one while the message is built; an endlessly recursing `toString()` is shown
+  as `(toString() threw StackOverflowError)`.
 * Many generated inputs? `invokeWithContext(() -> "Scenario " + i + ", seed " + seed, args...)` and
   `invokeOnSpecificObjectWithContext(context, obj, args...)` put the text in front of the failure message.
   The supplier is only evaluated if the call fails.
@@ -113,8 +114,14 @@ IllegalArgumentException e = carWrapper.setYear()
   is passed as one. Pass a single array argument as `(Object) array`:
   `stage.constructor().invoke((Object) spotlights)`. A wrong number of arguments is reported as
   `IllegalArgumentException` with this hint.
-* `Utils.safeCast(value, type)` converts numeric results (e.g. `int` → `double`). It fails with a readable
-  message instead of producing a `ClassCastException` later.
+* Numbers are converted to the student's numeric type: arguments (`invoke(2.5)` for a student's `float`
+  parameter), `setValue` and results. A value that does not fit (`2.5` or `300` for a `byte`, `1e300` for a
+  `float`) fails with a readable message instead of being changed; see [Matching](matching.md#types).
+* `Utils.safeCast(value, type)` converts numeric results in the same way (e.g. `int` → `double`). It fails with
+  a readable message instead of producing a `ClassCastException` later.
+* The `Arguments:` line shows arrays and collections as they were passed, even if the student's code changed
+  them. A failure inside the call (from Ares, a mock or a conversion) also gets the arguments and the text of
+  `invokeWithContext`.
 * Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
 
 ## Getters and setters

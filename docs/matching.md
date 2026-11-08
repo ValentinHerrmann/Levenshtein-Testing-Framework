@@ -96,8 +96,12 @@ Types are graded for attributes (their type) and methods (their return type), in
 
 Numeric types (`byte`, `short`, `char`, `int`, `long`, `float`, `double` and their wrappers) deviate in
 both directions; `boolean` never mixes with them. Parameter types of methods and constructors follow the
-[parameter rule](#how-the-candidate-is-chosen). Behavioural tests convert values to the student's type
-(`setValue` writes `2.5` into a `float` field), and `testGettersSetters` generates values that fit it.
+[parameter rule](#how-the-candidate-is-chosen). Behavioural tests convert values to the student's type:
+`setValue` writes `2.5` into a `float` field, `invoke(2.5)` passes `2.5f` to a `float` parameter, and
+`testGettersSetters` generates values that fit it. A value that does not fit fails with a readable
+message instead of being changed: an integral type (`int`, `long`, `short`, `byte`, `char`) only takes a whole
+number within its range (`2.5` → `int` and `200` → `byte` fail, `65` → `char` is `'A'`), and a `float` takes every
+`double` that does not overflow it.
 
 ## Modifiers
 

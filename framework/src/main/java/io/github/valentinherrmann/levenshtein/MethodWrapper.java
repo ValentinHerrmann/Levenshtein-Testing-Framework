@@ -290,15 +290,19 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     {
         verifyExistence(true);
         Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
+        Object[] shown = Invocations.snapshotArguments(args); // as passed, before the student code can change them
         Object val;
         try {
             val = Invocations.invoke(method, resolveTarget(obj), args);
         }
         catch (Throwable t) {
+            if (t instanceof AssertionError e) {
+                throw Invocations.withCallDetails(e, context, shown);
+            }
             Invocations.rethrowIfCritical(t);
             String message = Messages.METHOD_INVOCATION_EXCEPTION.format(actualToString(),
                     getParentClassWrapper().name.expected, Invocations.describe(t));
-            return fail(Invocations.withContext(context, Invocations.withArguments(message, args)), t);
+            return fail(Invocations.withContext(context, Invocations.withArguments(message, shown)), t);
         }
         if (val == null || returnType.expected == null || returnType.expected == void.class) {
             return (R) val;
@@ -321,6 +325,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     public <X extends Throwable> X invokeExpectingException(Class<X> expected, Object obj, Object... params) {
         verifyExistence(true);
         Object[] args = Invocations.checkArguments(method.getParameterTypes(), params, actualToString());
+        Object[] shown = Invocations.snapshotArguments(args);
         Object target = resolveTarget(obj);
         String outcome;
         try {
@@ -335,7 +340,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             outcome = Invocations.describe(t);
         }
         return fail(Invocations.withArguments(Messages.EXPECTED_EXCEPTION_NOT_THROWN.format(actualToString(),
-                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), args));
+                getParentClassWrapper().name.expected, expected.getSimpleName(), outcome), shown));
     }
 
     /**

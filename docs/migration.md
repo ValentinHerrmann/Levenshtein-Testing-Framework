@@ -35,5 +35,11 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
 * A wrong number of arguments for `invoke(...)`, `ConstructorWrapper.invoke(...)` or `getObj(forceNew,
   constructorWrapper, args...)` is now an `IllegalArgumentException` (an error in the test) instead of a
   failed test. Pass a single array argument as `(Object) array`.
+* Numeric conversions no longer change values silently. `Utils.safeCast`, `setValue` and arguments for a deviating
+  numeric parameter type fail with a readable message if the value does not fit the student's type
+  (e.g. `2.5` → `int`, `200` → `byte`). Before, `safeCast` and `setValue` truncated or wrapped such values.
+  Arguments are now converted to a deviating numeric parameter type (`2.5` → `float`); before, the call failed.
+* An `AssertionError` from inside a call (from Ares, a mock or a conversion) now gets the arguments and the
+  text of `invokeWithContext` as well.
 * New: `ClassWrapper.newObjWithoutConstructor()`, `newObjOverriding(...)` and `mock()` keep tests
   independent of other student members (#30). See [Independent tests](writing-tests.md#independent-tests).

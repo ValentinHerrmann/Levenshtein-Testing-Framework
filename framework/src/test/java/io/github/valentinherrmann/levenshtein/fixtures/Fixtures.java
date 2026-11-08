@@ -186,6 +186,11 @@ public final class Fixtures {
         public int countFlags(boolean[] flags) { return flags.length; }
         public boolean isNull(String s) { return s == null; }
         public void boom() { throw new IllegalStateException("boom"); }
+        public void take(Object o) { throw new IllegalStateException("taken"); }
+        public void sortAndFail(int[] values) {
+            java.util.Arrays.sort(values);
+            throw new IllegalStateException("sorted");
+        }
     }
 
     /** An abstract class whose constructor always throws (#27). */
@@ -293,5 +298,46 @@ public final class Fixtures {
         }
 
         public int value() { return 1; }
+    }
+
+    /** toString() recurses endlessly (code review #2). */
+    public static class SelfRef {
+        @Override public String toString() { return "S" + this; }
+    }
+
+    /** toString() does something Ares forbids (code review #7). */
+    public static class ForbiddenToString {
+        @Override public String toString() { throw new SecurityException("forbidden by the sandbox"); }
+    }
+
+    /** A concrete method that calls an abstract one (code review #10). */
+    public abstract static class AbstractCaller {
+        public abstract double cost();
+        public double times(int n) { return cost() * n; }
+    }
+
+    /** A constructor with a single reference parameter (code review #11). */
+    public static class Holder {
+        public final String value;
+        public Holder(String value) { this.value = value; }
+    }
+
+    /** float where double is expected, for arguments (code review #6). */
+    public static class FloatParams {
+        public final float price;
+        public FloatParams() { this(0f); }
+        public FloatParams(float price) { this.price = price; }
+        public float half(float x) { return x / 2; }
+    }
+
+    /** Narrower types where wider ones are expected (code review #12). */
+    public static class Narrow {
+        private int count;
+        private byte tiny;
+        private char letter;
+
+        public int getCount() { return count; }
+        public byte getTiny() { return tiny; }
+        public char getLetter() { return letter; }
     }
 }

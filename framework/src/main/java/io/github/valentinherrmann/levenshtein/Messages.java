@@ -364,6 +364,14 @@ public enum Messages {
             "Argumente: (%s)",
             "Arguments: (%s)"),
 
+    /**
+     * Shown when an argument does not fit the (deviating numeric) parameter type of the student's method.
+     * Placeholders: (1) argument position, (2) value, (3) parameter type, (4) signature.
+     */
+    ARGUMENT_DOES_NOT_FIT(
+            "Argument %d (%s) passt nicht in den Parametertyp %s von %s.",
+            "Argument %d (%s) does not fit the parameter type %s of %s."),
+
     // -------------------------------------------------------------------------
     // AttributeWrapper
     // -------------------------------------------------------------------------

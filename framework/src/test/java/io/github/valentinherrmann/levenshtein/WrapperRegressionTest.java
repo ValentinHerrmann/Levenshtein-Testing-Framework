@@ -1256,4 +1256,109 @@ class WrapperRegressionTest {
             assertThat(drivable.newObjWithoutConstructor()).isInstanceOf(Fixtures.Drivable.class);
         }
     }
+
+    @Nested
+    class ReviewFindings { // code review of PR #31: shared invocation code
+
+        private final W<Object> calls = nested("Calls", "public static");
+        private final MethodWrapper<Object, Void> take =
+                new MethodWrapper<>(calls, "take", void.class, new Class<?>[]{Object.class}, "public");
+
+        private String failure(Runnable call) {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            return org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class, call::run).getMessage();
+        }
+
+        @Test
+        void recursiveToStringDoesNotHideTheFailure() { // #2
+            assertThat(failure(() -> take.invoke(new Fixtures.SelfRef())))
+                    .contains("IllegalStateException: taken")
+                    .contains("Arguments: (SelfRef (toString() threw StackOverflowError))");
+        }
+
+        @Test
+        void securityViolationInToStringIsNotSwallowed() { // #7
+            assertThatThrownBy(() -> take.invoke(new Fixtures.ForbiddenToString()))
+                    .isInstanceOf(SecurityException.class)
+                    .hasMessage("forbidden by the sandbox");
+            assertThatThrownBy(() -> Invocations.describeValue(List.of(new Fixtures.ForbiddenToString())))
+                    .isInstanceOf(SecurityException.class);
+        }
+
+        @Test
+        void argumentsAreShownAsPassed() { // #5
+            MethodWrapper<Object, Void> sort =
+                    new MethodWrapper<>(calls, "sortAndFail", void.class, new Class<?>[]{int[].class}, "public");
+            assertThat(failure(() -> sort.invoke((Object) new int[]{3, 1, 2}))).contains("Arguments: ([3, 1, 2])");
+            List<Integer> values = java.util.stream.IntStream.range(0, 100).boxed().toList();
+            assertThat(Invocations.describeArguments(Invocations.snapshotArguments(new Object[]{values})))
+                    .isEqualTo("[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]");
+        }
+
+        @Test
+        void failureInsideTheCallKeepsContextAndArguments() { // #10
+            W<Object> abstr = nested("AbstractCaller", "public static abstract");
+            MethodWrapper<Object, Double> times =
+                    new MethodWrapper<>(abstr, "times", double.class, new Class<?>[]{int.class}, "public");
+            Object obj = abstr.newObjWithoutConstructor();
+            assertThat(failure(() -> times.invokeOnSpecificObjectWithContext(() -> "Scenario 3", obj, 4)))
+                    .startsWith("Scenario 3\nThe abstract method cost in class Fixtures$AbstractCaller was called")
+                    .endsWith("Arguments: (4)");
+        }
+
+        @Test
+        void nullAsArgumentArrayInGetObj() { // #11
+            W<Object> holder = nested("Holder", "public static");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(holder, new Class<?>[]{String.class}, "public");
+            assertThat(((Fixtures.Holder) ctor.invoke((Object[]) null)).value).isNull();
+            assertThat(((Fixtures.Holder) holder.getObj(true, ctor, (Object[]) null)).value).isNull();
+        }
+
+        @Test
+        void numericArgumentsAreConvertedToTheStudentsType() { // #6
+            W<Object> fp = nested("FloatParams", "public static");
+            MethodWrapper<Object, Double> half =
+                    new MethodWrapper<>(fp, "half", double.class, new Class<?>[]{double.class}, "public");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(fp, new Class<?>[]{double.class}, "public");
+            assertThat(half.getOverallExistence()).isEqualTo(DEVIATES);
+            Object obj = ctor.invoke(2.5);
+            assertThat(((Fixtures.FloatParams) obj).price).isEqualTo(2.5f);
+            assertThat(half.invokeOnSpecificObject(obj, 2.5)).isEqualTo(1.25);
+            assertThat(half.invokeOnSpecificObject(obj, 3)).isEqualTo(1.5);
+            assertThat(failure(() -> half.invokeOnSpecificObject(obj, 1e300)))
+                    .isEqualTo("Argument 1 (1.0E300) does not fit the parameter type float of public float half(float).");
+        }
+
+        @Test
+        void narrowingConversionsFailInsteadOfChangingTheValue() { // #12
+            assertThat(Utils.safeCast(2.0, int.class)).isEqualTo(2);
+            assertThat(Utils.safeCast(0.1, float.class)).isEqualTo(0.1f);
+            assertThat(Utils.safeCast(65, char.class)).isEqualTo('A');
+            assertThat(Utils.safeCast(5L, int.class)).isEqualTo(5);
+            assertThat(failure(() -> Utils.safeCast(2.5, int.class)))
+                    .isEqualTo("The value 2.5 of type Double cannot be converted to the expected type int.");
+            assertThat(failure(() -> Utils.safeCast(1e40, float.class))).contains("expected type float");
+            assertThat(failure(() -> Utils.safeCast(Long.MAX_VALUE, int.class))).contains("expected type int");
+
+            W<Object> narrow = nested("Narrow", "public static");
+            Object obj = narrow.newObj();
+            AttributeWrapper<Object, Double> count = new AttributeWrapper<>(narrow, "count", double.class, "private");
+            AttributeWrapper<Object, Integer> tiny = new AttributeWrapper<>(narrow, "tiny", int.class, "private");
+            AttributeWrapper<Object, Integer> letter = new AttributeWrapper<>(narrow, "letter", int.class, "private");
+            count.setValue(obj, 3.0);
+            assertThat(((Fixtures.Narrow) obj).getCount()).isEqualTo(3);
+            assertThat(failure(() -> count.setValue(obj, 2.5))).contains("2.5").contains("int");
+            tiny.setValue(obj, -3);
+            assertThat(failure(() -> tiny.setValue(obj, 200))).contains("200").contains("byte");
+            letter.setValue(obj, 65);
+            assertThat(((Fixtures.Narrow) obj).getLetter()).isEqualTo('A');
+            assertThat(failure(() -> letter.setValue(obj, -1))).contains("char");
+
+            // own sample values that do not fit the student's int: the value is blamed, not the getter
+            MethodWrapper<Object, Double> getCount = new MethodWrapper<>(narrow, "getCount", double.class, "public");
+            assertThat(failure(() -> narrow.testGettersSetters(count, List.of(2.5, 3.0), getCount)))
+                    .contains("2.5")
+                    .doesNotContain("getCount() returns 2");
+        }
+    }
 }

@@ -441,7 +441,10 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
      */
     @SuppressWarnings("unchecked")
     public T getObj(boolean forceNew, ConstructorWrapper<?> constructorWrapper, Object... constructorArgs) {
-        Object[] args = constructorArgs == null ? new Object[0] : constructorArgs;
+        // null as in ConstructorWrapper.invoke: one null argument for a single parameter, otherwise none
+        Object[] args = constructorWrapper == null
+                ? (constructorArgs == null ? new Object[0] : constructorArgs)
+                : Invocations.normalizeNull(constructorWrapper.getActualParamTypes(), constructorArgs);
         boolean sameRequest = objPinned
                 || (objConstructor == constructorWrapper && Arrays.deepEquals(objArgs, args));
         if (obj != null && !forceNew && sameRequest) {
@@ -514,6 +517,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
         Object[] args = Invocations.checkArguments(types, constructorArgs,
                 constructorWrapper != null ? constructorWrapper.actualToString() : name.expected + "()");
+        Object[] shown = Invocations.snapshotArguments(args);
         try {
             if (dynamicSubclass == null) {
                 Class<T> base = getClazz();
@@ -527,9 +531,12 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             return Invocations.newInstance(ctor, args);
         }
         catch (Throwable e) {
+            if (e instanceof AssertionError failure) {
+                throw Invocations.withCallDetails(failure, null, shown);
+            }
             Invocations.rethrowIfCritical(e);
             return fail(Invocations.withArguments(
-                    Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), args), e);
+                    Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), shown), e);
         }
     }
 
