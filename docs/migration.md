@@ -60,3 +60,11 @@ Ares 2 build wiring (weaving, agent, reserved-package guard). Start from the
   text of `invokeWithContext` as well.
 * New: `ClassWrapper.newObjWithoutConstructor()`, `newObjOverriding(...)` and `mock()` keep tests
   independent of other student members (#30). See [Independent tests](writing-tests.md#independent-tests).
+* New: student classes as attribute, return and parameter types (#33). `AttributeWrapper`, `MethodWrapper` and
+  `ConstructorWrapper` accept a `ClassWrapper` (e.g. `ClassWrapper.reference("Drummer", pkg)`) or a supplier of
+  one; parameter lists can be an `Object[]` that mixes them with `Class<?>`. Replace helpers like a copied
+  `TypeWrapper.resolve(name)` with Byte Buddy placeholder classes by these. See
+  [Student classes as member types](writing-tests.md#student-classes-as-member-types).
+  * A literal `null` as return type (`new MethodWrapper<>(this, "m", null, ...)`) is now ambiguous; write
+    `(Class<Object>) null`.
+  * A `null` entry in a parameter type array now throws `IllegalArgumentException` when the wrapper is built.

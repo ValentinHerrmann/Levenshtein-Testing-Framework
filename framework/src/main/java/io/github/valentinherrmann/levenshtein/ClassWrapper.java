@@ -137,6 +137,25 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         this(expectedName, expectedPackage, null, null, modifiers);
     }
 
+    /**
+     * Creates a wrapper that only refers to a student class by its expected name, for use as the type of an
+     * attribute, a return value or a parameter, e.g.
+     * {@code new AttributeWrapper<>(this, "drummer", ClassWrapper.reference("Drummer", "band"), "private")}.
+     * This works even if the full wrapper of that class is not created yet (classes that refer to each other).
+     * The class is looked up like any other class (deviating names are accepted, see
+     * {@link LevenshteinSettings#getClassNameDeviationThreshold()}), but only when the member using it is checked.
+     * The reference has no members and no default instance; it is {@link #equals(Object) equal} to the full
+     * wrapper of the same class.
+     *
+     * @param expectedName the expected (simple or binary nested) name of the class
+     * @param expectedPackage the expected package name ({@code ""} for the default package)
+     * @param <V> the type of the class
+     * @return the reference
+     */
+    public static <V> ClassWrapper<V> reference(String expectedName, String expectedPackage) {
+        return new Reference<>(expectedName, expectedPackage);
+    }
+
     @Override
     public void verifyExistence(boolean throwAssertion)
     {
@@ -917,6 +936,27 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             objConstructor = savedConstructor;
             objArgs = savedArgs;
             objPinned = savedPinned;
+        }
+    }
+
+    /**
+     * A class referred to by name only, see {@link #reference(String, String)}.
+     */
+    private static final class Reference<V> extends ClassWrapper<V> {
+
+        Reference(String expectedName, String expectedPackage) {
+            super(expectedName, expectedPackage);
+        }
+
+        /**
+         * A reference has no default instance.
+         *
+         * @param forceNew ignored
+         * @return always null
+         */
+        @Override
+        public Object getObj(boolean forceNew) {
+            return null;
         }
     }
 }
