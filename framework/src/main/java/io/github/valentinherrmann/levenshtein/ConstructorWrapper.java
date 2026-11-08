@@ -359,11 +359,16 @@ public class ConstructorWrapper<T> extends Wrapper<T>
     }
 
     /**
-     * @return the expected class name and parameter types, e.g. {@code Car(String, int)}, for the Method line of a
-     *         {@link Failure}
+     * @return the class name and parameter types of the student's constructor (the expected ones if it is missing),
+     *         e.g. {@code Car(String, int)}, for the Method line of a {@link Failure}
      */
     String signature() {
-        return getParentClassWrapper().name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        ensureChecked();
+        String actualName = getParentClassWrapper().name.actual;
+        if (constructor == null || actualName == null) {
+            return getParentClassWrapper().name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        }
+        return actualName + "(" + Failure.simpleNames(visibleParamTypes()) + ")";
     }
 
     @Override

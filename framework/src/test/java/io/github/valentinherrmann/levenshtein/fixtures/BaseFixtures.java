@@ -95,6 +95,11 @@ public final class BaseFixtures {
         public int getBroken() { return broken; }
         public void setBroken(int broken) { throw new IllegalStateException("nope"); }
 
+        // the setter rejects negative values with an assertion of the student
+        private int checked = 1;
+        public int getChecked() { return checked; }
+        public void setChecked(int checked) { if (checked < 0) throw new AssertionError("no negatives"); this.checked = checked; }
+
         // the getter always throws
         private int fragile = 3;
         public int getFragile() { throw new UnsupportedOperationException("later"); }

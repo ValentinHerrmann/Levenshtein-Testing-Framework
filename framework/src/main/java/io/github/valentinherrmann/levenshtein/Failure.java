@@ -34,6 +34,10 @@ public final class Failure {
     private String input;
     private String expected;
     private String actual;
+    /** The raw values given to {@link #expected(Object)} / {@link #actual(Object)}, to detect rounding that hides a difference. */
+    private Object expectedValue;
+    private Object actualValue;
+    private boolean rawValues;
     private int failedCases;
     private int totalCases;
     private boolean stackOverflow;
@@ -71,7 +75,7 @@ public final class Failure {
      * @return this failure
      */
     public Failure scenario(String text) {
-        this.scenario = blankToNull(text);
+        this.scenario = Invocations.blankToNull(text);
         return this;
     }
 
@@ -80,7 +84,7 @@ public final class Failure {
      * @return this failure
      */
     public Failure input(String text) {
-        this.input = blankToNull(text);
+        this.input = Invocations.blankToNull(text);
         return this;
     }
 
@@ -102,6 +106,7 @@ public final class Failure {
      */
     public Failure expected(Object value) {
         this.expected = format(value);
+        this.expectedValue = value;
         return this;
     }
 
@@ -111,6 +116,8 @@ public final class Failure {
      */
     public Failure actual(Object value) {
         this.actual = format(value);
+        this.actualValue = value;
+        this.rawValues = true;
         return this;
     }
 
@@ -120,6 +127,7 @@ public final class Failure {
      */
     public Failure expectedText(String text) {
         this.expected = text;
+        this.expectedValue = null;
         return this;
     }
 
@@ -129,6 +137,7 @@ public final class Failure {
      */
     public Failure actualText(String text) {
         this.actual = text;
+        this.rawValues = false;
         return this;
     }
 
@@ -141,6 +150,7 @@ public final class Failure {
      */
     public Failure thrown(Throwable t) {
         this.actual = Invocations.describe(t);
+        this.rawValues = false;
         this.stackOverflow = causedByStackOverflow(t);
         return this;
     }
@@ -166,8 +176,16 @@ public final class Failure {
         add(lines, Messages.FAILURE_METHOD, member);
         add(lines, Messages.FAILURE_SCENARIO, scenario);
         add(lines, Messages.FAILURE_INPUT, input);
-        add(lines, Messages.FAILURE_EXPECTED, expected);
-        add(lines, Messages.FAILURE_ACTUAL, actual);
+        String shownExpected = expected;
+        String shownActual = actual;
+        if (rawValues && expected != null && expected.equals(actual)
+                && expectedValue != null && !java.util.Objects.deepEquals(expectedValue, actualValue)) {
+            // e.g. 2.5 and 2.4999 both show as 2.50: show them as they are
+            shownExpected = Invocations.describeValueExactly(expectedValue);
+            shownActual = Invocations.describeValueExactly(actualValue);
+        }
+        add(lines, Messages.FAILURE_EXPECTED, shownExpected);
+        add(lines, Messages.FAILURE_ACTUAL, shownActual);
         int width = labelWidth();
         StringBuilder out = new StringBuilder();
         for (String[] line : lines) {
@@ -285,6 +303,15 @@ public final class Failure {
         return width;
     }
 
+    /**
+     * @param types parameter types
+     * @return their simple names separated by commas, e.g. {@code double, String[]}
+     */
+    static String simpleNames(Class<?>[] types) {
+        return java.util.Arrays.stream(types).map(Class::getSimpleName)
+                .collect(java.util.stream.Collectors.joining(", "));
+    }
+
     private static boolean causedByStackOverflow(Throwable t) {
         for (int i = 0; t != null && i < 5; i++, t = t.getCause()) {
             if (t instanceof StackOverflowError) {
@@ -292,9 +319,5 @@ public final class Failure {
             }
         }
         return false;
-    }
-
-    private static String blankToNull(String text) {
-        return text == null || text.isBlank() ? null : text;
     }
 }

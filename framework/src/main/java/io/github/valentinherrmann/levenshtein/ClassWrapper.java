@@ -249,6 +249,13 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
     }
 
+    /**
+     * @return the name of the student's class, or the expected name if it is missing
+     */
+    private String actualOrExpectedName() {
+        return name.actual != null ? name.actual : name.expected;
+    }
+
     private String binaryName(Class<?> c) {
         return binaryNameIn(c);
     }
@@ -577,7 +584,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         }
         catch (Throwable t) {
             Invocations.rethrowIfCritical(t);
-            throw Failure.of(name.expected + "()").thrown(t).error();
+            throw Failure.of(actualOrExpectedName() + "()").thrown(t).error();
         }
     }
 
@@ -634,7 +641,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
                 throw Invocations.withCallDetails(failure, null, shown);
             }
             Invocations.rethrowIfCritical(e);
-            throw Failure.of(constructorWrapper != null ? constructorWrapper.signature() : name.expected + "()")
+            throw Failure.of(constructorWrapper != null ? constructorWrapper.signature() : actualOrExpectedName() + "()")
                     .arguments(shown).thrown(e).error();
         }
     }

@@ -282,17 +282,14 @@ final class GettersSettersTest {
         String scenario = scenario(Messages.GETTERS_SETTERS_SETTER_TO_GETTER);
         for (Object value : samples) {
             GetterResult before = callGetter(obj);
-            if (before.thrown() != null) {
-                // nothing to compare with: the getter is broken for this object
-                record(Failure.of(getter).scenario(scenario).thrown(before.thrown()));
-                return;
-            }
             Throwable thrown = callSetter(obj, value);
             GetterResult after = callGetter(obj);
-            if (after.thrown() != null) {
+            Throwable getterThrown = before.thrown() != null ? before.thrown() : after.thrown();
+            if (getterThrown != null) {
+                // nothing to compare: the case fails with the exception of the getter
                 record(Failure.of(getter).scenario(scenario).input(name(setter) + "(" + show(value) + ")")
-                        .thrown(after.thrown()));
-                return;
+                        .thrown(getterThrown));
+                continue;
             }
             record(checkSet(scenario, value, normalize(before.value()), thrown, normalize(after.value())));
         }
@@ -344,12 +341,13 @@ final class GettersSettersTest {
     private Throwable callSetter(Object obj, Object value) {
         setter.verifyExistence(true);
         Class<?> paramType = setter.getActualParamTypes()[0];
+        Object argument = value == null ? null : safeCast(value, paramType, true); // a misfit fails the test
         try {
-            setter.invokeRaw(obj, value == null ? null : safeCast(value, paramType, true));
+            setter.invokeRaw(obj, argument);
             return null;
         }
         catch (Throwable t) {
-            Invocations.rethrowIfCritical(t);
+            rethrowIfCriticalExceptAssertion(t);
             return t;
         }
     }
@@ -358,12 +356,24 @@ final class GettersSettersTest {
      * Calls the getter; an exception of the student code is returned instead of thrown.
      */
     private GetterResult callGetter(Object obj) {
+        getter.verifyExistence(true);
         try {
             return new GetterResult(getter.invokeRaw(obj), null);
         }
         catch (Throwable t) {
-            Invocations.rethrowIfCritical(t);
+            rethrowIfCriticalExceptAssertion(t);
             return new GetterResult(null, t);
+        }
+    }
+
+    /**
+     * Like {@link Invocations#rethrowIfCritical(Throwable)}, but an {@link AssertionError} is kept: the getter or
+     * setter exists (checked before the call), so it comes from the student code (e.g. {@code assert}) and is
+     * reported as the outcome of the case instead of aborting all subtests.
+     */
+    private static void rethrowIfCriticalExceptAssertion(Throwable t) {
+        if (!(t instanceof AssertionError)) {
+            Invocations.rethrowIfCritical(t);
         }
     }
 

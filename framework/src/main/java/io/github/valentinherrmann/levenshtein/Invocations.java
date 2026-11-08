@@ -156,7 +156,7 @@ final class Invocations {
                     && (arg instanceof Number || arg instanceof Character)) {
                 Object converted = Utils.convertNumber(arg, type);
                 if (converted == null) {
-                    Assertions.fail(Messages.ARGUMENT_DOES_NOT_FIT.format(i + 1, describeValue(arg),
+                    Assertions.fail(Messages.ARGUMENT_DOES_NOT_FIT.format(i + 1, describeValueExactly(arg),
                             type.getSimpleName(), signature));
                 }
                 actual[i] = converted;
@@ -265,13 +265,19 @@ final class Invocations {
         if (context == null) {
             return null;
         }
-        String text;
         try {
-            text = context.get();
+            return blankToNull(context.get());
         }
         catch (RuntimeException e) {
-            text = null; // a broken context must not hide the actual failure
+            return null; // a broken context must not hide the actual failure
         }
+    }
+
+    /**
+     * @param text a text for a failure message (may be {@code null})
+     * @return the stripped text, or {@code null} if it is {@code null} or blank
+     */
+    static String blankToNull(String text) {
         return text == null || text.isBlank() ? null : text.strip();
     }
 
@@ -296,10 +302,21 @@ final class Invocations {
      * @return the representation
      */
     static String describeValue(Object value) {
-        return describeValue(value, 0);
+        return describeValue(value, 0, false);
     }
 
-    private static String describeValue(Object value, int depth) {
+    /**
+     * Like {@link #describeValue(Object)}, but {@code double} and {@code float} values with full precision (as in
+     * Java, e.g. {@code 2.4999}), for values whose difference would be hidden by rounding.
+     *
+     * @param value any value
+     * @return the representation
+     */
+    static String describeValueExactly(Object value) {
+        return describeValue(value, 0, true);
+    }
+
+    private static String describeValue(Object value, int depth, boolean exact) {
         if (value == null) {
             return "null";
         }
@@ -310,14 +327,14 @@ final class Invocations {
             return "'" + c + "'";
         }
         if (value instanceof Double || value instanceof Float) {
-            return formatDecimal(((Number) value).doubleValue());
+            return exact ? String.valueOf(value) : formatDecimal(((Number) value).doubleValue());
         }
         boolean container = value.getClass().isArray() || value instanceof Collection<?> || value instanceof Snapshot;
         if (container && depth >= MAX_DEPTH) {
             return "[" + ELLIPSIS + "]";
         }
         if (value instanceof Snapshot snapshot) {
-            return describeElements(snapshot.head(), snapshot.size(), depth);
+            return describeElements(snapshot.head(), snapshot.size(), depth, exact);
         }
         if (value.getClass().isArray()) {
             int length = Array.getLength(value);
@@ -325,12 +342,12 @@ final class Invocations {
             for (int i = 0; i < Math.min(length, MAX_ELEMENTS); i++) {
                 elements.add(Array.get(value, i));
             }
-            return describeElements(elements, length, depth);
+            return describeElements(elements, length, depth, exact);
         }
         if (value instanceof Collection<?> collection) {
             try {
                 List<Object> elements = collection.stream().limit(MAX_ELEMENTS).collect(Collectors.toList());
-                return describeElements(elements, collection.size(), depth);
+                return describeElements(elements, collection.size(), depth, exact);
             }
             catch (StackOverflowError e) {
                 // fall back to toString()
@@ -400,8 +417,8 @@ final class Invocations {
         return String.format(Locale.ROOT, "%." + decimals + "f", value);
     }
 
-    private static String describeElements(List<Object> elements, int size, int depth) {
-        String shown = elements.stream().map(e -> describeValue(e, depth + 1)).collect(Collectors.joining(", "));
+    private static String describeElements(List<Object> elements, int size, int depth, boolean exact) {
+        String shown = elements.stream().map(e -> describeValue(e, depth + 1, exact)).collect(Collectors.joining(", "));
         String more = size > elements.size() ? ", " + ELLIPSIS + " (+" + (size - elements.size()) + ")" : "";
         return "[" + shown + more + "]";
     }

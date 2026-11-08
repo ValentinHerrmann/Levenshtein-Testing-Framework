@@ -23,8 +23,8 @@ A student solution of the example exercise with deliberate defects. It runs agai
 | `Car` | `private double price` | `private float prize` | **combined:** name typo + type (numeric) | `DEVIATION` |
 | `Car` | `public double calculateCost(int)` | `public double calculateCost(long)` | parameter type (numeric) | `DEVIATION` |
 | `Car` | `public Car(String, int)` | `protected Car(String, Integer)` | **combined:** parameter type (primitive/wrapper) + modifier | `DEVIATION` |
-| `Car` | `setPrice` rejects negative prices | stores them | getter/setter test with condition | `... muss den ungültigen Wert ablehnen ...` |
-| `Car` | `getSpeed()` returns `speed` | returns `0.0` | getter/setter test | `... aber getSpeed() liefert 0.0` |
-| `Car` | `getInfo()` returns the info | throws | exception in student code | `... hat eine Ausnahme geworfen ...` |
+| `Car` | `setPrice` rejects negative prices | stores them | getter/setter test with condition | `Erwartet: Wert abgelehnt (unverändert 2.50 oder Ausnahme)` |
+| `Car` | `getSpeed()` returns `speed` | returns `0.0` | getter/setter test | `Methode: getSpeed()` ... `Tatsächlich: 0.00` |
+| `Car` | `getInfo()` returns the info | throws | exception in student code | `Tatsächlich: UnsupportedOperationException: ...` |
 
 `SandboxControl` is unchanged: the security and timeout self-checks still pass.

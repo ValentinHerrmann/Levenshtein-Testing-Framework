@@ -99,6 +99,17 @@ class FailureTest {
     }
 
     @Test
+    void valuesThatOnlyLookEqualAfterRoundingAreShownExactly() {
+        assertThat(Failure.of("f()").expected(2.5).actual(2.4999).message())
+                .isEqualTo("Method:   f()\nExpected: 2.5\nActual:   2.4999");
+        assertThat(Failure.of("f()").expected(new double[]{0.1}).actual(new double[]{0.1000001}).message())
+                .endsWith("Expected: [0.1]\nActual:   [0.1000001]");
+        // equal values or different texts keep the rounded form
+        assertThat(Failure.of("f()").expected(2.5).actual(2.6).message()).endsWith("Expected: 2.50\nActual:   2.60");
+        assertThat(Failure.of("f()").expected(2.5).actualText("2.50").message()).endsWith("Actual:   2.50");
+    }
+
+    @Test
     void decimalsCanBeConfigured() {
         LevenshteinSettings.setDecimals(4);
         assertThat(Failure.format(31.25)).isEqualTo("31.2500");
@@ -160,6 +171,14 @@ class FailureTest {
         ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(calls, new Class<?>[]{String[].class}, "public");
         assertThat(Failure.of(divide).message()).isEqualTo("Method:   divide(double, double)");
         assertThat(Failure.of(ctor).message()).isEqualTo("Method:   Fixtures$Calls(String[])");
+        // the student's actual name and types, not the expected ones
+        W<Object> typos = ClassWrapperTest.fixture("Typos", "public static");
+        MethodWrapper<Object, Integer> deviating =
+                new MethodWrapper<>(typos, "devide", int.class, new Class<?>[]{int.class, int.class}, "public");
+        assertThat(Failure.of(deviating).message()).isEqualTo("Method:   divide(int, int)");
+        MethodWrapper<Object, Integer> missing =
+                new MethodWrapper<>(typos, "somethingElseEntirely", int.class, new Class<?>[]{int.class}, "public");
+        assertThat(Failure.of(missing).message()).isEqualTo("Method:   somethingElseEntirely(int)");
         assertThat(Failure.of((MethodWrapper<?, ?>) null).actual(1).message()).isEqualTo("Actual:   1");
     }
 

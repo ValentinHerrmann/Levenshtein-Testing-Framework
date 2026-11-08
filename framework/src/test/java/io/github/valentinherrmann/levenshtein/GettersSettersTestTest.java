@@ -215,14 +215,28 @@ class GettersSettersTestTest {
             AssertionError e = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
                     () -> w.testGettersSetters(attribute("fragile", int.class),
                             getter("getFragile", int.class), setter("setFragile", int.class)));
-            // setter -> attribute passes (5 cases), attribute -> getter fails 5 times, setter -> getter stops after 1
+            // setter -> attribute passes (5 cases), attribute -> getter and setter -> getter fail 5 times each
             assertThat(e).hasNoCause().hasMessage("""
                     Methode:     getFragile()
                     Szenario:    Attribut -> Getter, Attribut fragile
                     Eingabe:     fragile = 7
                     Erwartet:    7
                     Tatsächlich: UnsupportedOperationException: later
-                    (6 von 11 Fällen fehlgeschlagen)""");
+                    (10 von 15 Fällen fehlgeschlagen)""");
+        }
+
+        @Test
+        void assertionErrorOfTheStudentIsOneFailedCase() {
+            String message = failure(() -> w.testGettersSetters(attribute("checked", int.class),
+                    getter("getChecked", int.class), setter("setChecked", int.class)));
+            // -3 fails in setter -> attribute and setter -> getter; the other subtests and cases still run
+            assertThat(message).isEqualTo("""
+                    Method:   setChecked(int)
+                    Scenario: setter -> attribute, attribute checked
+                    Input:    setChecked(-3)
+                    Expected: -3
+                    Actual:   AssertionError: no negatives
+                    (2 of 15 cases failed)""");
         }
 
         @Test
@@ -242,7 +256,7 @@ class GettersSettersTestTest {
         void actualNameOfADeviatingGetterIsShown() {
             String message = failure(() -> w.testGettersSetters(attribute("size", int.class), getter("getSize", int.class)));
             assertThat(message)
-                    .startsWith("Method:   getSize()\nScenario: attribute -> getter, attribute size\nInput:    size = 7")
+                    .startsWith("Method:   getSizee()\nScenario: attribute -> getter, attribute size\nInput:    size = 7")
                     .contains("Expected: 7\nActual:   42")
                     .endsWith("(4 of 5 cases failed)");
         }

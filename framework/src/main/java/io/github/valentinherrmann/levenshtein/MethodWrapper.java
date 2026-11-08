@@ -534,11 +534,15 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     }
 
     /**
-     * @return the expected name and parameter types, e.g. {@code calculateLoudness(double, double)}, for the Method
-     *         line of a {@link Failure}
+     * @return the name and parameter types of the student's method (the expected ones if it is missing), e.g.
+     *         {@code calculateLoudness(double, double)}, for the Method line of a {@link Failure}
      */
     String signature() {
-        return name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        ensureChecked();
+        if (method == null) {
+            return name.expected + "(" + TypeRef.simpleNames(paramRefs) + ")";
+        }
+        return method.getName() + "(" + Failure.simpleNames(method.getParameterTypes()) + ")";
     }
 
     @Override
