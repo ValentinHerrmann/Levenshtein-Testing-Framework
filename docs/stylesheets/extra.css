@@ -1,0 +1,21 @@
+/*
+ * Layout tweaks for the docs site: use the screen width.
+ * The theme caps the page at 61rem (about 1220px) and centres it, which leaves wide empty margins on large
+ * screens and shrinks the Mermaid diagrams until they are hard to read. Diagrams are drawn as wide as the
+ * content column, so a wider page makes them larger.
+ */
+
+/* Page: use the whole window up to about 1920px at the default font size. */
+.md-grid {
+  max-width: 96rem;
+}
+
+/* Diagrams that are wider than the column scroll sideways instead of overflowing the page. */
+.md-typeset .mermaid {
+  overflow-x: auto;
+}
+
+/* Tables: slightly larger text than the theme's default, now that there is room for it. */
+.md-typeset table:not([class]) {
+  font-size: 0.75rem;
+}

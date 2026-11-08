@@ -1,5 +1,8 @@
 # Quick Start
 
+From zero to a running test in four steps: run the example, copy the template, write a wrapper and a test, read
+the results.
+
 **Requirements:** JDK 25 and either **Gradle** (the template ships a 9.8.0 wrapper, so just `./gradlew`;
 9.1+ works) or Maven 3.9+. Ares 2.2.1, JUnit 6, AssertJ and Byte Buddy come in through the example's build file.
 
@@ -227,11 +230,14 @@ With the solution above, all 6 tests pass. Every expected element ends up in one
 | State | Example | Structural test | Behavioural tests |
 |---|---|---|---|
 | `EXACT` ✅ | `price` | passes | run |
-| `DEVIATES` ⚠️ | `prize` for `price` (≤ 20 % of the name may differ) | fails | **still run** on `prize` |
+| `DEVIATES` ⚠️ | `prize` for `price` (≤ 20 % of the name may differ), `float` for `double`, an extra `static` | fails | **still run** on `prize` |
 | `MISSING` ❌ | `strat()` for `start()` (a swap is 2 edits = 40 %) | fails | fail: "... is not implemented as expected" |
 
-The exact rules are in [How Matching Works](matching.md).
+Behavioural failures (a wrong result, an exception of the student's code) show the method, the input, the
+expected and the actual value, as in the sample output of step 1. The exact matching rules are in
+[How Matching Works](matching.md).
 
-That's it. Next: describe more classes ([Writing Tests](writing-tests.md)) and look at the full example in
+That's it. Next: describe more classes ([Writing Tests](writing-tests.md)), keep tests independent of other
+student members ([Independent Tests and Mocks](independent-tests.md)), and look at the full example in
 [`example-maven/test`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/tree/main/example-maven/test/io/github/valentinherrmann/example/tests), which covers an interface, an
 abstract class, inheritance, overloading and Exercise Variants.

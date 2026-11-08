@@ -1,5 +1,12 @@
 # Architecture
 
+How the framework, an exam's tests and the student code fit together, which class does what, and how a wrapper
+gets from "expected" to "found". For the exact signatures of every public class and method see the
+[API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/); the diagrams on
+this page show the parts you work with, not every method.
+
+## Overview
+
 ```mermaid
 flowchart TB
     subgraph EX["Example exercise (test/)"]
@@ -24,7 +31,7 @@ flowchart TB
         MW["AttributeWrapper<br/>MethodWrapper<br/>ConstructorWrapper"]
         W["Wrapper&lt;T&gt;"]
         WP["WrapperProperty&lt;T&gt;"]
-        U["Utils · LevenshteinSettings<br/>Messages"]
+        U["Failure · Mock<br/>LevenshteinSettings · Messages · Utils"]
         CW --> W
         MW --> W
         W --> WP
@@ -54,107 +61,99 @@ flowchart TB
     class D,AV,C student
 ```
 
-Every expected class of the student code has a wrapper (a `ClassWrapper` subclass) that describes it and
-finds the student's actual class and members, even with small naming deviations. `TestManager` generates
-the structural tests from the wrappers and uses them for the behavioural tests, under Ares 2 supervision
-(`@LevenshteinTest` + `@Policy`). Detailed class diagrams of the framework and of the example wrappers follow
-[below](#class-diagrams).
+Every expected class of the student code has a wrapper (a `ClassWrapper` subclass) that describes it. The wrapper
+finds the student's actual class and members, even with small naming deviations. `TestManager` generates the
+structural tests from the wrappers and uses the wrappers for the behavioural tests. Every test runs under Ares 2
+supervision (`@LevenshteinTest` + `@Policy`).
+
+## What happens in a test run
+
+1. **Building the wrappers** (static field or `@BeforeAll`): each wrapper stores only what is *expected*: names,
+   types, modifiers. Nothing is looked up yet, and no student code runs.
+2. **First use, inside a supervised test**: the wrapper looks up its element once
+   ([How Matching Works](matching.md)) and stores each part as a `WrapperProperty` (expected, actual,
+   `EXACT`/`DEVIATES`/`MISSING`). The worst part is the wrapper's verdict.
+3. **Structural tests** (`StructuralLevenshtein.structuralTestFactory`) fail for every wrapper that is not
+   `EXACT` and print its `DEVIATION`/`MISSING` message.
+4. **Behavioural tests** call the student's element through the wrapper (`invoke`, `getValue`, `newObj`, ...).
+   A `DEVIATES` element is used as it is; a `MISSING` one fails the call. Exceptions of student code become a
+   [failure block](writing-tests.md#reporting-failures) (`Failure`).
+5. **Between tests**, `StaticStateReset` (part of `@LevenshteinTest`) resets attributes that are `static`
+   although the test expects instance attributes, so tests do not influence each other.
+
+## Packages and classes
 
 **`io.github.valentinherrmann.levenshtein`** (framework, published)
-* `Wrapper<T>`: base of all wrappers (name, modifiers, existence, messages)
-* `ClassWrapper<T>`: classes, abstract classes and interfaces, including superclass, interfaces and instantiation
-* `AttributeWrapper<T,V>`, `MethodWrapper<T,R>`, `ConstructorWrapper<T>`: members
-* `GenericClassWrapper<T>`: wraps an already loaded class (actual superclass and interfaces)
-* `TypeRef` (package-private): an expected member type, a fixed `Class` or a student class given by its
-  `ClassWrapper` (or a supplier of one), resolved when the member is checked; `ClassWrapper.reference(name, package)`
-  refers to a student class by name only
-* `WrapperProperty<T>`: expected vs. actual value plus existence
-* `StructuralLevenshtein`: JUnit `DynamicTest` factory
-* `LevenshteinTest` / `HiddenLevenshteinTest`: composed Ares 2 annotations
-* `LevenshteinSettings`: runtime configuration (thresholds, language, getter/setter comparison)
-* `Messages`: German/English feedback
-* `Utils`: Levenshtein distance, type compatibility, `safeCast`
+
+| Class | Role |
+|---|---|
+| `Wrapper<T>` | Base of all wrappers: expected name and modifiers, verdict, messages, missing/unexpected modifiers |
+| `ClassWrapper<T>` | A class, abstract class or interface: superclass, interfaces, instantiation (`newObj`, `newObjWithoutConstructor`, `newObjOverriding`, `mock`), `testGettersSetters`, `ClassWrapper.reference(name, package)` |
+| `AttributeWrapper<T,V>`, `MethodWrapper<T,R>`, `ConstructorWrapper<T>` | Members: lookup, `getValue`/`setValue`, `invoke`, `invokeExpectingException` |
+| `GenericClassWrapper<T>` | Wraps a class that is already loaded; used for the student's *actual* superclass and interfaces, not for expected classes |
+| `WrapperProperty<T>` | Expected vs. actual value of one part plus its `Existence` |
+| `StructuralLevenshtein` | JUnit `DynamicTest` factory for the structural tests (`DetailLevel`) |
+| `Failure` | The structured failure block (`Method:`, `Scenario:`, `Input:`, `Expected:`, `Actual:`), also for your own checks |
+| `Mock<T>` | Test-owned overrides and call records on an object of a student class |
+| `LevenshteinTest` / `HiddenLevenshteinTest` | Composed annotations: `@Public`/`@Hidden` + `@StrictTimeout(5)` + `@MirrorOutput` + `@ExtendWith(StaticStateReset.class)` |
+| `StaticStateReset` | JUnit extension that resets unexpectedly `static` attributes before each test |
+| `LevenshteinSettings` | Runtime configuration: language, thresholds, decimals, getter/setter comparison, unexpected modifiers |
+| `Messages` | German/English feedback texts |
+| `Utils` | Levenshtein distance, type compatibility, `safeCast` |
+| `TypeRef`, `Invocations`, `GettersSettersTest`, `MockClasses` (package-private) | Member types given as `ClassWrapper`, calling student code, getter/setter test, generated subclasses |
 
 **`example-maven/`** and **`example-gradle/`** (not published): the same example exercise as two standalone
 projects, one per build tool. Their `assignment/` and `test/` folders are identical (CI checks this) except
 for one line in `SecurityPolicy.yaml`.
+
 * `assignment/src/.../vehicles`: the "student" solution (`Car`, `AbstractVehicle`, `Driveable`), explained
   in [`SIMPLIFIED_CONCEPTS.md`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/SIMPLIFIED_CONCEPTS.md)
+* `assignment-failing/src`: a solution with deliberate defects that shows the framework's messages
 * `test/.../tests`: `TestManager` (tests), `TestAbstr`/`TestImpl`/`TestInterface` (test logic),
   `Constants` (Exercise Variants), `wrappers/*`, `SecurityPolicy.yaml`
 
 ## Class diagrams
 
-The diagrams are [Mermaid](https://mermaid.js.org/) and render directly on GitHub and on the docs site; keep them in sync
-with the code when public signatures change.
+The diagrams are [Mermaid](https://mermaid.js.org/) and render on GitHub and on the docs site. They show the
+public API you use in tests; keep them in sync when it changes.
 
-### Framework: wrappers (`io.github.valentinherrmann.levenshtein`)
+### Wrappers
 
-Every wrapper describes one expected element of the student code and looks it up once, on first use.
-`WrapperProperty` stores the expected and the actual value of each part (name, modifiers, types, ...) and
-its `Existence`; the worst part decides the overall state.
+Every wrapper describes one expected element of the student code. `ClassWrapper` holds the member wrappers of its
+class; each member wrapper knows its parent `ClassWrapper`.
 
 ```mermaid
 classDiagram
     direction TB
     class Wrapper~T~ {
         <<abstract>>
-        #WrapperProperty~String~ name
-        #WrapperProperty~String~ modifiers
-        #Existence existence
-        -ClassWrapper~T~ parentClassWrapper
-        +verifyExistence(boolean throwAssertion)*
         +getOverallExistence() Existence
-        +verifyModifiers(int modifierBitmask)
-        +getParentClassWrapper() ClassWrapper~T~
         +getExpectedName() String
         +getActualName() String
         +getActualModifiers() String
-        +expectedToString()* String
-        +actualToString()* String
-        #findWithDeviation()*
-        #parseExistence()*
-        #ensureChecked()
-        #usability() Existence
+        +getMissingModifiers() List~String~
+        +getUnexpectedModifiers() List~String~
+        +getParentClassWrapper() ClassWrapper~T~
+        +verifyExistence(boolean throwAssertion)
     }
     class ClassWrapper~T~ {
         <<abstract>>
-        -String expectedPackage
-        -Class~T~ clazz
-        #T obj
-        ~WrapperProperty superClassWrapper
-        ~WrapperProperty interfaceWrappers
+        +reference(String name, String package)$ ClassWrapper
         +getClazz() Class~T~
-        +reference(String name, String package)$ ClassWrapper~V~
-        +getExpectedPackage() String
         +getObj(boolean forceNew)* Object
         +getObj() Object
         +newObj() Object
         +getObj(boolean forceNew, ConstructorWrapper ctor, Object... args) T
         +setCachedObj(Object obj)
-        +getDynamicSubclassObj(ConstructorWrapper ctor, Object... args) Object
         +newObjWithoutConstructor() Object
         +newObjOverriding(Map overrides) Object
         +mock() Mock~T~
-        +verifySuperClass()
-        +verifyInterfaces()
-        +getAttributeWrappers() List~Wrapper~T~~
-        +getMethodWrappers() List~Wrapper~T~~
-        +getConstructorWrappers() List~Wrapper~T~~
-        +testGetter(AttributeWrapper attribute, MethodWrapper getter)
-        +testGettersSetters(AttributeWrapper attribute, MethodWrapper... gettersSetters)
-        +testGettersSetters(AttributeWrapper attribute, Predicate setterCondition, MethodWrapper... gettersSetters)
-        +testGettersSetters(AttributeWrapper attribute, List sampleValues, MethodWrapper... gettersSetters)
-        +testGettersSetters(AttributeWrapper attribute, List sampleValues, Predicate setterCondition, MethodWrapper... gettersSetters)
+        +testGettersSetters(AttributeWrapper attribute, ...)
     }
     class GenericClassWrapper~T~ {
         +GenericClassWrapper(Class~T~ clz)
-        +getObj(boolean forceNew) Object
     }
     class AttributeWrapper["AttributeWrapper&lt;T, V&gt;"] {
-        -Field field
-        -WrapperProperty type
-        -TypeRef typeRef
         +getExpectedType() Class
         +getValue() V
         +getValue(Object obj) V
@@ -162,51 +161,44 @@ classDiagram
         +setValue(Object obj, Object value)
     }
     class MethodWrapper["MethodWrapper&lt;T, R&gt;"] {
-        -TypeRef[] paramRefs
-        -TypeRef returnRef
-        -Class[] paramTypes
-        -WrapperProperty params
-        -WrapperProperty returnType
-        -Method method
         +invoke(Object... params) R
         +invokeOnSpecificObject(Object obj, Object... params) R
-        +invokeWithContext(Supplier~String~ context, Object... params) R
-        +invokeOnSpecificObjectWithContext(Supplier~String~ context, Object obj, Object... params) R
-        +invokeExpectingException(Class~X~ expected, Object obj, Object... params) X
+        +invokeWithContext(Supplier context, Object... params) R
+        +invokeExpectingException(Class expected, Object obj, Object... params) X
         +getParamTypes() Class[]
+        +getActualParamTypes() Class[]
         +getExpectedReturnType() Class
     }
     class ConstructorWrapper~T~ {
-        -TypeRef[] paramRefs
-        -Class[] paramTypes
-        -WrapperProperty params
-        ~Constructor~T~ constructor
         +invoke(Object... args) T
-        +invokeExpectingException(Class~X~ expected, Object... args) X
+        +invokeExpectingException(Class expected, Object... args) X
         +getParamTypes() Class[]
         +getActualParamTypes() Class[]
     }
-    class Mock~T~ {
-        -ClassWrapper~T~ classWrapper
-        +override(MethodWrapper method, Function function) Mock~T~
-        +returning(MethodWrapper method, Object value) Mock~T~
-        +othersReturnDefaults() Mock~T~
-        +obj() Object
-        +calls(MethodWrapper method) List~Object[]~
-        +assertCalled(MethodWrapper method, int times)
-        +assertCalled(MethodWrapper method, int times, Supplier~String~ context)
-        +assertNotCalled(MethodWrapper method)
-        +resetCalls()
-    }
-    class TypeRef {
-        <<interface>>
-        +resolve() Class
-        +expectedSimpleName() String
+
+    ClassWrapper --|> Wrapper
+    GenericClassWrapper --|> ClassWrapper
+    AttributeWrapper --|> Wrapper
+    MethodWrapper --|> Wrapper
+    ConstructorWrapper --|> Wrapper
+    ClassWrapper o-- AttributeWrapper : fields of the subclass
+    ClassWrapper o-- MethodWrapper
+    ClassWrapper o-- ConstructorWrapper
+```
+
+### Verdicts and member types
+
+Each part of a wrapper (name, modifiers, type, parameters, superclass, ...) is a `WrapperProperty` with its own
+`Existence`; the worst one is the wrapper's verdict. A member type that is a student class is a `TypeRef`, resolved
+through its `ClassWrapper` when the member is checked.
+
+```mermaid
+classDiagram
+    direction LR
+    class Wrapper~T~ {
+        <<abstract>>
     }
     class WrapperProperty~T~ {
-        ~T expected
-        ~T actual
-        ~Existence existence
         +getExpected() T
         +getActual() T
         +getExistence() Existence
@@ -217,41 +209,100 @@ classDiagram
         EXACT
         DEVIATES
         MISSING
-        +severity() int
         +worst(Existence a, Existence b)$ Existence
     }
+    class TypeRef {
+        <<interface, package-private>>
+        +resolve() Class
+        +expectedSimpleName() String
+    }
+    class ClassWrapper~T~ {
+        <<abstract>>
+    }
 
-    ClassWrapper --|> Wrapper
-    GenericClassWrapper --|> ClassWrapper
-    AttributeWrapper --|> Wrapper
-    MethodWrapper --|> Wrapper
-    ConstructorWrapper --|> Wrapper
-
-    Wrapper *-- WrapperProperty : name, modifiers
-    ClassWrapper *-- WrapperProperty : superClassWrapper, interfaceWrappers
-    AttributeWrapper *-- WrapperProperty : type
-    MethodWrapper *-- WrapperProperty : params, returnType
-    ConstructorWrapper *-- WrapperProperty : params
-    AttributeWrapper *-- TypeRef : typeRef
-    MethodWrapper *-- TypeRef : returnRef, paramRefs
-    ConstructorWrapper *-- TypeRef : paramRefs
-    TypeRef --> ClassWrapper : resolves via getClazz()
-    WrapperProperty --> Existence : existence
-    ClassWrapper ..> Mock : mock()
-    Mock --> MethodWrapper : overrides, calls
-    Wrapper --> ClassWrapper : parentClassWrapper
+    Wrapper *-- WrapperProperty : name, modifiers, type, params, ...
+    WrapperProperty --> Existence
+    Wrapper *-- TypeRef : attribute, return and parameter types
+    TypeRef --> ClassWrapper : a fixed Class or a student class
 ```
 
-### Framework: test generation, configuration and annotations
+### Failures, mocks and settings
+
+```mermaid
+classDiagram
+    direction LR
+    class Failure {
+        <<final>>
+        +of(MethodWrapper method)$ Failure
+        +of(ConstructorWrapper ctor)$ Failure
+        +of(String member)$ Failure
+        +scenario(String text) Failure
+        +input(String text) Failure
+        +arguments(Object... args) Failure
+        +expected(Object value) Failure
+        +actual(Object value) Failure
+        +thrown(Throwable t) Failure
+        +cases(int failed, int total) Failure
+        +error() AssertionError
+        +format(Object value)$ String
+        +call(ThrowingSupplier code)$ R
+    }
+    class Mock~T~ {
+        <<final>>
+        +override(MethodWrapper method, Function function) Mock~T~
+        +returning(MethodWrapper method, Object value) Mock~T~
+        +othersReturnDefaults() Mock~T~
+        +obj() Object
+        +callCount(MethodWrapper method) long
+        +calls(MethodWrapper method) List~Object[]~
+        +assertCalled(MethodWrapper method, int times)
+        +assertNotCalled(MethodWrapper method)
+        +resetCalls()
+    }
+    class LevenshteinSettings {
+        <<final>>
+        +setLanguage(Language language)$
+        +setClassNameDeviationThreshold(int percent)$
+        +setMethodNameDeviationThreshold(int percent)$
+        +setAttributeNameDeviationThreshold(int percent)$
+        +setDecimals(int decimals)$
+        +setGettersSettersRequireSameObject(boolean same)$
+        +setUnexpectedModifiers(UnexpectedModifiers mode)$
+        +reset()$
+    }
+    class Language {
+        <<enumeration>>
+        DEUTSCH
+        ENGLISH
+    }
+    class UnexpectedModifiers {
+        <<enumeration>>
+        DEVIATE
+        IGNORE
+    }
+    class ClassWrapper~T~ {
+        <<abstract>>
+        +mock() Mock~T~
+    }
+    class MethodWrapper["MethodWrapper&lt;T, R&gt;"]
+
+    ClassWrapper ..> Mock : creates
+    Mock --> MethodWrapper : overrides, records calls
+    Failure ..> MethodWrapper : Method line
+    Failure ..> LevenshteinSettings : language, decimals
+    LevenshteinSettings ..> Language
+    LevenshteinSettings ..> UnexpectedModifiers
+```
+
+### Test generation and annotations
 
 ```mermaid
 classDiagram
     direction LR
     class StructuralLevenshtein {
         <<final>>
-        +structuralTestFactory(DetailLevel level, ClassWrapper... classWrappers)$ List~DynamicTest~
-        +structuralTestFactory(DetailLevel level, boolean skipEmpty, ClassWrapper... classWrappers)$ List~DynamicTest~
-        +structuralTestTemplate(List wrappers)$
+        +structuralTestFactory(DetailLevel level, ClassWrapper... wrappers)$ List~DynamicTest~
+        +structuralTestFactory(DetailLevel level, boolean skipEmpty, ClassWrapper... wrappers)$ List~DynamicTest~
     }
     class DetailLevel {
         <<enumeration>>
@@ -260,75 +311,31 @@ classDiagram
         ONE_PER_MEMBER_CATEGORY
         ONE_PER_MEMBER
     }
-    class Utils {
-        <<final>>
-        +levenshteinDistance(String s1, String s2)$ int
-        +levenshteinDistancePercent(String expected, String actual)$ double
-        +isNameWithinDeviation(String expected, String actual, int threshold)$ boolean
-        +safeCast(Object val, Class castTo)$ Object
-        +verifyType(WrapperProperty typeProperty, Class actualType)$
-        +isNumericDeviation(Class expected, Class actual)$ boolean
-        +canContain(Class actualType, Class expectedType)$ boolean
-        +unwrapPrimitive(Class type)$ Class
-        +toWrapperType(Class type)$ Class
-    }
-    class LevenshteinSettings {
-        <<final>>
-        +getLanguage()$ Language
-        +setLanguage(Language language)$
-        +setClassNameDeviationThreshold(int percent)$
-        +setMethodNameDeviationThreshold(int percent)$
-        +setAttributeNameDeviationThreshold(int percent)$
-        +reset()$
-    }
-    class Language {
-        <<enumeration>>
-        DEUTSCH
-        ENGLISH
-    }
-    class Messages {
-        <<enumeration>>
-        WRAPPER_DEVIATION
-        CLASS_NOT_IMPLEMENTED
-        ...
-        +get() String
-        +format(Object... args) String
-    }
-    class Invocations {
-        <<package-private>>
-        ~invoke(Method method, Object target, Object... args)$ Object
-        ~newInstance(Constructor ctor, Object... args)$ Object
-        ~rethrowIfCritical(Throwable t)$
-        ~describe(Throwable t)$ String
-        ~checkArguments(Class[] parameterTypes, Object[] args, String signature)$ Object[]
-        ~describeArguments(Object[] args)$ String
-        ~describeValue(Object value)$ String
-    }
     class LevenshteinTest {
         <<annotation>>
     }
     class HiddenLevenshteinTest {
         <<annotation>>
     }
-    class ReflectionTestUtils {
-        <<Ares 2>>
+    class StaticStateReset {
+        <<JUnit extension>>
     }
 
     StructuralLevenshtein ..> DetailLevel
-    LevenshteinSettings ..> Language
-    Messages ..> LevenshteinSettings : reads language
-    Invocations ..> ReflectionTestUtils : rethrowing invocations
+    LevenshteinTest ..> StaticStateReset : @ExtendWith
+    HiddenLevenshteinTest ..> StaticStateReset : @ExtendWith
 
-    note for LevenshteinTest "= @Public + @StrictTimeout(5) + @MirrorOutput"
-    note for HiddenLevenshteinTest "= @Hidden + @StrictTimeout(5) + @MirrorOutput"
+    note for LevenshteinTest "= @Public + @StrictTimeout(5) + @MirrorOutput\n+ @ExtendWith(StaticStateReset.class)"
+    note for HiddenLevenshteinTest "= @Hidden + @StrictTimeout(5) + @MirrorOutput\n+ @ExtendWith(StaticStateReset.class)"
 ```
 
-### Example exercise: wrappers (`io.github.valentinherrmann.example.tests.wrappers`)
+### Example exercise: wrappers
 
-One wrapper per expected class of the student code. Each wrapper declares its members as
-`AttributeWrapper`, `MethodWrapper` and `ConstructorWrapper` fields (found by `ClassWrapper` via
-reflection for the structural tests) and exposes them through accessors for the behavioural tests.
-Expected names and types come from `Constants` (Exercise Variants pattern).
+One wrapper per expected class of the student code
+(`io.github.valentinherrmann.example.tests.wrappers`). Each wrapper declares its members as `AttributeWrapper`,
+`MethodWrapper` and `ConstructorWrapper` fields (found by `ClassWrapper` via reflection for the structural tests)
+and exposes them through accessors for the behavioural tests. Expected names and types come from `Constants`
+(Exercise Variants pattern).
 
 ```mermaid
 classDiagram
@@ -338,24 +345,12 @@ classDiagram
         +getObj(boolean forceNew)* Object
     }
     class DrivableWrapper~T~ {
-        -AttributeWrapper maxSpeed
-        -MethodWrapper startMethod
-        -MethodWrapper getSpeedMethod
-        +DrivableWrapper()
         +maxSpeed() AttributeWrapper
         +startMethod() MethodWrapper
         +getSpeedMethod() MethodWrapper
         +getObj(boolean forceNew) Object
     }
     class AbstrWrapper~T~ {
-        -AttributeWrapper manufacturer
-        -AttributeWrapper year
-        -ConstructorWrapper constructor
-        -MethodWrapper getManufacturer
-        -MethodWrapper getYear
-        -MethodWrapper calculateCost
-        -MethodWrapper getInfo
-        +AbstrWrapper()
         +manufacturer() AttributeWrapper
         +year() AttributeWrapper
         +constructor() ConstructorWrapper
@@ -364,25 +359,15 @@ classDiagram
         +calculateCost() MethodWrapper
         +getInfo() MethodWrapper
         +getObj(boolean forceNew) T
-        +setObj(Object obj, boolean force)
     }
     class CarWrapper~T~ {
-        -AttributeWrapper price
-        -AttributeWrapper speed
-        -ConstructorWrapper constructor_full
-        -ConstructorWrapper constructor_default
-        -MethodWrapper getPrice
-        -MethodWrapper start
-        -MethodWrapper getSpeed
-        -MethodWrapper calculateCost
-        -MethodWrapper calculateCostYears
-        -MethodWrapper getInfo
-        +CarWrapper(ClassWrapper superClassWrapper, ClassWrapper... interfaceWrappers)
+        +CarWrapper(ClassWrapper superClass, ClassWrapper... interfaces)
         +price() AttributeWrapper
         +speed() AttributeWrapper
         +constructor_full() ConstructorWrapper
         +constructor_default() ConstructorWrapper
         +getPrice() MethodWrapper
+        +setPrice() MethodWrapper
         +startMethod() MethodWrapper
         +getSpeed() MethodWrapper
         +calculateCost() MethodWrapper
@@ -397,10 +382,7 @@ classDiagram
     CarWrapper ..> AbstrWrapper : superClassWrapper
     CarWrapper ..> DrivableWrapper : interfaceWrappers
 
-    note for DrivableWrapper "Wraps the interface Driveable:\nMAX_SPEED, start(), getSpeed()"
-    note for AbstrWrapper "Wraps the abstract class AbstractVehicle:\nmanufacturer, year, abstract calculateCost(), getInfo()"
-    note for CarWrapper "Wraps Car (extends AbstractVehicle, implements Driveable):\nconstructor and method overloading, overriding"
+    note for DrivableWrapper "interface Driveable:\nMAX_SPEED, start(), getSpeed()"
+    note for AbstrWrapper "abstract class AbstractVehicle:\nmanufacturer, year, abstract calculateCost(), getInfo()"
+    note for CarWrapper "Car extends AbstractVehicle implements Driveable:\noverloaded constructors and calculateCost"
 ```
-
-Each wrapper verifies existence, names, types and modifiers of its class with Levenshtein distance
-tolerance; see [How Matching Works](matching.md).

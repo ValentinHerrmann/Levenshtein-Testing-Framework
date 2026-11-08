@@ -1,19 +1,26 @@
 # Writing Tests
 
+How to describe the expected classes with wrappers, generate the structural tests, and write behavioural tests
+that still run when the student deviates slightly. [Quick Start](quick-start.md) shows a complete first test;
+this page is the reference for everything after it.
+
 ## Wrapper cheat sheet
 
-| Wrapper | Constructor | Describes |
+| Wrapper | Constructors | Describes |
 |---|---|---|
-| `ClassWrapper<T>` | `(name, package, superClassWrapper, interfaceWrappers, modifiers...)`<br>`(name, package, modifiers...)` | A class, abstract class or interface. `superClassWrapper == null` means "extends `Object`". |
+| `ClassWrapper<T>` | `(name, package, modifiers...)`<br>`(name, package, superClassWrapper, interfaceWrappers, modifiers...)` | A class, abstract class, interface, enum or record. `superClassWrapper == null` means "extends `Object`". |
 | `AttributeWrapper<T, V>` | `(this, name, type, modifiers...)` | A field, e.g. `(this, "price", double.class, "private")` |
-| `MethodWrapper<T, R>` | `(this, name, returnType, modifiers...)`<br>`(this, name, returnType, new Class<?>[]{paramTypes}, modifiers...)` | A method, e.g. `(this, "calculateCost", double.class, new Class<?>[]{int.class}, "public")` |
-| `ConstructorWrapper<T>` | `(this, new Class<?>[]{paramTypes}, modifiers...)` | A constructor |
+| `MethodWrapper<T, R>` | `(this, name, returnType, modifiers...)`<br>`(this, name, returnType, new Class<?>[]{paramTypes}, modifiers...)`<br>`(this, name, returnType, new Object[]{paramTypes}, modifiers...)` | A method, e.g. `(this, "calculateCost", double.class, new Class<?>[]{int.class}, "public")` |
+| `ConstructorWrapper<T>` | `(this, "public")` (no parameters)<br>`(this, new Class<?>[]{paramTypes}, modifiers...)`<br>`(this, new Object[]{paramTypes}, modifiers...)` | A constructor, e.g. `(this, "public")` for `public Car()` |
 
-Where a type is expected, you can also pass the `ClassWrapper` of a student class (or a mix of `Class<?>` and
-`ClassWrapper`s in an `Object[]`), see [Student classes as member types](#student-classes-as-member-types).
+Where a type is expected (`type`, `returnType`, an entry of `paramTypes`), you can pass a `Class<?>`, the
+`ClassWrapper` of a student class, or a `Supplier<ClassWrapper<?>>`. A parameter list that contains a wrapper is an
+`Object[]`; see [Student classes as member types](#student-classes-as-member-types).
 
 * **Modifiers** are plain strings: `"public"`, `"private"`, `"protected"`, `"static"`, `"final"`, `"abstract"`, ...
-  A typo throws `IllegalArgumentException` as soon as the wrapper is created.
+  A typo throws `IllegalArgumentException` as soon as the wrapper is created. Every modifier of the student's
+  element that you do not list is reported as unexpected; mark harmless extras as optional with a `?` suffix
+  (`"public", "final?"`). See [Modifiers](matching.md#modifiers).
 * **Member wrappers must be (non-static) fields** of your `ClassWrapper` subclass. That's how the
   structural tests find them.
 * **Every `ClassWrapper` subclass implements `getObj(boolean forceNew)`**, which defines the default
@@ -129,6 +136,9 @@ IllegalArgumentException e = carWrapper.setYear()
         .invokeExpectingException(IllegalArgumentException.class, car, -1);
 ```
 
+Every call goes to the element the wrapper *found*, so a test written for `price` runs against the student's
+`prize`.
+
 | Call | Target |
 |---|---|
 | `invoke(args...)`, `getValue()`, `setValue(value)` | the cached default instance (`getObj()`), or `null` for static members |
@@ -137,32 +147,63 @@ IllegalArgumentException e = carWrapper.setYear()
 | `newObj()` / `getObj(true)` / `getObj(true, constructorWrapper, args...)` | always a new instance |
 | `setCachedObj(obj)` | pins an object you created yourself as the default instance |
 
-* If the student's element is `MISSING`, the call fails with "... is not implemented as expected. See
-  structural Tests for details".
+Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
+
+### When the student's element is missing or throws
+
+* A `MISSING` element fails the call with "... is not implemented as expected. See structural Tests for details".
+  A `DEVIATES` element (typo, other numeric type, extra modifier, ...) is used as it is.
 * An exception thrown by student code fails the test with a [failure block](#reporting-failures): the method,
-  the argument values (arrays and collections with more than ten elements shortened, e.g.
-  `[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]`) and the exception's type and message as `Actual:`. No stack trace
-  and no cause are attached. A `StackOverflowError` adds a hint on endless recursion. Ares security violations
-  are passed through unchanged, also when a student's `toString()` causes one while the message is built; an
-  endlessly recursing `toString()` is shown as `(toString() threw StackOverflowError)`.
-* Many generated inputs? `invokeWithContext(() -> "Scenario " + i + ", seed " + seed, args...)` and
-  `invokeOnSpecificObjectWithContext(context, obj, args...)` show the text in the `Scenario:` line of the
-  failure. The supplier is only evaluated if the call fails.
-* **Arrays as arguments:** `invoke`, `invokeOnSpecificObject`, `invokeExpectingException`, `getObj(forceNew,
-  constructorWrapper, args...)` and `ConstructorWrapper.invoke` take `Object... args`. Java spreads an object
-  array (`String[]`, `Integer[]`, ...) passed there into several arguments; a primitive array (`boolean[]`)
-  is passed as one. Pass a single array argument as `(Object) array`:
-  `stage.constructor().invoke((Object) spotlights)`. A wrong number of arguments is reported as
-  `IllegalArgumentException` with this hint.
-* Numbers are converted to the student's numeric type: arguments (`invoke(2.5)` for a student's `float`
-  parameter), `setValue` and results. A value that does not fit (`2.5` or `300` for a `byte`, `1e300` for a
-  `float`) fails with a readable message instead of being changed; see [Matching](matching.md#types).
-* `Utils.safeCast(value, type)` converts numeric results in the same way (e.g. `int` → `double`). It fails with
-  a readable message instead of producing a `ClassCastException` later.
-* The `Input:` line shows arrays and collections as they were passed, even if the student's code changed
-  them. A failure inside the call (from Ares, a mock or a conversion) keeps its own message and gets an
+  the argument values and the exception's type and message as `Actual:`. No stack trace and no cause are
+  attached. A `StackOverflowError` adds a hint on endless recursion.
+* Arrays and collections with more than ten elements are shortened in the `Input:` line
+  (`[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]`). They are shown as they were passed, even if the student's code
+  changed them.
+* Ares security violations are passed through unchanged, also when a student's `toString()` causes one while
+  the message is built; an endlessly recursing `toString()` is shown as `(toString() threw StackOverflowError)`.
+* A failure inside the call (from Ares, a mock or a number conversion) keeps its own message and gets an
   `Arguments:` line and the text of `invokeWithContext`.
-* Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
+
+### Expected exceptions
+
+`invokeExpectingException(type, obj, args...)` (methods) and `invokeExpectingException(type, args...)`
+(constructors) pass if the student's code throws `type` or a subclass, and return the exception for further
+checks. If nothing or something else is thrown, the test fails with a failure block whose `Expected:` line names
+the exception type.
+
+```java
+IllegalArgumentException e = carWrapper.constructor()
+        .invokeExpectingException(IllegalArgumentException.class, -1.0);
+assertThat(e.getMessage()).contains("price");
+```
+
+### Many generated inputs
+
+`invokeWithContext(() -> "case " + i + ", seed " + seed, args...)` and
+`invokeOnSpecificObjectWithContext(context, obj, args...)` show the text in the `Scenario:` line of the failure.
+The supplier is only evaluated if the call fails. For checks of your own results, report with
+[`Failure`](#reporting-failures) and count the failed cases with `.cases(failed, total)`.
+
+### Arrays as arguments
+
+`invoke`, `invokeOnSpecificObject`, `invokeExpectingException`, `getObj(forceNew, constructorWrapper, args...)`
+and `ConstructorWrapper.invoke` take `Object... args`. Java spreads an object array (`String[]`, `Integer[]`,
+...) passed there into several arguments; a primitive array (`boolean[]`) is passed as one. Pass a single array
+argument as `(Object) array`:
+
+```java
+stage.constructor().invoke((Object) spotlights);
+```
+
+A wrong number of arguments is reported as `IllegalArgumentException` (an error in the test) with this hint.
+
+### Numbers
+
+Numbers are converted to the student's numeric type: arguments (`invoke(2.5)` for a student's `float`
+parameter), `setValue` and results. A value that does not fit (`2.5` or `300` for a `byte`, `1e300` for a
+`float`) fails with a readable message instead of being changed; see [Matching](matching.md#types).
+`Utils.safeCast(value, type)` converts numeric results in the same way (e.g. `int` → `double`) and fails with a
+readable message instead of producing a `ClassCastException` later.
 
 ## Getters and setters
 
@@ -221,9 +262,9 @@ Actual:   30000.00
 
 ## Reporting failures
 
-Every behaviour failure has the same format, also the ones of the framework (exceptions of student code,
-`invokeExpectingException`, `testGettersSetters`). The labels follow `LevenshteinSettings.setLanguage(...)`;
-lines that are not set are left out:
+Behavioural failures share one format: exceptions of student code, `invokeExpectingException`,
+`testGettersSetters`, and your own checks through `Failure`. The labels follow
+`LevenshteinSettings.setLanguage(...)`; lines that are not set are left out:
 
 ```text
 Method:   calculateLoudness(double, double)
@@ -267,121 +308,70 @@ constructor (including `protected` ones). Concrete classes are **always** create
 constructor, so `final` classes and `getClass()`-based `equals` work. Calling an abstract method on such
 an instance throws `AbstractMethodError`; test interface behaviour through an implementing class.
 
-## Independent tests
+## Independent tests and mocks
 
-A mistake in one student member should fail only the tests of that member. Two situations make failures
-cascade. In the first, the method under test calls another student method: if that method is wrong, the
-test fails too. In the second, the test needs an object of a student class only as a value, but
-`newObj()` runs the student's constructor. Three tools remove these dependencies. All three run **no
-constructor** of the student class, so a missing or broken constructor cannot fail the test.
-
-| Call | Result |
-|---|---|
-| `newObjWithoutConstructor()` | an object of the class whose attributes keep their default values (`0`, `false`, `null`; field initialisers do not run either). Concrete classes, also `final` ones, keep their exact class. Abstract classes and interfaces get a generated subclass. |
-| `newObjOverriding(Map.of(method, args -> result, ...))` | an object of a generated subclass in which each given method returns the result of its function |
-| `mock()` | a `Mock`: overrides like `newObjOverriding`, plus a record of every call |
-
-**A method under test calls another student method** (SE01E03: `isShowReady()` calls
-`getNumberOfSpotlights()`). Replace the called method, so that only `isShowReady` is tested:
-
-```java
-Object stage = stageWrapper.newObjOverriding(Map.of(stageWrapper.getNumberOfSpotlights(), args -> 3));
-assertThat(stageWrapper.isShowReady().invokeOnSpecificObject(stage)).isTrue();
-```
-
-The student's `isShowReady()` runs unchanged. Its call `this.getNumberOfSpotlights()` (or
-`getNumberOfSpotlights()`) goes to the test's function.
-
-**The method under test must call a method of another object** (SE01E04: `Drummer.calculateLoudness(volume,
-crowdNoise)` must use `guitarist.calculateLoudness(volume)`). Give the Guitarist a return value the student
-cannot produce by inlining `volume * 10`, and check the call:
-
-```java
-Mock<?> guitarist = guitaristWrapper.mock()
-        .override(guitaristWrapper.calculateLoudness(), args -> (int) args[0] * 7);
-Object drummer = drummerWrapper.newObjWithoutConstructor();
-drummerWrapper.guitarist().setValue(drummer, guitarist.obj());
-
-assertThat(drummerWrapper.calculateLoudness().invokeOnSpecificObject(drummer, 5, 3)).isEqualTo(38);
-guitarist.assertCalled(guitaristWrapper.calculateLoudness(), 1,
-        () -> "Drummer.calculateLoudness(5, 3) must use calculateLoudness of its guitarist.");
-```
-
-**An object is needed only as a value** (the Drummer's accessor tests need *some* Guitarist):
-`guitaristWrapper.newObjWithoutConstructor()`.
-
-`Mock` in detail:
-
-| Call | Effect |
-|---|---|
-| `override(method, args -> result)` | `method` runs the function. |
-| `returning(method, value)` | `method` always returns `value`. |
-| `othersReturnDefaults()` | Methods without an override return `0`, `false` or `null` instead of running the student's code (a full mock). `equals`, `hashCode` and `toString` without an override behave like those of `Object` (identity), so the object still works in lists, sets and messages. |
-| `obj()` | Returns the object. It is created on the first call and stays the same; overrides added later apply to it as well. |
-| `callCount(method)` | Returns the number of calls. |
-| `calls(method)` | Returns the arguments of the recorded calls, in call order: the first 1000 calls per method (`Mock.MAX_RECORDED_CALLS`). Arrays are copied when the call is recorded; other objects are the ones passed. |
-| `assertCalled(method, times[, context])`, `assertNotCalled(method)` | Fails with the expected and actual number of calls and the recorded arguments, e.g. `Calls: (5), (7)`. |
-| `resetCalls()` | Forgets all recorded calls, e.g. after preparing the object. |
-
-* Methods are matched by the method the wrapper **actually found**, so a misspelt but tolerated name
-  (`calculateLoudnes`) is still overridden. A `MethodWrapper` of a superclass or interface wrapper overrides
-  the inherited method. Of an overloaded method, only the matching overload is overridden. Package-private
-  methods can be overridden, too: the subclass is defined in the student's own package and class loader.
-* The function gets the arguments in the parameter types the wrapper **expects**, e.g. an `Integer` for
-  `int`, even if the student declared `long`. Its result is converted to the student's return type (numeric
-  types are converted, e.g. `args -> 7` for a `double` method). If the function throws, or returns `null`
-  for a primitive return type, the call fails like a call that throws.
-* Methods without an override run the student's code, supervised by Ares as before. An abstract method
-  without an override fails with "The abstract method ... was called, but the test does not override it."
-* The functions are test code, so Ares does not restrict them. They are called from student code, though,
-  so keep them to plain computations.
-* A missing class or method fails with the usual `MISSING` message. A class or method that cannot be
-  overridden fails with a readable message, e.g. `Guitarist: cannot be overridden (final)`.
-  `calls`, `callCount`, `assertCalled` and `assertNotCalled` check the method in the same way, because calls
-  of a `final`, `static` or `private` method cannot be counted.
-* Only `mock()` records calls. The objects of `newObjOverriding` and `newObjWithoutConstructor` do not, since
-  nobody can ask for them. A clone of a mock object (`super.clone()`) shares the mock: its calls are
-  recorded there, and methods without an override run on the clone.
-
-**Limits.** These cannot be replaced, and the call fails readably instead:
-* `final` classes and methods, records, enums, sealed classes;
-* `static` and `private` methods;
-* constructors.
-
-Two more limits concern code that bypasses the methods:
-* An attribute that student code reads directly is not affected by any override. Set it with
-  `attribute.setValue(obj, value)`.
-* A generated subclass is a different class, so a student's `getClass()`-based `equals` returns `false`
-  against a real object.
-
-There are no argument matchers and no call-order checks. A function and `calls(method)` cover these.
+A mistake in one student member should fail only the tests of that member. `newObjWithoutConstructor()`,
+`newObjOverriding(...)` and `mock()` create objects without running a student constructor, replace single student
+methods with test code and record calls. See [Independent Tests and Mocks](independent-tests.md).
 
 ## Configuration
 
-Configure at runtime, e.g. in a static initializer of your test class:
+Configure at runtime in a static initializer of your test class (or in `@BeforeAll`):
 
 ```java
 static {
-    // default: DEUTSCH
+    // feedback language, default: DEUTSCH
     LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
-    // in percent, default: 20 each
+    // name deviation in percent of the longer name, default: 20 each
     LevenshteinSettings.setClassNameDeviationThreshold(10);
     LevenshteinSettings.setMethodNameDeviationThreshold(20);
     LevenshteinSettings.setAttributeNameDeviationThreshold(20);
+    // decimals of double/float values in failure messages, default: 2
+    LevenshteinSettings.setDecimals(2);
     // testGettersSetters: equal content (false, default) or the same object (true) for reference values
     LevenshteinSettings.setGettersSettersRequireSameObject(false);
-    // modifiers the test does not expect: DEVIATE (default) or IGNORE (behaviour before 2026.11.1)
+    // modifiers the specification does not list: DEVIATE (default) or IGNORE
     LevenshteinSettings.setUnexpectedModifiers(LevenshteinSettings.UnexpectedModifiers.DEVIATE);
 }
 ```
 
-Set them in a static initializer or `@BeforeAll`, not in a test method or `@BeforeEach`: `@LevenshteinTest`
-looks up the attribute wrappers before each test (to reset attributes that are unexpectedly `static`), so a
-later change does not reach them.
+| Setting | Default | Effect |
+|---|---|---|
+| `setLanguage` | `DEUTSCH` | Language of every message (`ENGLISH` or `DEUTSCH`) |
+| `set...NameDeviationThreshold` | `20` | How much of a name may differ, see [Name matching](matching.md#name-matching) |
+| `setDecimals` | `2` | Decimals of `double`/`float` values in failure blocks (the separator is always a dot) |
+| `setGettersSettersRequireSameObject` | `false` | `testGettersSetters` compares by content, or requires the very same object |
+| `setUnexpectedModifiers` | `DEVIATE` | `IGNORE` reports only an unexpected `static` of attributes and methods, and a missing expected `static` makes the element `MISSING`; see [Modifiers](matching.md#modifiers) |
 
-`LevenshteinSettings.reset()` restores the defaults. Timeouts: `@LevenshteinTest` carries
-`@StrictTimeout(5)`. A `@StrictTimeout` on the class or a method overrides it. (`regardingTimeouts` in the
-policy is not enforced by Ares 2.2.1.)
+!!! warning "Set them before the first test"
+    Set the settings in a static initializer or `@BeforeAll`, not in a test method or `@BeforeEach`:
+    `@LevenshteinTest` looks up the attribute wrappers before each test (to reset attributes that are
+    unexpectedly `static`), so a later change does not reach them.
+
+`LevenshteinSettings.reset()` restores the defaults.
+
+## Test annotations and timeouts
+
+| Annotation | Use for | Composed of |
+|---|---|---|
+| `@LevenshteinTest` | public tests (students see the result) | `@Public` `@StrictTimeout(5)` `@MirrorOutput` `@ExtendWith(StaticStateReset.class)` |
+| `@HiddenLevenshteinTest` | hidden tests (results shown after the `@Deadline`) | `@Hidden` `@StrictTimeout(5)` `@MirrorOutput` `@ExtendWith(StaticStateReset.class)` |
+
+Both need your own `@Policy(...)` on the class, and hidden tests also an Ares `@Deadline` (class or method).
+Without an Ares test-type annotation a test runs unsupervised.
+A `@StrictTimeout` on the class or a method overrides the 5 seconds. (`regardingTimeouts` in the policy is not
+enforced by Ares 2.2.1.) A hidden test class looks like a public one:
+
+```java
+@HiddenLevenshteinTest
+@Deadline("2026-12-01 23:59")
+@Policy(value = "test/SecurityPolicy.yaml", withinPath = "classes/org/example/exam")
+class CarHiddenTest {
+    @Test
+    @StrictTimeout(10)   // this test may take longer
+    void manyRandomCars() { ... }
+}
+```
 
 ## Exercise Variants
 
