@@ -1,5 +1,7 @@
 # Levenshtein Name Deviation Testing Framework
 
+📖 **[levenshtein.valentin-herrmann.com/](https://levenshtein.valentin-herrmann.com/)**
+
 Structural and behavioural tests for student code that **tolerate small naming deviations** (typos,
 case slips, `int` vs. `Integer`, ...) while still verifying the structure, built on
 [Ares 2](https://github.com/ls1intum/Ares2) for exams and exercises on Artemis. Exact name matching fails
@@ -42,13 +44,13 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
-Then follow the **[Quick Start](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/)**: copy the [Gradle](example-gradle) (or
+Then follow the **[Quick Start]([https://valentinherrmann.github.io/Levenshtein-Testing-Framework/quick-start/](https://levenshtein.valentin-herrmann.com/quick-start/))**: copy the [Gradle](example-gradle) (or
 [Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 
 ## Documentation
 
-📖 **[https://valentinherrmann.github.io/Levenshtein-Testing-Framework/](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/)**: searchable docs site with all guides and the API reference (Javadoc).
+📖 **[levenshtein.valentin-herrmann.com/](https://levenshtein.valentin-herrmann.com/)**: searchable docs site with all guides and the API reference (Javadoc).
 The sources are the Markdown files in [`docs/`](docs).
 
 | Guide | What's inside |
