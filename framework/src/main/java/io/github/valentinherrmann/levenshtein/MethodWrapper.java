@@ -23,9 +23,20 @@ import static org.assertj.core.api.Assertions.fail;
 public class MethodWrapper<T, R> extends Wrapper<T>
 {
     /**
-     * The expected parameter types for the method.
+     * The expected parameter types as specified; student classes are only resolved when the method is checked.
      */
-    private final Class<?>[] paramTypes;
+    private final TypeRef[] paramRefs;
+
+    /**
+     * The expected return type as specified ({@code null} if none was given).
+     */
+    private final TypeRef returnRef;
+
+    /**
+     * The resolved expected parameter types; a missing student class is {@code null}. Set when the method is
+     * checked (immediately if all types are fixed classes).
+     */
+    private Class<?>[] paramTypes;
 
     /**
      * Wrapper for the expected and actual parameter types.
@@ -52,10 +63,95 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * @param modifiers the expected modifiers (e.g., "public", "static")
      */
     public MethodWrapper(ClassWrapper<T> parentClass, String expectedName, Class<R> expectedReturnType, Class<?>[] paramTypes, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofNullableClass(expectedReturnType), TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Constructs a new MethodWrapper whose parameter types may include student classes. Each parameter type is a
+     * {@link Class}, a {@link ClassWrapper} (e.g. {@code ClassWrapper.reference("Guitarist", "band")}) or a
+     * {@link Supplier} of a class wrapper (needs a cast in an array: {@code (Supplier<ClassWrapper<?>>) () -> x}).
+     * Student classes are only looked up when the method is checked; if one is missing, only the parameters count
+     * as missing.
+     *
+     * @param parentClass the class wrapper containing this method
+     * @param expectedName the expected name of the method
+     * @param expectedReturnType the expected return type of the method
+     * @param paramTypes the expected parameter types for the method
+     * @param modifiers the expected modifiers (e.g., "public", "static")
+     * @throws IllegalArgumentException if a parameter type is {@code null} or of another kind
+     */
+    public MethodWrapper(ClassWrapper<T> parentClass, String expectedName, Class<R> expectedReturnType, Object[] paramTypes, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofNullableClass(expectedReturnType), TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Constructs a new MethodWrapper whose return type is a student class, e.g. {@code Drummer getDrummer()}.
+     * The return type is only looked up when the method is checked; if the student class is missing, only the
+     * return type counts as missing.
+     *
+     * @param parentClass the class wrapper containing this method
+     * @param expectedName the expected name of the method
+     * @param expectedReturnType the wrapper of the expected return type
+     * @param paramTypes the expected parameter types, see {@link #MethodWrapper(ClassWrapper, String, Class, Object[], String...)}
+     * @param modifiers the expected modifiers (e.g., "public", "static")
+     */
+    public MethodWrapper(ClassWrapper<T> parentClass, String expectedName, ClassWrapper<? extends R> expectedReturnType, Object[] paramTypes, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofWrapper(expectedReturnType, "the return type of " + expectedName),
+                TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Like {@link #MethodWrapper(ClassWrapper, String, ClassWrapper, Object[], String...)} for a method with no
+     * parameters.
+     *
+     * @param parentClass the class wrapper containing this method
+     * @param expectedName the expected name of the method
+     * @param expectedReturnType the wrapper of the expected return type
+     * @param modifiers the expected modifiers (e.g., "public", "static")
+     */
+    public MethodWrapper(ClassWrapper<T> parentClass, String expectedName, ClassWrapper<? extends R> expectedReturnType, String... modifiers) {
+        this(parentClass, expectedName, expectedReturnType, new Object[0], modifiers);
+    }
+
+    /**
+     * Like {@link #MethodWrapper(ClassWrapper, String, ClassWrapper, Object[], String...)}, but the wrapper of the
+     * return type is only taken from the supplier when the method is checked, e.g. {@code () -> TestManager.drummer}.
+     *
+     * @param parentClass the class wrapper containing this method
+     * @param expectedName the expected name of the method
+     * @param expectedReturnType supplies the wrapper of the expected return type
+     * @param paramTypes the expected parameter types, see {@link #MethodWrapper(ClassWrapper, String, Class, Object[], String...)}
+     * @param modifiers the expected modifiers (e.g., "public", "static")
+     */
+    public MethodWrapper(ClassWrapper<T> parentClass, String expectedName,
+                         Supplier<? extends ClassWrapper<? extends R>> expectedReturnType, Object[] paramTypes, String... modifiers) {
+        this(parentClass, expectedName, TypeRef.ofSupplier(expectedReturnType, "the return type of " + expectedName),
+                TypeRef.ofAll(paramTypes), modifiers);
+    }
+
+    /**
+     * Like {@link #MethodWrapper(ClassWrapper, String, Supplier, Object[], String...)} for a method with no
+     * parameters.
+     *
+     * @param parentClass the class wrapper containing this method
+     * @param expectedName the expected name of the method
+     * @param expectedReturnType supplies the wrapper of the expected return type
+     * @param modifiers the expected modifiers (e.g., "public", "static")
+     */
+    public MethodWrapper(ClassWrapper<T> parentClass, String expectedName,
+                         Supplier<? extends ClassWrapper<? extends R>> expectedReturnType, String... modifiers) {
+        this(parentClass, expectedName, expectedReturnType, new Object[0], modifiers);
+    }
+
+    private MethodWrapper(ClassWrapper<T> parentClass, String expectedName, TypeRef returnRef, TypeRef[] paramRefs,
+                          String... modifiers) {
         super(parentClass, expectedName, modifiers);
-        this.paramTypes = paramTypes == null ? new Class<?>[0] : paramTypes.clone();
+        this.paramRefs = paramRefs;
+        this.returnRef = returnRef;
+        boolean fixed = Arrays.stream(paramRefs).allMatch(TypeRef::isFixed);
+        this.paramTypes = fixed ? TypeRef.resolveAll(paramRefs) : null;
         this.params = new WrapperProperty<>(this.paramTypes);
-        this.returnType = new WrapperProperty<>(expectedReturnType);
+        this.returnType = new WrapperProperty<>(returnRef != null && returnRef.isFixed() ? returnRef.resolve() : null);
     }
 
     /**
@@ -85,7 +181,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * @return {@code "name(Type1,Type2)"} of the expected signature; used to keep other wrappers' members
      */
     String expectedSignatureKey() {
-        return signatureKey(name.expected, paramTypes);
+        return signatureKey(name.expected, getParamTypes());
     }
 
     /**
@@ -104,7 +200,8 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             if (i > 0) {
                 key.append(',');
             }
-            key.append(parameterTypes[i].getName());
+            // a missing student class matches no actual method
+            key.append(parameterTypes[i] == null ? "?" : parameterTypes[i].getName());
         }
         return key.append(')').toString();
     }
@@ -112,10 +209,16 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     @Override
     protected void findWithDeviation()
     {
+        paramTypes = getParamTypes();
+        params.expected = paramTypes;
+        returnType.expected = getExpectedReturnType();
         Class<T> clazz = getParentClassWrapper().getClazz();
         if(clazz != null) {
             try // First try exact match
             {
+                if (hasUnresolvedParameter()) {
+                    throw new NoSuchMethodException(); // not with the exact types: look for the closest candidate
+                }
                 method = clazz.getDeclaredMethod(name.expected, paramTypes);
                 name.actual = method.getName();
                 name.existence = EXACT;
@@ -166,8 +269,13 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             method = best;
             name.actual = best.getName();
             name.existence = best.getName().equals(name.expected) ? EXACT : DEVIATES;
-            params.existence = parametersMatch(best.getParameterTypes());
+            // a parameter whose student class is missing cannot match
+            params.existence = hasUnresolvedParameter() ? MISSING : parametersMatch(best.getParameterTypes());
         }
+    }
+
+    private boolean hasUnresolvedParameter() {
+        return Arrays.asList(paramTypes).contains(null);
     }
 
     /**
@@ -180,7 +288,8 @@ public class MethodWrapper<T, R> extends Wrapper<T>
 
     /**
      * @return -1 if the parameters cannot match, otherwise a score where lower is closer: 0 for identical types,
-     *         1 per primitive/wrapper difference and 2 per numeric difference (e.g. {@code long} vs. {@code int})
+     *         1 per primitive/wrapper difference, 2 per numeric difference (e.g. {@code long} vs. {@code int}) and
+     *         {@value Utils#UNRESOLVED_PARAMETER_SCORE} per reference type in place of a missing student class
      */
     private int parameterDeviation(Class<?>[] actualParams) {
         if (actualParams.length != paramTypes.length) {
@@ -188,6 +297,13 @@ public class MethodWrapper<T, R> extends Wrapper<T>
         }
         int score = 0;
         for (int i = 0; i < paramTypes.length; i++) {
+            if (paramTypes[i] == null) {
+                if (actualParams[i].isPrimitive()) {
+                    return -1;
+                }
+                score += Utils.UNRESOLVED_PARAMETER_SCORE;
+                continue;
+            }
             if (actualParams[i].equals(paramTypes[i])) {
                 continue;
             }
@@ -360,10 +476,21 @@ public class MethodWrapper<T, R> extends Wrapper<T>
     }
 
     /**
-     * @return the expected parameter types
+     * Resolves student classes given as parameter types.
+     *
+     * @return the expected parameter types; a student class that is missing is {@code null}
      */
     public Class<?>[] getParamTypes() {
-        return paramTypes.clone();
+        return paramTypes != null ? paramTypes.clone() : TypeRef.resolveAll(paramRefs);
+    }
+
+    /**
+     * Resolves a student class given as return type.
+     *
+     * @return the expected return type, or {@code null} if none was given or the student class is missing
+     */
+    public Class<?> getExpectedReturnType() {
+        return returnRef == null ? null : returnRef.resolve();
     }
 
     /**
@@ -400,9 +527,9 @@ public class MethodWrapper<T, R> extends Wrapper<T>
         return String.format(
                 "%s %s %s(%s)",
                 modifiers.expected,
-                returnType.expected == null ? "<missing>" : returnType.expected.getSimpleName(),
+                returnRef == null ? "<missing>" : returnRef.expectedSimpleName(),
                 name.expected,
-                typeNames(paramTypes)
+                TypeRef.simpleNames(paramRefs)
         ).trim();
     }
 
