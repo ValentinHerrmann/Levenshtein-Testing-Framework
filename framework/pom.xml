@@ -123,6 +123,10 @@
         -->
         <profile>
             <id>mutation</id>
+            <properties>
+                <!-- GitHub's standard Linux runners have 4 cores; override with -Dpit.threads=n -->
+                <pit.threads>4</pit.threads>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -158,7 +162,7 @@
                             <mutators>
                                 <mutator>STRONGER</mutator>
                             </mutators>
-                            <threads>2</threads>
+                            <threads>${pit.threads}</threads>
                             <timestampedReports>false</timestampedReports>
                             <outputFormats>
                                 <format>HTML</format>
