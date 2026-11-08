@@ -460,6 +460,8 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             created = (T) constructorWrapper.invoke(args);
         }
         else {
+            // the no-argument constructor takes no arguments (checked like for abstract classes)
+            Invocations.checkArguments(new Class<?>[0], args, name.expected + "()");
             created = (T) instantiateWithNoArgConstructor(c);
         }
         obj = created;
@@ -519,16 +521,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
                 constructorWrapper != null ? constructorWrapper.actualToString() : name.expected + "()");
         Object[] shown = Invocations.snapshotArguments(args);
         try {
-            if (dynamicSubclass == null) {
-                Class<T> base = getClazz();
-                dynamicSubclass = new ByteBuddy()
-                        .subclass(base)
-                        .make()
-                        .load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
-                        .getLoaded();
-            }
-            Constructor<?> ctor = dynamicSubclass.getDeclaredConstructor(types);
-            return Invocations.newInstance(ctor, args);
+            return Invocations.newInstance(dynamicSubclassConstructor(types), args);
         }
         catch (Throwable e) {
             if (e instanceof AssertionError failure) {
@@ -537,6 +530,30 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             Invocations.rethrowIfCritical(e);
             return fail(Invocations.withArguments(
                     Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), shown), e);
+        }
+    }
+
+    /**
+     * The constructor of the Byte Buddy subclass (created once) that calls the class's constructor with the given
+     * parameter types. Calling it runs the student's constructor, whose exceptions are not wrapped.
+     *
+     * @param types the parameter types of the student's constructor
+     * @return the constructor of the generated subclass
+     */
+    Constructor<?> dynamicSubclassConstructor(Class<?>[] types) {
+        try {
+            if (dynamicSubclass == null) {
+                Class<T> base = getClazz();
+                dynamicSubclass = new ByteBuddy()
+                        .subclass(base)
+                        .make()
+                        .load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+                        .getLoaded();
+            }
+            return dynamicSubclass.getDeclaredConstructor(types);
+        }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return fail(Messages.CLASS_SUBCLASS_INSTANTIATION_FAILED.format(name.expected, Invocations.describe(e)), e);
         }
     }
 
@@ -706,6 +723,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
 
     @Override
     public String actualToString() {
+        ensureChecked();
         if(clazz == null) {
             return "<missing>";
         }
