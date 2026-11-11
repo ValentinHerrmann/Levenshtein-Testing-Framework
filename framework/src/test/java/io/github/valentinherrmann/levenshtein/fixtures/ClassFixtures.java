@@ -54,11 +54,12 @@ public final class ClassFixtures {
         public ThrowingDefaultCtor() { throw new IllegalStateException("not today"); }
     }
 
-    /** Constructors throwing an {@link AssertionError} or a critical {@link VirtualMachineError}. */
+    /** Constructors throwing an {@link AssertionError} or a {@link VirtualMachineError}. */
     public static class CriticalCtors {
         public CriticalCtors() { throw new AssertionError("student assertion"); }
         public CriticalCtors(String text) { throw new AssertionError("student assertion " + text); }
         public CriticalCtors(int depth) { throw new StackOverflowError("too deep " + depth); }
+        public CriticalCtors(long size) { throw new OutOfMemoryError("too big " + size); }
         public CriticalCtors(String text, int value) { }
     }
 

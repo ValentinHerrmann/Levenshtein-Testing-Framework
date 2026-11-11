@@ -294,6 +294,11 @@ public enum Messages {
             "Hinweis: Ein StackOverflowError deutet meist auf eine endlose Rekursion hin (eine Methode ruft sich immer wieder selbst auf).",
             "Hint: a StackOverflowError usually means endless recursion (a method keeps calling itself)."),
 
+    /** Appended below a {@link Failure} block whose actual outcome is an {@link OutOfMemoryError}. */
+    FAILURE_OUT_OF_MEMORY_HINT(
+            "Hinweis: Ein OutOfMemoryError deutet meist auf eine Schleife hin, die einen String oder eine Liste immer weiter vergrößert und nie endet.",
+            "Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends."),
+
     /**
      * Expected outcome of a call that should throw an exception.
      * Placeholder: (1) the exception type.

@@ -139,6 +139,40 @@ class FailureTest {
     }
 
     @Test
+    void outOfMemoryAddsAHint() {
+        assertThat(Failure.of("f()").thrown(new OutOfMemoryError("Java heap space")).message()).isEqualTo("""
+                Method:   f()
+                Actual:   OutOfMemoryError: Java heap space
+                Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
+        // also as the cause of another exception
+        assertThat(Failure.of("f()").thrown(new IllegalStateException("wrapped", new OutOfMemoryError())).message())
+                .endsWith("a loop keeps making a String or a list bigger and never ends.");
+        LevenshteinSettings.setLanguage(LevenshteinSettings.Language.DEUTSCH);
+        assertThat(Failure.of("f()").thrown(new OutOfMemoryError()).message())
+                .contains("Schleife hin, die einen String oder eine Liste immer weiter vergrößert");
+    }
+
+    @Test
+    void hintIsFoundInTheFirstFiveExceptionsOfTheCauseChain() {
+        assertThat(Failure.of("f()").thrown(wrapped(new OutOfMemoryError(), 4)).message()).contains("Hint:");
+        assertThat(Failure.of("f()").thrown(wrapped(new OutOfMemoryError(), 5)).message()).doesNotContain("Hint:");
+    }
+
+    private static Throwable wrapped(Throwable t, int times) {
+        for (int i = 0; i < times; i++) {
+            t = new IllegalStateException("wrapper " + i, t);
+        }
+        return t;
+    }
+
+    @Test
+    void otherErrorsOfTheVirtualMachineHaveNoHint() {
+        assertThat(Failure.of("f()").thrown(new InternalError("broken")).message()).isEqualTo("""
+                Method:   f()
+                Actual:   InternalError: broken""");
+    }
+
+    @Test
     void callReturnsTheResultOrReportsTheException() {
         assertThat(Failure.call(() -> 42)).isEqualTo(42);
         Failure.call(() -> { });
@@ -154,13 +188,19 @@ class FailureTest {
     }
 
     @Test
-    void callPassesFailuresAndCriticalErrorsOn() {
+    void callPassesFailuresAndSecurityViolationsOn() {
         AssertionError assertion = new AssertionError("from Ares");
         assertThat(catchThrowable(() -> Failure.call(() -> { throw assertion; }))).isSameAs(assertion);
         SecurityException security = new SecurityException("blocked");
         assertThat(catchThrowable(() -> Failure.call(() -> { throw security; }))).isSameAs(security);
-        OutOfMemoryError memory = new OutOfMemoryError("full");
-        assertThat(catchThrowable(() -> Failure.call(() -> { throw memory; }))).isSameAs(memory);
+    }
+
+    @Test
+    void callReportsAnOutOfMemoryErrorWithAHint() {
+        Throwable memory = catchThrowable(() -> Failure.call(() -> { throw new OutOfMemoryError("full"); }));
+        assertThat(memory).isInstanceOf(AssertionError.class).hasNoCause().hasMessage("""
+                Actual:   OutOfMemoryError: full
+                Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
     }
 
     @Test

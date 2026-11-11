@@ -183,23 +183,47 @@ class MethodWrapperTest {
     void criticalThrowablesOfStudentCodeArePassedOn() {
         Object obj = outcomes.newObjWithoutConstructor();
         MethodWrapper<Object, Void> forbidden = new MethodWrapper<>(outcomes, "forbidden", void.class, "public");
-        MethodWrapper<Object, Void> outOfMemory = new MethodWrapper<>(outcomes, "outOfMemory", void.class, "public");
         MethodWrapper<Object, Void> failAssertion = new MethodWrapper<>(outcomes, "failAssertion", void.class, "public");
 
         assertThatThrownBy(() -> forbidden.invokeOnSpecificObject(obj))
                 .isExactlyInstanceOf(SecurityException.class).hasMessage("forbidden by the sandbox");
-        assertThatThrownBy(() -> outOfMemory.invokeOnSpecificObject(obj))
-                .isExactlyInstanceOf(OutOfMemoryError.class).hasMessage("too much");
         assertThatThrownBy(() -> failAssertion.invokeOnSpecificObject(obj))
                 .isExactlyInstanceOf(AssertionError.class).hasMessage("checked by Ares");
 
         // also when another exception is expected
         assertThatThrownBy(() -> forbidden.invokeExpectingException(IllegalStateException.class, obj))
                 .isExactlyInstanceOf(SecurityException.class);
-        assertThatThrownBy(() -> outOfMemory.invokeExpectingException(IllegalStateException.class, obj))
-                .isExactlyInstanceOf(OutOfMemoryError.class);
         // unless it is the expected one
         assertThat(forbidden.invokeExpectingException(SecurityException.class, obj)).hasMessage("forbidden by the sandbox");
+    }
+
+    @Test
+    void outOfMemoryOfStudentCodeIsReportedWithAHint() {
+        Object obj = outcomes.newObjWithoutConstructor();
+        MethodWrapper<Object, Void> outOfMemory = new MethodWrapper<>(outcomes, "outOfMemory", void.class, "public");
+        assertThat(failure(() -> outOfMemory.invokeOnSpecificObjectWithContext(() -> "standard cases", obj)))
+                .isEqualTo("""
+                        Method:   outOfMemory()
+                        Scenario: standard cases
+                        Actual:   OutOfMemoryError: too much
+                        Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
+        assertThat(failure(() -> outOfMemory.invokeExpectingException(IllegalStateException.class, obj)))
+                .isEqualTo("""
+                        Method:   outOfMemory()
+                        Expected: IllegalStateException is thrown
+                        Actual:   OutOfMemoryError: too much
+                        Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
+        // the expected error is returned
+        assertThat(outOfMemory.invokeExpectingException(OutOfMemoryError.class, obj)).hasMessage("too much");
+    }
+
+    @Test
+    void otherErrorsOfTheVirtualMachineAreReportedWithoutAHint() {
+        Object obj = outcomes.newObjWithoutConstructor();
+        MethodWrapper<Object, Void> internalError = new MethodWrapper<>(outcomes, "internalError", void.class, "public");
+        assertThat(failure(() -> internalError.invokeOnSpecificObject(obj))).isEqualTo("""
+                Method:   internalError()
+                Actual:   InternalError: broken VM""");
     }
 
     @Test

@@ -40,7 +40,8 @@ public final class Failure {
     private boolean rawValues;
     private int failedCases;
     private int totalCases;
-    private boolean stackOverflow;
+    /** The hint shown below the block, e.g. on endless recursion; {@code null} for none. */
+    private Messages hint;
 
     private Failure(String member) {
         this.member = member;
@@ -143,7 +144,8 @@ public final class Failure {
 
     /**
      * Shows an exception of the student code as actual outcome, e.g. {@code IllegalStateException: message}
-     * (never with a stack trace). A {@link StackOverflowError} adds a hint on endless recursion.
+     * (never with a stack trace). Errors of the virtual machine are shown the same way. A {@link StackOverflowError}
+     * adds a hint on endless recursion, an {@link OutOfMemoryError} a hint on a loop that never stops growing.
      *
      * @param t the exception thrown by the student code
      * @return this failure
@@ -151,7 +153,7 @@ public final class Failure {
     public Failure thrown(Throwable t) {
         this.actual = Invocations.describe(t);
         this.rawValues = false;
-        this.stackOverflow = causedByStackOverflow(t);
+        this.hint = hintFor(t);
         return this;
     }
 
@@ -200,8 +202,8 @@ public final class Failure {
         if (totalCases > 1) {
             out.append('\n').append(Messages.FAILURE_CASES.format(failedCases, totalCases));
         }
-        if (stackOverflow) {
-            out.append('\n').append(Messages.FAILURE_STACK_OVERFLOW_HINT.get());
+        if (hint != null) {
+            out.append('\n').append(hint.get());
         }
         return out.toString();
     }
@@ -231,8 +233,9 @@ public final class Failure {
     }
 
     /**
-     * Runs student code and turns an exception it throws into a failure block (Actual: the exception).
-     * Failures ({@link AssertionError}) and security violations are passed on unchanged.
+     * Runs student code and turns an exception or error it throws into a failure block (Actual: the exception),
+     * also an error of the virtual machine such as {@link OutOfMemoryError}. Failures ({@link AssertionError}) and
+     * security violations are passed on unchanged.
      *
      * @param code the code to run, e.g. {@code () -> wrapper.invokeRaw(...)} or a call of a student method
      * @param <R> the result type
@@ -312,12 +315,19 @@ public final class Failure {
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 
-    private static boolean causedByStackOverflow(Throwable t) {
+    /**
+     * @param t the exception thrown by the student code
+     * @return the hint for an error of the virtual machine in its cause chain, or {@code null} if there is none
+     */
+    private static Messages hintFor(Throwable t) {
         for (int i = 0; t != null && i < 5; i++, t = t.getCause()) {
             if (t instanceof StackOverflowError) {
-                return true;
+                return Messages.FAILURE_STACK_OVERFLOW_HINT;
+            }
+            if (t instanceof OutOfMemoryError) {
+                return Messages.FAILURE_OUT_OF_MEMORY_HINT;
             }
         }
-        return false;
+        return null;
     }
 }

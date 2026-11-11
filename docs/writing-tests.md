@@ -155,12 +155,24 @@ Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
   A `DEVIATES` element (typo, other numeric type, extra modifier, ...) is used as it is.
 * An exception thrown by student code fails the test with a [failure block](#reporting-failures): the method,
   the argument values and the exception's type and message as `Actual:`. No stack trace and no cause are
-  attached. A `StackOverflowError` adds a hint on endless recursion.
+  attached. Errors of the virtual machine (`StackOverflowError`, `OutOfMemoryError`, ...) are mistakes of the
+  student code, too, and are reported the same way. A `StackOverflowError` adds a hint on endless recursion, an
+  `OutOfMemoryError` a hint on a loop that never stops growing. The tests after it run normally.
+
+  ```text
+  Method:   createMedley(List)
+  Scenario: standard cases
+  Input:    ["Intro", "Chorus", "Bridge", "Outro"]
+  Actual:   OutOfMemoryError: Java heap space
+  Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.
+  ```
+
 * Arrays and collections with more than ten elements are shortened in the `Input:` line
   (`[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]`). They are shown as they were passed, even if the student's code
   changed them.
 * Ares security violations are passed through unchanged, also when a student's `toString()` causes one while
-  the message is built; an endlessly recursing `toString()` is shown as `(toString() threw StackOverflowError)`.
+  the message is built. A `toString()` that throws anything else is shown with the type of what it threw, e.g.
+  an endlessly recursing one as `(toString() threw StackOverflowError)`.
 * A failure inside the call (from Ares, a mock or a number conversion) keeps its own message and gets an
   `Arguments:` line and the text of `invokeWithContext`.
 
@@ -293,10 +305,12 @@ if (Math.abs(actual - 31.25) > 1e-9) {
   `float` with two decimals (`LevenshteinSettings.setDecimals(n)` changes that; the separator is always a
   dot), strings in double quotes, characters in single quotes, `null`, arrays and lists in brackets.
   `.expectedText(...)` / `.actualText(...)` show a text as it is.
-* `.thrown(exception)` shows an exception as `Actual: IllegalStateException: message`.
+* `.thrown(exception)` shows an exception as `Actual: IllegalStateException: message`. A `StackOverflowError`
+  or `OutOfMemoryError` (also as the cause of another exception) adds its hint below the block.
 * `.error()` returns the `AssertionError` to throw. It never has a cause, so students see no stack trace.
-* `Failure.call(() -> ...)` runs student code and turns any exception into a block (`Actual:` only); failures
-  and Ares security violations are passed on unchanged.
+* `Failure.call(() -> ...)` runs student code and turns any exception or error, also an `OutOfMemoryError`,
+  into a block (`Actual:` only); failures and Ares security violations are passed on unchanged. Prefer the
+  wrappers' `invoke...` methods, whose block also shows the method and the input.
 * Report the first failing case only and count the others with `.cases(failed, total)`.
 
 Structural failures ("Class X in package Y is not implemented as expected.") keep their short form.

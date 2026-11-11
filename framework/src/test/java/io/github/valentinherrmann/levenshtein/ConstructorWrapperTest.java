@@ -135,6 +135,21 @@ class ConstructorWrapperTest {
         }
 
         @Test
+        void outOfMemoryIsReportedWithAHint() {
+            assertThatThrownBy(() -> ctor(critical, "public", long.class).invoke(7L))
+                    .isInstanceOf(AssertionError.class)
+                    .hasNoCause()
+                    .hasMessageContaining("Input:    7")
+                    .hasMessageContaining("Actual:   OutOfMemoryError: too big 7")
+                    .hasMessageEndingWith("Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.");
+            assertThatThrownBy(() -> ctor(critical, "public", long.class).invokeExpectingException(IllegalStateException.class, 7L))
+                    .isInstanceOf(AssertionError.class)
+                    .hasMessageContaining("Expected: IllegalStateException is thrown")
+                    .hasMessageContaining("Actual:   OutOfMemoryError: too big 7")
+                    .hasMessageContaining("Hint: an OutOfMemoryError");
+        }
+
+        @Test
         void otherExceptionTypeThanExpectedFails() {
             W<Object> calls = ClassWrapperTest.fixture("Calls", "public static");
             ConstructorWrapper<Object> c = ctor(calls, "public", String[].class);

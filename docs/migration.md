@@ -39,8 +39,12 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
   * `double`/`float` values are shown with two decimals (`2.50`, `LevenshteinSettings.setDecimals`).
   * The `AssertionError` no longer has the student's exception as cause (no stack trace, no `Caused by`).
     Read the exception from `invokeExpectingException` if a test needs it.
-  * A `StackOverflowError` of student code is a normal failure with a hint on endless recursion instead of
-    being rethrown.
+  * A `StackOverflowError`, an `OutOfMemoryError` or any other `VirtualMachineError` of student code is a
+    normal failure (with a hint on endless recursion or on a loop that never stops growing) instead of being
+    rethrown (#44). Tests that expected the bare error, e.g. from `Failure.call`, now get an `AssertionError`
+    with the failure block; `invokeExpectingException(OutOfMemoryError.class, ...)` still returns it.
+  * A student's `toString()` that throws an error of the virtual machine while a message is built is shown as
+    `(toString() threw OutOfMemoryError)` instead of failing the test with that error.
   * The old message constants are kept but `@Deprecated`.
 * **No structural tests for empty groups.** `structuralTestFactory` no longer generates tests such as
   `Attributes[X]` for a class without attribute wrappers or `Constructors[X]` for an interface. They always

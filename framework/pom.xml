@@ -105,6 +105,27 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.0</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/RealOutOfMemoryTest.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <!-- Student code that really runs out of heap (#44): in its own JVM with a small heap. -->
+                    <execution>
+                        <id>out-of-memory</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <includes>
+                                <include>**/RealOutOfMemoryTest.java</include>
+                            </includes>
+                            <argLine>-Xmx64m</argLine>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -155,6 +176,10 @@
                             <excludedClasses>
                                 <param>io.github.valentinherrmann.levenshtein.fixtures.*</param>
                             </excludedClasses>
+                            <!-- needs the small heap of its own surefire execution; the other tests cover the code -->
+                            <excludedTestClasses>
+                                <param>io.github.valentinherrmann.levenshtein.RealOutOfMemoryTest</param>
+                            </excludedTestClasses>
                             <mutators>
                                 <mutator>STRONGER</mutator>
                             </mutators>
