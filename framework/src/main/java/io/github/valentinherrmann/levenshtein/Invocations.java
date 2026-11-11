@@ -51,9 +51,10 @@ final class Invocations {
 
     /**
      * Rethrows throwables that must never be turned into an ordinary test failure:
-     * assertion failures (they already are failures, often from Ares), security violations reported by
-     * Ares, and virtual machine errors other than a {@link StackOverflowError}: endless recursion is a mistake of
-     * the student code and is reported like an exception (with a hint, see {@link Failure#thrown(Throwable)}).
+     * assertion failures (they already are failures, often from Ares) and security violations reported by
+     * Ares. Errors of the virtual machine thrown by the student code ({@link StackOverflowError} for endless
+     * recursion, {@link OutOfMemoryError} for a loop that never stops growing, ...) are mistakes of the student
+     * code and are reported like an exception (with a hint, see {@link Failure#thrown(Throwable)}).
      *
      * @param t the throwable caught while running student code
      */
@@ -62,9 +63,6 @@ final class Invocations {
             throw e;
         }
         if (t instanceof SecurityException e) {
-            throw e;
-        }
-        if (t instanceof VirtualMachineError e && !(t instanceof StackOverflowError)) {
             throw e;
         }
     }
@@ -349,9 +347,6 @@ final class Invocations {
                 List<Object> elements = collection.stream().limit(MAX_ELEMENTS).collect(Collectors.toList());
                 return describeElements(elements, collection.size(), depth, exact);
             }
-            catch (StackOverflowError e) {
-                // fall back to toString()
-            }
             catch (Throwable t) {
                 rethrowIfMessageMustNotHideIt(t);
                 // fall back to toString()
@@ -360,11 +355,8 @@ final class Invocations {
         try {
             return cut(String.valueOf(value), MAX_VALUE_LENGTH);
         }
-        catch (StackOverflowError e) {
-            // e.g. toString() of two objects that refer to each other
-            return value.getClass().getSimpleName() + " (toString() threw StackOverflowError)";
-        }
         catch (Throwable t) {
+            // e.g. a StackOverflowError of toString() of two objects that refer to each other
             rethrowIfMessageMustNotHideIt(t);
             return value.getClass().getSimpleName() + " (toString() threw " + t.getClass().getSimpleName() + ")";
         }
@@ -372,14 +364,11 @@ final class Invocations {
 
     /**
      * Rethrows what must not become part of a failure message while student code ({@code toString()}, a
-     * collection) is shown: security violations reported by Ares and virtual machine errors other than a
-     * {@link StackOverflowError} (which the caller handles).
+     * collection) is shown: security violations reported by Ares. Everything else, also an error of the virtual
+     * machine, is shown as {@code (toString() threw ...)}.
      */
     private static void rethrowIfMessageMustNotHideIt(Throwable t) {
         if (t instanceof SecurityException e) {
-            throw e;
-        }
-        if (t instanceof VirtualMachineError e) {
             throw e;
         }
     }

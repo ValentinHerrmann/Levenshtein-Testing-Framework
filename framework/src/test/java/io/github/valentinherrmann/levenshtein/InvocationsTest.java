@@ -32,10 +32,12 @@ class InvocationsTest {
     void criticalThrowablesAreRethrown() {
         AssertionError assertion = new AssertionError("a");
         SecurityException security = new SecurityException("s");
-        OutOfMemoryError vmError = new OutOfMemoryError("m");
         assertThatThrownBy(() -> Invocations.rethrowIfCritical(assertion)).isSameAs(assertion);
         assertThatThrownBy(() -> Invocations.rethrowIfCritical(security)).isSameAs(security);
-        assertThatThrownBy(() -> Invocations.rethrowIfCritical(vmError)).isSameAs(vmError);
+        // errors of the virtual machine come from the student code and are reported like exceptions
+        assertThatCode(() -> Invocations.rethrowIfCritical(new OutOfMemoryError("m"))).doesNotThrowAnyException();
+        assertThatCode(() -> Invocations.rethrowIfCritical(new StackOverflowError())).doesNotThrowAnyException();
+        assertThatCode(() -> Invocations.rethrowIfCritical(new InternalError())).doesNotThrowAnyException();
         assertThatCode(() -> Invocations.rethrowIfCritical(new IllegalStateException())).doesNotThrowAnyException();
         assertThatCode(() -> Invocations.rethrowIfCritical(new Exception())).doesNotThrowAnyException();
     }
@@ -210,11 +212,11 @@ class InvocationsTest {
     }
 
     @Test
-    void failingToStringIsShownReadablyUnlessItIsAnErrorOfTheVirtualMachine() {
+    void failingToStringIsShownReadablyAlsoForAnErrorOfTheVirtualMachine() {
         assertThat(Invocations.describeValue(new CallFixtures.FailingToString()))
                 .isEqualTo("FailingToString (toString() threw IllegalStateException)");
-        assertThatThrownBy(() -> Invocations.describeValue(new CallFixtures.FatalToString()))
-                .isInstanceOf(OutOfMemoryError.class);
+        assertThat(Invocations.describeValue(new CallFixtures.FatalToString()))
+                .isEqualTo("FatalToString (toString() threw OutOfMemoryError)");
     }
 
     @Test

@@ -24,6 +24,20 @@ public final class CallFixtures {
         public double calculateCost(int x) { return 4; } // the right name, but other parameters
     }
 
+    /**
+     * Student code that runs out of heap: each round joins the list with the string so far as separator, so the
+     * string grows about as many times as the list has elements (see {@code RealOutOfMemoryTest}).
+     */
+    public static class Medley {
+        public static String createMedley(List<String> l) {
+            String s = "";
+            for (String string : l) {
+                s = String.join(s, l);
+            }
+            return s;
+        }
+    }
+
     /** A generic interface, so the class has a bridge method {@code compareTo(Object)}. */
     public static class Ranked implements Comparable<Ranked> {
         @Override
@@ -41,6 +55,7 @@ public final class CallFixtures {
         public int countOrMinusOne(int[] values) { return values == null ? -1 : values.length; }
         public void forbidden() { throw new SecurityException("forbidden by the sandbox"); }
         public void outOfMemory() { throw new OutOfMemoryError("too much"); }
+        public void internalError() { throw new InternalError("broken VM"); }
         public void failAssertion() { throw new AssertionError("checked by Ares"); }
         public void boom() { throw new IllegalStateException("boom"); }
         public void clearAndFail(java.util.Collection<Integer> values) {
@@ -142,7 +157,7 @@ public final class CallFixtures {
         public String toString() { return "broken collection"; }
     }
 
-    /** A {@code toString()} that fails with an error of the virtual machine. */
+    /** A {@code toString()} that fails with an error of the virtual machine (shown like any other exception). */
     public static class FatalToString {
         @Override
         public String toString() { throw new OutOfMemoryError("toString"); }
