@@ -215,6 +215,11 @@ class MethodWrapperTest {
                         Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
         // the expected error is returned
         assertThat(outOfMemory.invokeExpectingException(OutOfMemoryError.class, obj)).hasMessage("too much");
+        // the block can be told apart from other failures without reading its message
+        AssertionError block = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                () -> outOfMemory.invokeOnSpecificObject(obj));
+        assertThat(block).isExactlyInstanceOf(AssertionError.class).hasNoCause();
+        assertThat(Failure.isResourceError(block)).isTrue();
     }
 
     @Test
@@ -224,6 +229,9 @@ class MethodWrapperTest {
         assertThat(failure(() -> internalError.invokeOnSpecificObject(obj))).isEqualTo("""
                 Method:   internalError()
                 Actual:   InternalError: broken VM""");
+        AssertionError block = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                () -> internalError.invokeOnSpecificObject(obj));
+        assertThat(Failure.isResourceError(block)).isFalse();
     }
 
     @Test

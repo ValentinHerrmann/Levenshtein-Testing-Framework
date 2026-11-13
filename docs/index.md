@@ -26,7 +26,8 @@ Expect:	public void start()
   unexpected modifier is reported, harmless ones can be marked optional (`"final?"`)
 * **Behavioural testing** through wrappers that call the student's (possibly misspelled) members
 * **One failure format**: every failure in student code, and your own checks via `Failure`, shows Method,
-  Scenario, Input, Expected and Actual, without stack traces
+  Scenario, Input, Expected and Actual, without stack traces; `Failure.forEachCase` reports one of many cases and
+  prefers a `StackOverflowError` or `OutOfMemoryError` (`Failure.isResourceError`)
 * **Getter/setter tests in one line**: `testGettersSetters` generates values, checks setter conditions and
   compares arrays by content
 * **Independent tests**: objects without running a student constructor, test-owned method overrides and call

@@ -193,8 +193,8 @@ assertThat(e.getMessage()).contains("price");
 
 `invokeWithContext(() -> "case " + i + ", seed " + seed, args...)` and
 `invokeOnSpecificObjectWithContext(context, obj, args...)` show the text in the `Scenario:` line of the failure.
-The supplier is only evaluated if the call fails. For checks of your own results, report with
-[`Failure`](#reporting-failures) and count the failed cases with `.cases(failed, total)`.
+The supplier is only evaluated if the call fails. To check many cases and report one of them, run them with
+[`Failure.forEachCase`](#checking-many-cases).
 
 ### Arrays as arguments
 
@@ -253,7 +253,8 @@ void priceGettersSetters() {
   `NullPointerException` for `null`) marks the value invalid. Only setters are checked; more complex rules
   need a behavioural test of your own.
 * Every subtest runs with every sample value. If a case fails, the test fails with the
-  [failure block](#reporting-failures) of the first failing case and the number of failed cases. The
+  [failure block](#reporting-failures) of the first failing case and the number of failed cases. A
+  `StackOverflowError` or `OutOfMemoryError` of a later case is shown instead, so students see its hint. The
   `Scenario:` line names the subtest:
 
 ```text
@@ -311,9 +312,67 @@ if (Math.abs(actual - 31.25) > 1e-9) {
 * `Failure.call(() -> ...)` runs student code and turns any exception or error, also an `OutOfMemoryError`,
   into a block (`Actual:` only); failures and Ares security violations are passed on unchanged. Prefer the
   wrappers' `invoke...` methods, whose block also shows the method and the input.
-* Report the first failing case only and count the others with `.cases(failed, total)`.
+* `.cases(failed, total)` adds "(n of m cases failed)". `Failure.forEachCase` (below) counts the cases for you.
 
 Structural failures ("Class X in package Y is not implemented as expected.") keep their short form.
+
+### Checking many cases
+
+`Failure.forEachCase(cases, body)` runs a check for every case and fails with one block plus the number of
+failed cases:
+
+```java
+Failure.forEachCase(List.of(0, 1, 5, 20), n -> {
+    String actual = wrapper.repeat().invoke("ab", n);
+    if (!actual.equals("ab".repeat(n))) {
+        throw Failure.of(wrapper.repeat()).arguments("ab", n)
+                .expected("ab".repeat(n)).actual(actual)
+                .error();
+    }
+});
+```
+
+```text
+Method:   repeat(String, int)
+Input:    "ab", 20
+Actual:   OutOfMemoryError: Java heap space
+(2 of 4 cases failed)
+Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.
+```
+
+* All cases run. Only failures (`AssertionError`) are counted; any other exception passes on at once, so call
+  student code through the wrappers or `Failure.call`, which turn its exceptions into blocks.
+* The block shown is the first `StackOverflowError` or `OutOfMemoryError` of the student code, so students see
+  its hint even if an earlier case only returned a wrong value. Without one, it is the first failure.
+* A failure that is not a `Failure` block (e.g. from AssertJ) gets the line "(n of m cases failed)" appended
+  and keeps its type with the expected and actual values. A block that already counts cases of its own (e.g.
+  from `testGettersSetters`) keeps its count.
+
+### Detecting resource errors
+
+`Failure.isResourceError(e)` tells whether a failure comes from a `StackOverflowError` or an `OutOfMemoryError`
+of the student code (also as the cause of another exception), without reading the message. Use it for your own
+loops over cases, e.g. to prefer such a block:
+
+```java
+AssertionError shown = null;
+for (int n : inputs) {
+    try {
+        check(n);
+    } catch (AssertionError e) {
+        if (shown == null || (!Failure.isResourceError(shown) && Failure.isResourceError(e))) {
+            shown = e;
+        }
+    }
+}
+if (shown != null) {
+    throw shown; // Failure.forEachCase also adds "(n of m cases failed)"
+}
+```
+
+It works for the blocks of the wrappers, `Failure.call`, `testGettersSetters` and your own `.error()`, which stay
+plain `AssertionError`s without a cause. A block copied into a new error (`new AssertionError(e.getMessage())`)
+is no longer recognized.
 
 ## Abstract classes and interfaces (Byte Buddy)
 

@@ -93,7 +93,7 @@ supervision (`@LevenshteinTest` + `@Policy`).
 | `GenericClassWrapper<T>` | Wraps a class that is already loaded; used for the student's *actual* superclass and interfaces, not for expected classes |
 | `WrapperProperty<T>` | Expected vs. actual value of one part plus its `Existence` |
 | `StructuralLevenshtein` | JUnit `DynamicTest` factory for the structural tests (`DetailLevel`) |
-| `Failure` | The structured failure block (`Method:`, `Scenario:`, `Input:`, `Expected:`, `Actual:`), also for your own checks |
+| `Failure` | The structured failure block (`Method:`, `Scenario:`, `Input:`, `Expected:`, `Actual:`), also for your own checks; runs many cases (`forEachCase`) and detects stack overflow and out of memory errors (`isResourceError`) |
 | `Mock<T>` | Test-owned overrides and call records on an object of a student class |
 | `LevenshteinTest` / `HiddenLevenshteinTest` | Composed annotations: `@Public`/`@Hidden` + `@StrictTimeout(5)` + `@MirrorOutput` + `@ExtendWith(StaticStateReset.class)` |
 | `StaticStateReset` | JUnit extension that resets unexpectedly `static` attributes before each test |
@@ -246,6 +246,8 @@ classDiagram
         +error() AssertionError
         +format(Object value)$ String
         +call(ThrowingSupplier code)$ R
+        +isResourceError(Throwable t)$ boolean
+        +forEachCase(Iterable cases, Consumer body)$
     }
     class Mock~T~ {
         <<final>>

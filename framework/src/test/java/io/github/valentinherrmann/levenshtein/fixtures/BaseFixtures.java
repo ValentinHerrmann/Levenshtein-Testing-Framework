@@ -119,6 +119,10 @@ public final class BaseFixtures {
         private int size = 7;
         public int getSizee() { return 42; }
 
+        // the getter is wrong for every value and recurses endlessly for 42 and 1
+        private int deep;
+        public int getDeep() { if (deep == 42 || deep == 1) throw new StackOverflowError("deep " + deep); return deep + 1; }
+
         // a final attribute with a wrong getter
         private final int limit = 5;
         public int getLimit() { return 6; }
