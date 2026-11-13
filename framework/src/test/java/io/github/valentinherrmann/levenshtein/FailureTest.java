@@ -224,6 +224,124 @@ class FailureTest {
 
     /** No framework failure of a student exception contains a stack trace or a cause, in both languages. */
     @Test
+    void resourceErrorsAreDetectedWithoutReadingTheMessage() {
+        AssertionError outOfMemory = Failure.of("f()").thrown(new OutOfMemoryError("Java heap space")).error();
+        AssertionError stackOverflow = Failure.of("f()").thrown(new StackOverflowError()).error();
+        AssertionError asCause = Failure.of("f()").thrown(new RuntimeException(new OutOfMemoryError())).error();
+        assertThat(List.of(outOfMemory, stackOverflow, asCause)).allSatisfy(e -> {
+            assertThat(e).isExactlyInstanceOf(AssertionError.class).hasNoCause();
+            assertThat(Failure.isResourceError(e)).isTrue();
+        });
+        // a block from Failure.call, too
+        assertThat(Failure.isResourceError(catchThrowable(() -> Failure.call(FailureTest::recurse)))).isTrue();
+
+        assertThat(Failure.isResourceError(Failure.of("f()").thrown(new IllegalStateException("x")).error())).isFalse();
+        assertThat(Failure.isResourceError(Failure.of("f()").expected(1).actual(2).error())).isFalse();
+        assertThat(Failure.isResourceError(Failure.of("f()").thrown(new InternalError("vm")).error())).isFalse();
+        // the same text is not enough
+        assertThat(Failure.isResourceError(new AssertionError(outOfMemory.getMessage()))).isFalse();
+        assertThat(Failure.isResourceError(new AssertionError("x", new OutOfMemoryError()))).isTrue();
+        assertThat(Failure.isResourceError(null)).isFalse();
+        // the errors of the virtual machine themselves
+        assertThat(Failure.isResourceError(new OutOfMemoryError())).isTrue();
+        assertThat(Failure.isResourceError(new StackOverflowError())).isTrue();
+        assertThat(Failure.isResourceError(new IllegalStateException())).isFalse();
+    }
+
+    @Test
+    void laterChangesOfTheBuilderDoNotChangeAnError() {
+        Failure failure = Failure.of("f()").thrown(new OutOfMemoryError());
+        AssertionError first = failure.error();
+        failure.thrown(new IllegalStateException());
+        AssertionError second = failure.error();
+        assertThat(Failure.isResourceError(first)).isTrue();
+        assertThat(Failure.isResourceError(second)).isFalse();
+    }
+
+    @Test
+    void forEachCasePassesIfAllCasesPass() {
+        List<Integer> seen = new java.util.ArrayList<>();
+        Failure.forEachCase(List.of(1, 2, 3), seen::add);
+        assertThat(seen).containsExactly(1, 2, 3);
+        Failure.forEachCase(List.of(), n -> {
+            throw new AssertionError("never");
+        });
+    }
+
+    @Test
+    void forEachCaseReportsTheFirstFailureWithTheNumberOfFailedCases() {
+        List<Integer> seen = new java.util.ArrayList<>();
+        Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3, 4, 5), n -> {
+            seen.add(n);
+            if (n % 2 == 0) {
+                throw Failure.of("square(int)").arguments(n).expected(n * n).actual(n).error();
+            }
+        }));
+        assertThat(seen).containsExactly(1, 2, 3, 4, 5);
+        assertThat(thrown).isExactlyInstanceOf(AssertionError.class).hasNoCause().hasMessage("""
+                Method:   square(int)
+                Input:    2
+                Expected: 4
+                Actual:   2
+                (2 of 5 cases failed)""");
+        assertThat(Failure.isResourceError(thrown)).isFalse();
+    }
+
+    @Test
+    void forEachCasePrefersTheFirstResourceError() {
+        Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3, 4), n -> {
+            if (n == 1) {
+                throw Failure.of("grow(int)").arguments(n).expected(1).actual(2).error();
+            }
+            if (n == 3) {
+                throw Failure.of("grow(int)").arguments(n).thrown(new OutOfMemoryError("Java heap space")).error();
+            }
+            if (n == 4) {
+                throw Failure.of("grow(int)").arguments(n).thrown(new StackOverflowError()).error();
+            }
+        }));
+        assertThat(thrown).isExactlyInstanceOf(AssertionError.class).hasNoCause().hasMessage("""
+                Method:   grow(int)
+                Input:    3
+                Actual:   OutOfMemoryError: Java heap space
+                (3 of 4 cases failed)
+                Hint: an OutOfMemoryError usually means that a loop keeps making a String or a list bigger and never ends.""");
+        assertThat(Failure.isResourceError(thrown)).isTrue();
+    }
+
+    @Test
+    void forEachCaseAddsTheNumberOfFailedCasesToOtherFailures() {
+        Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of("a", "b", "c"), s -> {
+            if (!s.equals("b")) {
+                assertThat(s).isEqualTo("b");
+            }
+        }));
+        assertThat(thrown).isExactlyInstanceOf(AssertionError.class).hasNoCause();
+        assertThat(thrown.getMessage()).contains("\"a\"").endsWith("\n(2 of 3 cases failed)");
+
+        // a single case is passed on unchanged
+        AssertionError only = new AssertionError("only");
+        assertThat(catchThrowable(() -> Failure.forEachCase(List.of(1), n -> {
+            throw only;
+        }))).isSameAs(only);
+    }
+
+    @Test
+    void forEachCasePassesOnOtherExceptionsAtOnce() {
+        List<Integer> seen = new java.util.ArrayList<>();
+        IllegalStateException bug = new IllegalStateException("bug in the test");
+        assertThat(catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3), n -> {
+            seen.add(n);
+            if (n == 2) {
+                throw bug;
+            }
+        }))).isSameAs(bug);
+        assertThat(seen).containsExactly(1, 2);
+        assertThatThrownBy(() -> Failure.forEachCase(null, n -> { })).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> Failure.forEachCase(List.of(1), null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void frameworkFailuresHaveNoStackTraceInBothLanguages() {
         for (LevenshteinSettings.Language language : LevenshteinSettings.Language.values()) {
             LevenshteinSettings.setLanguage(language);

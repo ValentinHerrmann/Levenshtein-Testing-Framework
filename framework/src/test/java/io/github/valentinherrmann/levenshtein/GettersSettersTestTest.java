@@ -240,6 +240,22 @@ class GettersSettersTestTest {
         }
 
         @Test
+        void stackOverflowOfALaterCaseIsShownInsteadOfTheFirstWrongValue() {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            AssertionError e = org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                    () -> w.testGettersSetters(attribute("deep", int.class), getter("getDeep", int.class)));
+            assertThat(e).hasNoCause().hasMessage("""
+                    Method:   getDeep()
+                    Scenario: attribute -> getter, attribute deep
+                    Input:    deep = 42
+                    Expected: 42
+                    Actual:   StackOverflowError: deep 42
+                    (5 of 5 cases failed)
+                    Hint: a StackOverflowError usually means endless recursion (a method keeps calling itself).""");
+            assertThat(Failure.isResourceError(e)).isTrue();
+        }
+
+        @Test
         void setterMayStoreAnInvalidValueIfItThrows() { // "keep the value unchanged or throw an exception"
             assertThatCode(() -> w.testGettersSetters(attribute("positive", int.class), (Integer p) -> p >= 0,
                     getter("getPositive", int.class), setter("setPositive", int.class))).doesNotThrowAnyException();

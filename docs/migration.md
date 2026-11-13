@@ -72,6 +72,12 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
 
 * **`Failure`** for your own checks, so students see the same format there. See
   [Reporting failures](writing-tests.md#reporting-failures).
+* **`Failure.isResourceError(e)`** and **`Failure.forEachCase(cases, body)`** (#46): tell a block of a
+  `StackOverflowError` or `OutOfMemoryError` from a wrong result without parsing the message, and run many cases
+  reporting one block plus "(n of m cases failed)", preferring such an error. Replace loops that look for
+  `"OutOfMemoryError"` in the message by these. See [Checking many cases](writing-tests.md#checking-many-cases).
+  `testGettersSetters` shows a `StackOverflowError` or `OutOfMemoryError` of a later case instead of the first
+  failing case, too.
 * **Optional modifiers** with a `?` suffix, and `getMissingModifiers()` / `getUnexpectedModifiers()` on every
   wrapper.
 * **`StaticStateReset`**: `@LevenshteinTest` and `@HiddenLevenshteinTest` reset attributes that are unexpectedly

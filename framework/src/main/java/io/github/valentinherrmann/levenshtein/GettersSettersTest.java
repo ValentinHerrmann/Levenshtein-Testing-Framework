@@ -217,7 +217,8 @@ final class GettersSettersTest {
 
     /**
      * Runs all applicable subtests with all sample values and fails with the {@link Failure} block of the first
-     * failing case, followed by the number of failed cases.
+     * failing case (the first stack overflow or out of memory error if there is one, see
+     * {@link Failure#isResourceError(Throwable)}), followed by the number of failed cases.
      */
     void run() {
         if (setter != null) {
@@ -235,7 +236,7 @@ final class GettersSettersTest {
     }
 
     /**
-     * Counts a checked case and remembers the first failure.
+     * Counts a checked case and remembers the first failure, or the first stack overflow or out of memory error.
      *
      * @param failure the failure of the case, or {@code null} if it passed
      */
@@ -243,7 +244,7 @@ final class GettersSettersTest {
         totalCases++;
         if (failure != null) {
             failedCases++;
-            if (firstFailure == null) {
+            if (firstFailure == null || (!firstFailure.isResourceError() && failure.isResourceError())) {
                 firstFailure = failure;
             }
         }

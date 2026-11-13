@@ -26,7 +26,7 @@ Expect:	public void start()
 ✅ **Fuzzy name matching** for classes, methods and attributes; the closest candidate wins  
 ✅ **Structural verification** of modifiers, types, constructors, superclasses and interfaces; missing and unexpected modifiers are reported  
 ✅ **Behavioural testing** through wrappers that call the student's (possibly misspelled) members  
-✅ **One failure format**: every failure in student code (also your own checks via `Failure`) shows Method, Scenario, Input, Expected and Actual, without stack traces  
+✅ **One failure format**: every failure in student code (also your own checks via `Failure`) shows Method, Scenario, Input, Expected and Actual, without stack traces; `Failure.forEachCase` reports one of many cases and prefers a `StackOverflowError` or `OutOfMemoryError` (`Failure.isResourceError`)  
 ✅ **Getter/setter tests in one line** with generated values and setter conditions  
 ✅ **Independent tests**: objects without running a student constructor, test-owned method overrides and call checks (`mock()`)  
 ✅ **Student classes as member types**, found with the same tolerance  

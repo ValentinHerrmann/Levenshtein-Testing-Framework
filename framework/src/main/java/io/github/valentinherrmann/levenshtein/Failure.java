@@ -1,7 +1,12 @@
 package io.github.valentinherrmann.levenshtein;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 /**
  * The one format of every behaviour failure: a block of labelled lines, localized with {@link Messages} and
@@ -25,9 +30,24 @@ import java.util.List;
  * Lines that are not set are left out. The {@link AssertionError} of {@link #error()} never has a cause, so no
  * stack trace of the student code is shown.
  *
+ * <p>To check many cases and report one of them, use {@link #forEachCase(Iterable, Consumer)}. It shows the first
+ * block built from a {@link StackOverflowError} or {@link OutOfMemoryError} if there is one (see
+ * {@link #isResourceError(Throwable)}), otherwise the first failure, plus the number of failed cases:</p>
+ * <pre>{@code
+ * Failure.forEachCase(List.of(1, 2, 3), n ->
+ *         assertEquals(n * n, square.invoke(n)));
+ * }</pre>
+ *
  * <p>Structural failures (a missing class, method, ...) keep their short form and do not use this block.</p>
  */
 public final class Failure {
+
+    /**
+     * The blocks created by {@link #error()}, by the identity of the error ({@link Throwable} does not override
+     * {@code equals}). The error itself must stay exactly an {@link AssertionError}: Ares reports any other class
+     * of throwable as an unexpected error with its class name in front of the message.
+     */
+    private static final Map<AssertionError, Failure> BLOCKS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final String member;
     private String scenario;
@@ -212,7 +232,92 @@ public final class Failure {
      * @return a failure with the block as message and without a cause, ready to be thrown
      */
     public AssertionError error() {
-        return new AssertionError(message());
+        AssertionError error = new AssertionError(message());
+        BLOCKS.put(error, copy());
+        return error;
+    }
+
+    /**
+     * Whether a failure was caused by the student code running out of a resource: a block of {@link #error()}
+     * built with {@link #thrown(Throwable)} from a {@link StackOverflowError} or an {@link OutOfMemoryError} (also
+     * as the cause of another exception), or any other throwable with such an error in its cause chain, also the
+     * error itself. The message is not parsed: a block copied into a new {@link AssertionError} (e.g.
+     * {@code new AssertionError(e.getMessage())}) is not recognized.
+     *
+     * @param t a failure, e.g. caught from a wrapper's {@code invoke}, from {@link #call(ThrowingSupplier)} or
+     *          from {@code testGettersSetters}
+     * @return whether it is a stack overflow or an out of memory error of the student code
+     */
+    public static boolean isResourceError(Throwable t) {
+        Failure block = t instanceof AssertionError e ? BLOCKS.get(e) : null;
+        return block != null ? block.isResourceError() : hintFor(t) != null;
+    }
+
+    /**
+     * Runs a check for every case and fails with one failure plus the line "(n of m cases failed)": the first
+     * {@linkplain #isResourceError(Throwable) stack overflow or out of memory error}, so students see its hint,
+     * otherwise the first failure. Only failures ({@link AssertionError}) are counted; any other exception passes
+     * on at once. Call student code through the wrappers or {@link #call(ThrowingSupplier)}, which turn its
+     * exceptions into failures.
+     *
+     * @param cases the cases, e.g. inputs or seeds
+     * @param body the check of one case; it fails with an {@link AssertionError}, e.g. from {@link #error()}
+     * @param <C> the type of a case
+     */
+    public static <C> void forEachCase(Iterable<C> cases, Consumer<? super C> body) {
+        Objects.requireNonNull(cases, "cases");
+        Objects.requireNonNull(body, "body");
+        int total = 0;
+        int failed = 0;
+        AssertionError shown = null;
+        for (C c : cases) {
+            total++;
+            try {
+                body.accept(c);
+            }
+            catch (AssertionError e) {
+                failed++;
+                if (shown == null || (!isResourceError(shown) && isResourceError(e))) {
+                    shown = e;
+                }
+            }
+        }
+        if (shown == null) {
+            return;
+        }
+        Failure block = BLOCKS.get(shown);
+        if (block != null) {
+            throw block.copy().cases(failed, total).error();
+        }
+        if (total > 1) {
+            throw new AssertionError(shown.getMessage() + "\n" + Messages.FAILURE_CASES.format(failed, total));
+        }
+        throw shown;
+    }
+
+    /**
+     * @return whether this failure shows a {@link StackOverflowError} or an {@link OutOfMemoryError} (it has a hint)
+     */
+    boolean isResourceError() {
+        return hint != null;
+    }
+
+    /**
+     * @return a new failure with the same lines
+     */
+    private Failure copy() {
+        Failure copy = new Failure(member);
+        copy.scenario = scenario;
+        copy.input = input;
+        copy.expected = expected;
+        copy.actual = actual;
+        copy.expectedValue = expectedValue;
+        copy.actualValue = actualValue;
+        copy.rawValues = rawValues;
+        copy.failedCases = failedCases;
+        copy.totalCases = totalCases;
+        copy.hint = hint;
+        return copy;
     }
 
     @Override
