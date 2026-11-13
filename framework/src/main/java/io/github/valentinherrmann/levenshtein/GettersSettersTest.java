@@ -244,7 +244,8 @@ final class GettersSettersTest {
         totalCases++;
         if (failure != null) {
             failedCases++;
-            if (firstFailure == null || (!firstFailure.isResourceError() && failure.isResourceError())) {
+            if (Failure.replaces(firstFailure, firstFailure != null && firstFailure.isResourceError(),
+                    failure.isResourceError())) {
                 firstFailure = failure;
             }
         }

@@ -311,19 +311,94 @@ class FailureTest {
 
     @Test
     void forEachCaseAddsTheNumberOfFailedCasesToOtherFailures() {
+        List<org.opentest4j.AssertionFailedError> originals = new java.util.ArrayList<>();
         Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of("a", "b", "c"), s -> {
             if (!s.equals("b")) {
-                assertThat(s).isEqualTo("b");
+                try {
+                    assertThat(s).isEqualTo("b");
+                } catch (org.opentest4j.AssertionFailedError e) {
+                    originals.add(e);
+                    throw e;
+                }
             }
         }));
-        assertThat(thrown).isExactlyInstanceOf(AssertionError.class).hasNoCause();
+        // AssertJ's AssertionFailedError keeps its type and values, e.g. for the diff view of an IDE
+        assertThat(thrown).isExactlyInstanceOf(org.opentest4j.AssertionFailedError.class).hasNoCause();
         assertThat(thrown.getMessage()).contains("\"a\"").endsWith("\n(2 of 3 cases failed)");
+        org.opentest4j.AssertionFailedError withValues = (org.opentest4j.AssertionFailedError) thrown;
+        assertThat(withValues.getExpected().getValue()).isEqualTo(originals.get(0).getExpected().getValue());
+        assertThat(withValues.getActual().getValue()).isEqualTo(originals.get(0).getActual().getValue());
+        assertThat(withValues.isActualDefined()).isTrue();
+
+        Throwable withoutValues = catchThrowable(() -> Failure.forEachCase(List.of(1, 2), n -> {
+            throw new org.opentest4j.AssertionFailedError("plain " + n);
+        }));
+        assertThat(withoutValues).isExactlyInstanceOf(org.opentest4j.AssertionFailedError.class)
+                .hasMessage("plain 1\n(2 of 2 cases failed)");
+        assertThat(((org.opentest4j.AssertionFailedError) withoutValues).isExpectedDefined()).isFalse();
+
+        // only one of the values defined: none is kept
+        Throwable expectedOnly = catchThrowable(() -> Failure.forEachCase(List.of(1, 2), n -> {
+            throw new org.opentest4j.AssertionFailedError("half", 1, 2) {
+                @Override
+                public boolean isActualDefined() {
+                    return false;
+                }
+            };
+        }));
+        assertThat(((org.opentest4j.AssertionFailedError) expectedOnly).isExpectedDefined()).isFalse();
+        Throwable actualOnly = catchThrowable(() -> Failure.forEachCase(List.of(1, 2), n -> {
+            throw new org.opentest4j.AssertionFailedError("half", 1, 2) {
+                @Override
+                public boolean isExpectedDefined() {
+                    return false;
+                }
+            };
+        }));
+        assertThat(((org.opentest4j.AssertionFailedError) actualOnly).isActualDefined()).isFalse();
+
+        // a plain AssertionError stays one; without a message its class name is shown, not "null"
+        Throwable noMessage = catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3), n -> {
+            if (n != 2) {
+                throw new AssertionError();
+            }
+        }));
+        assertThat(noMessage).isExactlyInstanceOf(AssertionError.class).hasNoCause()
+                .hasMessage("AssertionError\n(2 of 3 cases failed)");
 
         // a single case is passed on unchanged
         AssertionError only = new AssertionError("only");
         assertThat(catchThrowable(() -> Failure.forEachCase(List.of(1), n -> {
             throw only;
         }))).isSameAs(only);
+    }
+
+    @Test
+    void forEachCaseKeepsTheCountOfABlockThatCountsItsOwnCases() {
+        AssertionError inner = Failure.of("getPrice()").expected(1).actual(2).cases(10, 15).error();
+        Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3), n -> {
+            if (n == 2) {
+                throw inner;
+            }
+        }));
+        assertThat(thrown).isSameAs(inner);
+        assertThat(thrown.getMessage()).endsWith("\n(10 of 15 cases failed)");
+
+        // a block that checked a single case gets the count of forEachCase
+        Throwable single = catchThrowable(() -> Failure.forEachCase(List.of(1, 2, 3), n -> {
+            if (n != 2) {
+                throw Failure.of("f()").actual(n).cases(1, 1).error();
+            }
+        }));
+        assertThat(single).hasMessage("Method:   f()\nActual:   1\n(2 of 3 cases failed)");
+    }
+
+    @Test
+    void forEachCaseShowsValuesThatOnlyLookEqualAfterRoundingExactly() {
+        Throwable thrown = catchThrowable(() -> Failure.forEachCase(List.of(1, 2), n -> {
+            throw Failure.of("f()").expected(2.5).actual(2.4999).error();
+        }));
+        assertThat(thrown).hasMessage("Method:   f()\nExpected: 2.5\nActual:   2.4999\n(2 of 2 cases failed)");
     }
 
     @Test

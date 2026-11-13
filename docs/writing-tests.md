@@ -344,7 +344,9 @@ Hint: an OutOfMemoryError usually means that a loop keeps making a String or a l
   student code through the wrappers or `Failure.call`, which turn its exceptions into blocks.
 * The block shown is the first `StackOverflowError` or `OutOfMemoryError` of the student code, so students see
   its hint even if an earlier case only returned a wrong value. Without one, it is the first failure.
-* A failure that is not a `Failure` block (e.g. from AssertJ) gets the line "(n of m cases failed)" appended.
+* A failure that is not a `Failure` block (e.g. from AssertJ) gets the line "(n of m cases failed)" appended
+  and keeps its type with the expected and actual values. A block that already counts cases of its own (e.g.
+  from `testGettersSetters`) keeps its count.
 
 ### Detecting resource errors
 
@@ -362,6 +364,9 @@ for (int n : inputs) {
             shown = e;
         }
     }
+}
+if (shown != null) {
+    throw shown; // Failure.forEachCase also adds "(n of m cases failed)"
 }
 ```
 

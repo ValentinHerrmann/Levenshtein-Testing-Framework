@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
+import org.opentest4j.AssertionFailedError;
+
 /**
  * The one format of every behaviour failure: a block of labelled lines, localized with {@link Messages} and
  * {@link LevenshteinSettings#getLanguage()}. The framework reports exceptions of student code,
@@ -198,16 +200,9 @@ public final class Failure {
         add(lines, Messages.FAILURE_METHOD, member);
         add(lines, Messages.FAILURE_SCENARIO, scenario);
         add(lines, Messages.FAILURE_INPUT, input);
-        String shownExpected = expected;
-        String shownActual = actual;
-        if (rawValues && expected != null && expected.equals(actual)
-                && expectedValue != null && !java.util.Objects.deepEquals(expectedValue, actualValue)) {
-            // e.g. 2.5 and 2.4999 both show as 2.50: show them as they are
-            shownExpected = Invocations.describeValueExactly(expectedValue);
-            shownActual = Invocations.describeValueExactly(actualValue);
-        }
-        add(lines, Messages.FAILURE_EXPECTED, shownExpected);
-        add(lines, Messages.FAILURE_ACTUAL, shownActual);
+        String[] shown = shownValues();
+        add(lines, Messages.FAILURE_EXPECTED, shown[0]);
+        add(lines, Messages.FAILURE_ACTUAL, shown[1]);
         int width = labelWidth();
         StringBuilder out = new StringBuilder();
         for (String[] line : lines) {
@@ -233,7 +228,7 @@ public final class Failure {
      */
     public AssertionError error() {
         AssertionError error = new AssertionError(message());
-        BLOCKS.put(error, copy());
+        BLOCKS.put(error, textsOnly());
         return error;
     }
 
@@ -258,7 +253,9 @@ public final class Failure {
      * {@linkplain #isResourceError(Throwable) stack overflow or out of memory error}, so students see its hint,
      * otherwise the first failure. Only failures ({@link AssertionError}) are counted; any other exception passes
      * on at once. Call student code through the wrappers or {@link #call(ThrowingSupplier)}, which turn its
-     * exceptions into failures.
+     * exceptions into failures. A block that already counts cases of its own (e.g. from {@code testGettersSetters})
+     * keeps its count; a failure that is no block (e.g. from AssertJ) gets the line appended and keeps its type
+     * and the expected and actual values of an {@link AssertionFailedError}.
      *
      * @param cases the cases, e.g. inputs or seeds
      * @param body the check of one case; it fails with an {@link AssertionError}, e.g. from {@link #error()}
@@ -270,6 +267,7 @@ public final class Failure {
         int total = 0;
         int failed = 0;
         AssertionError shown = null;
+        boolean shownIsResource = false;
         for (C c : cases) {
             total++;
             try {
@@ -277,22 +275,54 @@ public final class Failure {
             }
             catch (AssertionError e) {
                 failed++;
-                if (shown == null || (!isResourceError(shown) && isResourceError(e))) {
+                boolean resource = isResourceError(e);
+                if (replaces(shown, shownIsResource, resource)) {
                     shown = e;
+                    shownIsResource = resource;
                 }
             }
         }
         if (shown == null) {
             return;
         }
+        throw withCases(shown, failed, total);
+    }
+
+    /**
+     * The rule of {@link #forEachCase(Iterable, Consumer)} and {@code testGettersSetters} for the one failure shown:
+     * the first one, unless a later one is a stack overflow or out of memory error and the kept one is not.
+     *
+     * @param kept the failure kept so far, or {@code null} if there is none
+     * @param keptIsResource whether the kept failure is a {@linkplain #isResourceError(Throwable) resource error}
+     * @param nextIsResource whether the next failure is one
+     * @return whether the next failure replaces the kept one
+     */
+    static boolean replaces(Object kept, boolean keptIsResource, boolean nextIsResource) {
+        return kept == null || (!keptIsResource && nextIsResource);
+    }
+
+    /**
+     * @return the failure with the line "(n of m cases failed)": a block of {@link #error()} that has no count yet
+     *         is built again with it, any other failure gets the line appended to its message (keeping the
+     *         expected and actual values of an {@link AssertionFailedError}); a block that already has its own
+     *         count and a single case are passed on unchanged
+     */
+    private static AssertionError withCases(AssertionError shown, int failed, int total) {
         Failure block = BLOCKS.get(shown);
+        if (total <= 1 || (block != null && block.totalCases > 1)) {
+            return shown;
+        }
         if (block != null) {
-            throw block.copy().cases(failed, total).error();
+            return block.copy().cases(failed, total).error();
         }
-        if (total > 1) {
-            throw new AssertionError(shown.getMessage() + "\n" + Messages.FAILURE_CASES.format(failed, total));
+        String message = Objects.toString(shown.getMessage(), shown.getClass().getSimpleName())
+                + "\n" + Messages.FAILURE_CASES.format(failed, total);
+        if (shown instanceof AssertionFailedError f) {
+            return f.isExpectedDefined() && f.isActualDefined()
+                    ? new AssertionFailedError(message, f.getExpected().getValue(), f.getActual().getValue())
+                    : new AssertionFailedError(message);
         }
-        throw shown;
+        return new AssertionError(message);
     }
 
     /**
@@ -300,6 +330,34 @@ public final class Failure {
      */
     boolean isResourceError() {
         return hint != null;
+    }
+
+    /**
+     * @return the expected and actual text as shown: values that only look equal after rounding (e.g. 2.5 and
+     *         2.4999 both as 2.50) are shown exactly
+     */
+    private String[] shownValues() {
+        if (rawValues && expected != null && expected.equals(actual)
+                && expectedValue != null && !Objects.deepEquals(expectedValue, actualValue)) {
+            return new String[] {Invocations.describeValueExactly(expectedValue),
+                    Invocations.describeValueExactly(actualValue)};
+        }
+        return new String[] {expected, actual};
+    }
+
+    /**
+     * @return a copy that shows the same lines but keeps only texts, so a remembered block does not keep the
+     *         values of the student code alive
+     */
+    private Failure textsOnly() {
+        Failure copy = copy();
+        String[] shown = shownValues();
+        copy.expected = shown[0];
+        copy.actual = shown[1];
+        copy.expectedValue = null;
+        copy.actualValue = null;
+        copy.rawValues = false;
+        return copy;
     }
 
     /**
