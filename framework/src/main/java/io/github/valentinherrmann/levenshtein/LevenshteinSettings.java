@@ -69,6 +69,7 @@ public final class LevenshteinSettings {
     private static volatile int attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
     private static volatile boolean gettersSettersRequireSameObject = false;
     private static volatile UnexpectedModifiers unexpectedModifiers = UnexpectedModifiers.DEVIATE;
+    private static volatile boolean newDefaultObjectPerTest = true;
 
     /** Default number of decimals of {@code double} and {@code float} values in failure messages. */
     public static final int DEFAULT_DECIMALS = 2;
@@ -164,6 +165,28 @@ public final class LevenshteinSettings {
     }
 
     /**
+     * @return whether every test starts with a new default instance of each class wrapper (default {@code true})
+     * @see #setNewDefaultObjectPerTest(boolean)
+     */
+    public static boolean isNewDefaultObjectPerTest() {
+        return newDefaultObjectPerTest;
+    }
+
+    /**
+     * Chooses how long the default instance of a class wrapper ({@link ClassWrapper#getObj()}, also used by
+     * {@code invoke(...)} and {@code getValue()} without an object) is kept.
+     * {@code true} (default): {@link LevenshteinTest} forgets it before each test, so an object that one test
+     * changed cannot decide the result of the next.
+     * {@code false}: it is kept until {@code forceNew} is requested, across tests.
+     * An instance set with {@link ClassWrapper#setCachedObj(Object)} is kept in both cases.
+     *
+     * @param newObjectPerTest whether every test starts with a new default instance
+     */
+    public static void setNewDefaultObjectPerTest(boolean newObjectPerTest) {
+        newDefaultObjectPerTest = newObjectPerTest;
+    }
+
+    /**
      * @return the number of decimals of {@code double} and {@code float} values in failure messages
      *         (default {@value #DEFAULT_DECIMALS})
      * @see Failure#format(Object)
@@ -188,7 +211,7 @@ public final class LevenshteinSettings {
 
     /**
      * Restores all defaults (German messages, 20 % for every threshold, getter/setter values compared by content,
-     * unexpected modifiers deviate, {@value #DEFAULT_DECIMALS} decimals).
+     * unexpected modifiers deviate, a new default instance per test, {@value #DEFAULT_DECIMALS} decimals).
      */
     public static void reset() {
         language = Language.DEUTSCH;
@@ -197,6 +220,7 @@ public final class LevenshteinSettings {
         attributeNameDeviationThreshold = DEFAULT_THRESHOLD;
         gettersSettersRequireSameObject = false;
         unexpectedModifiers = UnexpectedModifiers.DEVIATE;
+        newDefaultObjectPerTest = true;
         decimals = DEFAULT_DECIMALS;
     }
 

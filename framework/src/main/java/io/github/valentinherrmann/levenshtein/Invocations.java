@@ -33,6 +33,9 @@ final class Invocations {
     /** Characters of a whole argument list shown before it is cut. */
     static final int MAX_ARGUMENTS_LENGTH = 300;
 
+    /** Characters of the message of an exception shown before it is cut. */
+    static final int MAX_MESSAGE_LENGTH = 1000;
+
     /** Nesting depth of arrays and collections shown (also guards against an array that contains itself). */
     private static final int MAX_DEPTH = 3;
 
@@ -68,8 +71,36 @@ final class Invocations {
     }
 
     /**
+     * Whether a throwable of student code is the exception a test expects
+     * ({@code invokeExpectingException}). A security violation reported by Ares, an assertion failure and an
+     * error of the virtual machine only count if the test asks for exactly that kind (the expected type is that
+     * class or a subclass of it): expecting a supertype such as {@link RuntimeException} or {@link Throwable}
+     * must not turn a sandbox violation or a stack overflow into a passed test.
+     *
+     * @param expected the exception type the test expects
+     * @param t the throwable caught while running student code
+     * @return whether the throwable is accepted as the expected exception
+     */
+    static boolean isExpected(Class<? extends Throwable> expected, Throwable t) {
+        if (!expected.isInstance(t)) {
+            return false;
+        }
+        for (Class<?> kind : NOT_EXPECTED_AS_SUPERTYPE) {
+            if (kind.isInstance(t)) {
+                return kind.isAssignableFrom(expected);
+            }
+        }
+        return true;
+    }
+
+    /** The kinds of throwables that are only accepted if a test expects exactly that kind, see {@link #isExpected}. */
+    private static final List<Class<?>> NOT_EXPECTED_AS_SUPERTYPE =
+            List.of(SecurityException.class, AssertionError.class, VirtualMachineError.class);
+
+    /**
      * @param t a throwable
-     * @return a short, student-readable description like {@code IllegalArgumentException: year < 0}
+     * @return a short, student-readable description like {@code IllegalArgumentException: year < 0}; a very long
+     *         message is cut after {@value #MAX_MESSAGE_LENGTH} characters
      */
     static String describe(Throwable t) {
         if (t == null) {
@@ -79,8 +110,43 @@ final class Invocations {
             // its own message is null; the cause is the exception of the static initializer
             return t.getClass().getSimpleName() + ": " + describe(t.getCause());
         }
-        String message = t.getMessage();
+        String message = messageOf(t);
         return t.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
+    /**
+     * {@code getMessage()} of an exception class of the student is student code: it may throw itself or return a
+     * text of any length.
+     *
+     * @return the message, cut if very long, or a note that it could not be read
+     */
+    private static String messageOf(Throwable t) {
+        try {
+            String message = t.getMessage();
+            return message == null ? null : cut(message, MAX_MESSAGE_LENGTH);
+        }
+        catch (Throwable broken) {
+            rethrowIfMessageMustNotHideIt(broken);
+            return "(getMessage() threw " + broken.getClass().getSimpleName() + ")";
+        }
+    }
+
+    /**
+     * Compares the arguments of two calls by content, as {@link Arrays#deepEquals(Object[], Object[])} does.
+     * {@code equals} of an argument may be student code: if it throws, the arguments count as different.
+     *
+     * @param a the arguments of one call (may be {@code null})
+     * @param b the arguments of the other call (may be {@code null})
+     * @return whether both calls have equal arguments
+     */
+    static boolean sameArguments(Object[] a, Object[] b) {
+        try {
+            return Arrays.deepEquals(a, b);
+        }
+        catch (Throwable broken) {
+            rethrowIfMessageMustNotHideIt(broken);
+            return false;
+        }
     }
 
     /**

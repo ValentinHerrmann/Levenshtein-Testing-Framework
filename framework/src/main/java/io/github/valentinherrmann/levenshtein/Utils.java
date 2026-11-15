@@ -124,7 +124,9 @@ public final class Utils
         if (converted != null) {
             return converted;
         }
-        return Assertions.fail(Messages.CAST_FAILED.format(val, val.getClass().getSimpleName(), castTo.getSimpleName()));
+        // describeValueExactly: toString() of the value is student code (it may throw or be very long)
+        return Assertions.fail(Messages.CAST_FAILED.format(Invocations.describeValueExactly(val),
+                val.getClass().getSimpleName(), castTo.getSimpleName()));
     }
 
     /**

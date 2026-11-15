@@ -301,7 +301,10 @@ public class ConstructorWrapper<T> extends Wrapper<T>
      * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
      * into several arguments.</p>
      *
-     * @param expected the expected exception type (subclasses are accepted)
+     * @param expected the expected exception type (subclasses are accepted). A security violation reported by
+     *                 Ares, an {@link AssertionError} and an error of the virtual machine (e.g.
+     *                 {@link StackOverflowError}) are only accepted if exactly that kind is expected, not for a
+     *                 supertype such as {@link RuntimeException} or {@link Throwable}.
      * @param args the arguments to pass to the constructor
      * @param <X> the exception type
      * @return the thrown exception, e.g. for further assertions on its message
@@ -330,7 +333,7 @@ public class ConstructorWrapper<T> extends Wrapper<T>
                     + (dynamic ? " (" + target.getDeclaringClass().getSimpleName() + ")" : ""));
         }
         catch (Throwable t) {
-            if (expected.isInstance(t)) {
+            if (Invocations.isExpected(expected, t)) {
                 return expected.cast(t);
             }
             Invocations.rethrowIfCritical(t);

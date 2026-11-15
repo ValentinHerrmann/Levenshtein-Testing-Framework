@@ -31,6 +31,7 @@ with deviating types, modifiers, parameters and inheritance, some of them combin
 Falls möglich wird der tatsächliche Wert für weitere Tests verwendet.
 Erwartet:	public int getYear()
 Tatsächlich:	protected long getYear()
+fehlender Modifikator: public
 
 ❌ FEHLT ❌ im Paket io.github.valentinherrmann.example.vehicles
 Erwartet:	public class Car extends AbstractVehicle implements Driveable

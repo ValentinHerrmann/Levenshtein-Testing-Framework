@@ -1,7 +1,8 @@
 # FAQ & Troubleshooting
 
-Answers to common questions and fixes for typical problems, grouped by topic. Each question is a heading, so you
-can link to it directly.
+Answers to common questions and fixes for typical problems, grouped by topic.
+
+Each question is a heading, so you can link to it directly.
 
 ## Setup and build
 
@@ -108,9 +109,14 @@ Throw `Failure.of(methodWrapper)...error()` instead of an AssertJ assertion, see
 
 ### Results depend on the order of the tests
 
-Usually a student attribute that is `static` although an instance attribute is expected. `@LevenshteinTest`
-resets such attributes before each test, but not `static final` ones and not the *content* of a list or map; see
-[Modifiers](matching.md#modifiers).
+Before each test, `@LevenshteinTest` gives every class wrapper a new default object and resets student attributes
+that are `static` although an instance attribute is expected. What still carries over from one test to the next:
+
+* `static final` attributes and the *content* of a static list or map, see [Modifiers](matching.md#modifiers);
+* attributes that the test expects to be `static`, and static attributes without a wrapper;
+* an object pinned with `setCachedObj(obj)`;
+* everything, if `LevenshteinSettings.setNewDefaultObjectPerTest(false)` is set or the test class has no
+  `@LevenshteinTest`.
 
 ## Limitations
 

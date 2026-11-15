@@ -17,10 +17,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Resets attributes that the student declared {@code static} although the test expects an instance attribute
- * (issue #35), so that their state does not leak from one test into the next.
+ * Keeps state from leaking from one test into the next: before each test it forgets the default instances of
+ * the class wrappers and resets attributes that the student declared {@code static} although the test expects an
+ * instance attribute (issue #35).
  *
- * <p>Such an attribute is a deviation (the structural test fails), but behaviour tests go on with it. Its value
+ * <p><b>Default instances.</b> {@link ClassWrapper#getObj()} caches the default instance of a class, and
+ * {@code invoke(...)}, {@code getValue()} and {@code setValue(...)} without an object use it. An object that one
+ * test changed must not decide the result of the next, so every test starts with a new one. An instance set with
+ * {@link ClassWrapper#setCachedObj(Object)} stays; {@link LevenshteinSettings#setNewDefaultObjectPerTest(boolean)}
+ * switches this off.</p>
+ *
+ * <p><b>Static attributes.</b> Such an attribute is a deviation (the structural test fails), but behaviour tests go on with it. Its value
  * is shared by all objects and, because the class is never reloaded, by all tests, so results could depend on
  * the order of the tests. Before each test this extension writes the value back that the attribute had right
  * after the class was initialised.</p>
@@ -43,6 +50,9 @@ import java.util.Set;
  *   <li>Wrappers are looked up before the test runs, so {@link LevenshteinSettings} must be configured in a static
  *       initializer or {@code @BeforeAll}; a change inside a test method or {@code @BeforeEach} comes too late for
  *       the attribute wrappers that exist already.</li>
+ *   <li>A wrapper whose lookup fails is skipped here; the test that uses it runs the lookup again and reports
+ *       the failure. A static initializer of the student that fails (also with a {@link StackOverflowError})
+ *       leaves the attribute without a recorded value and is reported by the behaviour tests.</li>
  *   <li>The initial value is the value when the first wrapper reported the attribute. If student code changed the
  *       attribute before (e.g. a test class without a wrapper for it ran first), that changed value is restored;
  *       the real initial value cannot be recovered without reloading the class.</li>
@@ -60,6 +70,9 @@ public class StaticStateReset implements InvocationInterceptor {
 
     /** All attribute wrappers created so far; weak, so wrappers of finished test classes can be collected. */
     private static final List<WeakReference<AttributeWrapper<?, ?>>> WRAPPERS = new ArrayList<>();
+
+    /** All class wrappers created so far (not those of known classes, which have no default instance); weak. */
+    private static final List<WeakReference<ClassWrapper<?>>> CLASS_WRAPPERS = new ArrayList<>();
 
     /** The initial value of each attribute with an unexpected {@code static}. */
     private static final Map<Field, Object> SNAPSHOTS = new LinkedHashMap<>();
@@ -101,14 +114,28 @@ public class StaticStateReset implements InvocationInterceptor {
     }
 
     /**
-     * Checks all registered attribute wrappers (recording the initial values of attributes with an unexpected
-     * {@code static}) and writes the recorded initial values back.
+     * Forgets the default instances of all registered class wrappers (unless
+     * {@link LevenshteinSettings#isNewDefaultObjectPerTest()} is switched off), checks all registered attribute
+     * wrappers (recording the initial values of attributes with an unexpected {@code static}) and writes the
+     * recorded initial values back.
      */
     static void resetAll() {
+        if (LevenshteinSettings.isNewDefaultObjectPerTest()) {
+            for (ClassWrapper<?> wrapper : live(CLASS_WRAPPERS)) {
+                wrapper.forgetDefaultObj();
+            }
+        }
         Set<Field> unexpectedStatic = new HashSet<>();
         Set<Field> expectedStatic = new HashSet<>();
-        for (AttributeWrapper<?, ?> wrapper : liveWrappers()) {
-            wrapper.ensureChecked();
+        for (AttributeWrapper<?, ?> wrapper : live(WRAPPERS)) {
+            try {
+                wrapper.ensureChecked();
+            }
+            catch (Throwable t) {
+                // not the business of this test: the test that uses the wrapper runs the lookup again and reports it
+                Invocations.rethrowIfCritical(t);
+                continue;
+            }
             Field field = wrapper.foundField();
             if (field == null) {
                 continue;
@@ -143,17 +170,30 @@ public class StaticStateReset implements InvocationInterceptor {
      * @param wrapper the new attribute wrapper
      */
     static void register(AttributeWrapper<?, ?> wrapper) {
-        synchronized (WRAPPERS) {
-            WRAPPERS.removeIf(ref -> ref.get() == null);
-            WRAPPERS.add(new WeakReference<>(wrapper));
+        add(WRAPPERS, wrapper);
+    }
+
+    /**
+     * Registers a class wrapper; its default instance is forgotten before each test.
+     *
+     * @param wrapper the new class wrapper
+     */
+    static void register(ClassWrapper<?> wrapper) {
+        add(CLASS_WRAPPERS, wrapper);
+    }
+
+    private static <W> void add(List<WeakReference<W>> wrappers, W wrapper) {
+        synchronized (wrappers) {
+            wrappers.removeIf(ref -> ref.get() == null);
+            wrappers.add(new WeakReference<>(wrapper));
         }
     }
 
-    private static List<AttributeWrapper<?, ?>> liveWrappers() {
-        List<AttributeWrapper<?, ?>> live = new ArrayList<>();
-        synchronized (WRAPPERS) {
-            for (WeakReference<AttributeWrapper<?, ?>> ref : WRAPPERS) {
-                AttributeWrapper<?, ?> wrapper = ref.get();
+    private static <W> List<W> live(List<WeakReference<W>> wrappers) {
+        List<W> live = new ArrayList<>();
+        synchronized (wrappers) {
+            for (WeakReference<W> ref : wrappers) {
+                W wrapper = ref.get();
                 if (wrapper != null) {
                     live.add(wrapper);
                 }
@@ -183,8 +223,10 @@ public class StaticStateReset implements InvocationInterceptor {
             field.setAccessible(true);
             value = deepCopy(field.get(null));
         }
-        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-            return; // e.g. a failing static initializer: reported by the behaviour tests
+        catch (Throwable t) {
+            // e.g. a static initializer that fails, also with a StackOverflowError or an OutOfMemoryError: there is
+            // no initial value to restore, and the failure is reported by the behaviour tests that use the class
+            return;
         }
         synchronized (SNAPSHOTS) {
             SNAPSHOTS.putIfAbsent(field, value);

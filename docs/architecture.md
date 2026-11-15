@@ -1,7 +1,9 @@
 # Architecture
 
 How the framework, an exam's tests and the student code fit together, which class does what, and how a wrapper
-gets from "expected" to "found". For the exact signatures of every public class and method see the
+gets from "expected" to "found".
+
+For the exact signatures of every public class and method see the
 [API Reference (Javadoc)](https://valentinherrmann.github.io/Levenshtein-Testing-Framework/api/); the diagrams on
 this page show the parts you work with, not every method.
 
@@ -78,8 +80,9 @@ supervision (`@LevenshteinTest` + `@Policy`).
 4. **Behavioural tests** call the student's element through the wrapper (`invoke`, `getValue`, `newObj`, ...).
    A `DEVIATES` element is used as it is; a `MISSING` one fails the call. Exceptions of student code become a
    [failure block](writing-tests.md#reporting-failures) (`Failure`).
-5. **Between tests**, `StaticStateReset` (part of `@LevenshteinTest`) resets attributes that are `static`
-   although the test expects instance attributes, so tests do not influence each other.
+5. **Between tests**, `StaticStateReset` (part of `@LevenshteinTest`) forgets the default instances of the class
+   wrappers and resets attributes that are `static` although the test expects instance attributes, so tests do
+   not influence each other.
 
 ## Packages and classes
 
@@ -96,8 +99,8 @@ supervision (`@LevenshteinTest` + `@Policy`).
 | `Failure` | The structured failure block (`Method:`, `Scenario:`, `Input:`, `Expected:`, `Actual:`), also for your own checks; runs many cases (`forEachCase`) and detects stack overflow and out of memory errors (`isResourceError`) |
 | `Mock<T>` | Test-owned overrides and call records on an object of a student class |
 | `LevenshteinTest` / `HiddenLevenshteinTest` | Composed annotations: `@Public`/`@Hidden` + `@StrictTimeout(5)` + `@MirrorOutput` + `@ExtendWith(StaticStateReset.class)` |
-| `StaticStateReset` | JUnit extension that resets unexpectedly `static` attributes before each test |
-| `LevenshteinSettings` | Runtime configuration: language, thresholds, decimals, getter/setter comparison, unexpected modifiers |
+| `StaticStateReset` | JUnit extension that, before each test, forgets the default instances and resets unexpectedly `static` attributes |
+| `LevenshteinSettings` | Runtime configuration: language, thresholds, decimals, getter/setter comparison, unexpected modifiers, default instance per test |
 | `Messages` | German/English feedback texts |
 | `Utils` | Levenshtein distance, type compatibility, `safeCast` |
 | `TypeRef`, `Invocations`, `GettersSettersTest`, `MockClasses` (package-private) | Member types given as `ClassWrapper`, calling student code, getter/setter test, generated subclasses |
@@ -269,6 +272,7 @@ classDiagram
         +setAttributeNameDeviationThreshold(int percent)$
         +setDecimals(int decimals)$
         +setGettersSettersRequireSameObject(boolean same)$
+        +setNewDefaultObjectPerTest(boolean newObjectPerTest)$
         +setUnexpectedModifiers(UnexpectedModifiers mode)$
         +reset()$
     }

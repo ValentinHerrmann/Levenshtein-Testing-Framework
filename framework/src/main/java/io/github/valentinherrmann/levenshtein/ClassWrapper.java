@@ -22,9 +22,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-
 import org.junit.platform.commons.support.HierarchyTraversalMode;
 import org.junit.platform.commons.support.ReflectionSupport;
 
@@ -37,7 +34,8 @@ import static org.assertj.core.api.Assertions.fail;
  * using Levenshtein distance for fuzzy matching. Provides methods to instantiate objects
  * and retrieve attribute, method, and constructor wrappers.
  *
- * <p>Abstract classes and interfaces are instantiated through a Byte Buddy subclass; concrete classes always
+ * <p>Abstract classes and interfaces are instantiated through a Byte Buddy subclass (defined in the package of
+ * the class, so a class or constructor that lacks its visibility still works); concrete classes always
  * through their own constructor (so {@code final} classes and {@code getClass()}-based {@code equals} work).</p>
  *
  * @param <T> the type of the class being wrapped
@@ -112,6 +110,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         this.superClassWrapper = new WrapperProperty<>(superClassWrapper);
         this.interfaceWrappers = new WrapperProperty<>(interfaceWrappers == null ? new ClassWrapper<?>[0] : interfaceWrappers);
         this.knownClass = null;
+        StaticStateReset.register(this);
     }
 
     /**
@@ -467,7 +466,9 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     public abstract Object getObj(boolean forceNew);
 
     /**
-     * Returns the (possibly cached) default instance of the class.
+     * Returns the (possibly cached) default instance of the class. The cache lasts for one test:
+     * {@link LevenshteinTest} forgets it before each test (see {@link StaticStateReset}), unless the instance was
+     * set with {@link #setCachedObj(Object)}.
      *
      * @return an instance of the wrapped class which might have been cached
      */
@@ -511,7 +512,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
             Invocations.checkArguments(new Class<?>[0], args, name.expected + "()");
         }
         boolean sameRequest = objPinned
-                || (objConstructor == constructorWrapper && Arrays.deepEquals(objArgs, args));
+                || (objConstructor == constructorWrapper && Invocations.sameArguments(objArgs, args));
         if (obj != null && !forceNew && sameRequest) {
             return obj;
         }
@@ -590,7 +591,8 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
 
     /**
      * Sets the cached default instance, e.g. to an object created in a test. It is returned by
-     * {@link #getObj(boolean, ConstructorWrapper, Object...)} until {@code forceNew} is requested.
+     * {@link #getObj(boolean, ConstructorWrapper, Object...)} until {@code forceNew} is requested, also in the
+     * tests that follow: unlike an instance the framework created, it is not forgotten before each test.
      *
      * @param newObj the instance to cache (null clears the cache)
      */
@@ -600,6 +602,21 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
         objConstructor = null;
         objArgs = null;
         objPinned = newObj != null;
+    }
+
+    /**
+     * Forgets the default instance that the framework created (and the shared outer object of an inner class), so
+     * the next request creates a new one. {@link StaticStateReset} calls it before each test: an object changed
+     * by one test must not decide the result of the next. An instance set with {@link #setCachedObj(Object)}
+     * stays.
+     */
+    void forgetDefaultObj() {
+        if (!objPinned) {
+            obj = null;
+            objConstructor = null;
+            objArgs = null;
+            outerObj = null;
+        }
     }
 
     /**
@@ -656,12 +673,7 @@ public abstract class ClassWrapper<T> extends Wrapper<T>
     Constructor<?> dynamicSubclassConstructor(Class<?>[] types) {
         try {
             if (dynamicSubclass == null) {
-                Class<T> base = getClazz();
-                dynamicSubclass = new ByteBuddy()
-                        .subclass(base)
-                        .make()
-                        .load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
-                        .getLoaded();
+                dynamicSubclass = MockClasses.instantiableSubclass(getClazz());
             }
             return dynamicSubclass.getDeclaredConstructor(types);
         }

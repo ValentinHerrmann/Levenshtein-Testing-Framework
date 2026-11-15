@@ -25,8 +25,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *   <li>{@link StrictTimeout}{@code (5)} - default deadline per test. Put your own {@code @StrictTimeout}
  *       on the class or a method to override it.</li>
  *   <li>{@link MirrorOutput} - mirror student console output into the test log.</li>
- *   <li>{@link StaticStateReset} - resets attributes that are {@code static} although an instance attribute is
- *       expected, before each test.</li>
+ *   <li>{@link StaticStateReset} - before each test, gives every class wrapper a new default instance and
+ *       resets attributes that are {@code static} although an instance attribute is expected.</li>
  * </ul>
  *
  * <p>The security policy is exam specific and therefore <b>not</b> part of this annotation. Every exam

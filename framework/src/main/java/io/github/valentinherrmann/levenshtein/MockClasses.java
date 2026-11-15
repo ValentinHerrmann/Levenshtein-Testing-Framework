@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.modifier.Visibility;
@@ -139,13 +140,35 @@ final class MockClasses {
      * @return the generated subclass
      */
     static Generated subclass(Class<?> base) {
+        return define(base, () -> make(base));
+    }
+
+    /**
+     * Generates a plain subclass of an abstract class or interface, with the constructors of the class and
+     * without any method (abstract methods throw {@link AbstractMethodError}). Like a mock subclass it is defined
+     * in the class loader and package of the class if possible: only there it may extend a class that is not
+     * {@code public} and call a constructor that is package-private, i.e. a class whose student left out a
+     * visibility.
+     *
+     * @param base an abstract class or an interface
+     * @return the generated subclass
+     */
+    static Class<?> instantiableSubclass(Class<?> base) {
+        return define(base, () -> new ByteBuddy().subclass(base).make()).type();
+    }
+
+    /**
+     * Loads a generated subclass in the class loader and package of its base class, or in a new class loader if
+     * that is not possible.
+     */
+    private static Generated define(Class<?> base, Supplier<DynamicType.Unloaded<?>> type) {
         try {
             MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(base, MethodHandles.lookup());
-            return new Generated(base, make(base).load(base.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(lookup))
+            return new Generated(base, type.get().load(base.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(lookup))
                     .getLoaded(), true);
         }
         catch (IllegalAccessException | RuntimeException | LinkageError e) {
-            return new Generated(base, make(base).load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+            return new Generated(base, type.get().load(base.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
                     .getLoaded(), false);
         }
     }

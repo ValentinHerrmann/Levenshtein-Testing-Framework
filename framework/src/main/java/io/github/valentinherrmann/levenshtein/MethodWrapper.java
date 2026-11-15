@@ -444,7 +444,10 @@ public class MethodWrapper<T, R> extends Wrapper<T>
      * <p>Pass a single array argument as {@code (Object) array}: otherwise Java spreads an object array
      * into several arguments.</p>
      *
-     * @param expected the expected exception type (subclasses are accepted)
+     * @param expected the expected exception type (subclasses are accepted). A security violation reported by
+     *                 Ares, an {@link AssertionError} and an error of the virtual machine (e.g.
+     *                 {@link StackOverflowError}) are only accepted if exactly that kind is expected, not for a
+     *                 supertype such as {@link RuntimeException} or {@link Throwable}.
      * @param obj the object to invoke the method on (null uses default instance or null for static methods)
      * @param params values for the method's parameters
      * @param <X> the exception type
@@ -462,7 +465,7 @@ public class MethodWrapper<T, R> extends Wrapper<T>
             failure.actualText(Messages.NOTHING_THROWN.get());
         }
         catch (Throwable t) {
-            if (expected.isInstance(t)) {
+            if (Invocations.isExpected(expected, t)) {
                 return expected.cast(t);
             }
             Invocations.rethrowIfCritical(t);

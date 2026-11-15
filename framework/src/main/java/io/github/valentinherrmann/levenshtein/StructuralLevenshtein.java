@@ -37,7 +37,8 @@ public final class StructuralLevenshtein {
     /**
      * Template method for structural testing that checks wrapper existence states.
      * Collects all wrappers with MISSING or DEVIATES states and fails if any are found.
-     * A wrapper whose check itself fails unexpectedly is reported instead of aborting the whole test.
+     * Only a wrapper that was checked and matches exactly passes: a wrapper whose check itself fails unexpectedly,
+     * or that is still unchecked afterwards, is reported instead of passing or aborting the whole test.
      *
      * @param wrappers the list of wrappers to verify
      */
@@ -45,14 +46,14 @@ public final class StructuralLevenshtein {
         List<String> msg = new ArrayList<>();
         for(Wrapper<?> wrap : wrappers) {
             try {
-                switch (wrap.getOverallExistence()) {
-                    case MISSING, DEVIATES -> msg.add(wrap.toString());
-                    default -> { }
+                if (wrap.getOverallExistence() != WrapperProperty.Existence.EXACT) {
+                    msg.add(wrap.toString());
                 }
             }
-            catch (RuntimeException | LinkageError e) {
+            catch (Throwable t) {
+                Invocations.rethrowIfCritical(t);
                 msg.add(Messages.WRAPPER_CHECK_FAILED.format(wrap.getParentClassWrapper().getExpectedName(),
-                        wrap.expectedToString(), Invocations.describe(e)));
+                        wrap.expectedToString(), Invocations.describe(t)));
             }
         }
         Assertions.assertThat(msg).withFailMessage("\n"+String.join("\n", msg)+"\n").isEmpty();

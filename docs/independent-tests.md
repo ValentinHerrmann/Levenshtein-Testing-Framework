@@ -1,8 +1,7 @@
 # Independent Tests and Mocks
 
-A mistake in one student member should fail only the tests of that member. This page shows how to create objects
-without the student's constructor, replace single student methods with test code, and check that a method was
-called, so failures do not cascade from one member to the next.
+How to create objects without the student's constructor, replace single student methods with test code, and
+check that a method was called, so that a mistake in one student member fails only the tests of that member.
 
 ## Why tests cascade
 

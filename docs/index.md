@@ -2,8 +2,10 @@
 
 Structural and behavioural tests for student code that **tolerate small naming deviations** (typos,
 case slips, `int` vs. `Integer`, ...) while still verifying the structure, built on
-[Ares 2](https://github.com/ls1intum/Ares2) for exams and exercises on Artemis. Exact name matching fails
-correct solutions because of a typo; this framework stays forgiving about names and strict about the rest.
+[Ares 2](https://github.com/ls1intum/Ares2) for exams and exercises on Artemis.
+
+Exact name matching fails correct solutions because of a typo; this framework stays forgiving about names and
+strict about the rest.
 
 A student who writes `prize` instead of `price` loses the structural point for that attribute, but every
 behavioural test still runs against their `prize`. They are not punished twice for one typo. What the

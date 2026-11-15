@@ -343,6 +343,37 @@ class ClassWrapperTest {
         }
 
         @Test
+        void abstractClassThatIsNotPublicIsInstantiated() {
+            // the missing "public" is a deviation; behaviour tests go on with the class
+            W<Object> w = classFixture("AbstractNotPublic", "public static abstract");
+            assertThat(w.getMissingModifiers()).containsExactly("public");
+            Object obj = w.newObj();
+            assertThat(fieldOf(obj, "origin")).isEqualTo("default");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "protected");
+            assertThat(fieldOf(ctor.invoke("given"), "origin")).isEqualTo("given");
+            // package-private methods of the class still work on the generated subclass
+            MethodWrapper<Object, Integer> doors = new MethodWrapper<>(w, "doors", int.class);
+            assertThat(doors.invokeOnSpecificObject(obj)).isEqualTo(4);
+        }
+
+        @Test
+        void abstractClassWithPackagePrivateConstructorsIsInstantiated() {
+            W<Object> w = classFixture("AbstractPackagePrivateCtor", "public static abstract");
+            assertThat(fieldOf(w.newObj(), "origin")).isEqualTo("default");
+            ConstructorWrapper<Object> ctor = new ConstructorWrapper<>(w, new Class<?>[]{String.class}, "public");
+            assertThat(ctor.getMissingModifiers()).containsExactly("public");
+            assertThat(fieldOf(ctor.invoke("given"), "origin")).isEqualTo("given");
+            assertThat(ctor.invokeExpectingException(IllegalArgumentException.class, "")).hasMessage("empty origin");
+        }
+
+        /** Reads the public attribute through a wrapper: the class itself may not be accessible. */
+        private static Object fieldOf(Object obj, String name) {
+            Class<?> declaring = obj.getClass().getSuperclass();
+            W<Object> w = new W<>(declaring.getName().substring(PKG.length() + 1));
+            return new AttributeWrapper<>(w, name, String.class, "public", "final").getValue(obj);
+        }
+
+        @Test
         void missingNoArgumentConstructorFailsReadably() {
             W<Object> w = classFixture("NoDefaultCtor", "public static");
             assertThatThrownBy(w::newObj)

@@ -225,7 +225,7 @@ class UtilsTest {
             LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
             assertThatThrownBy(() -> Utils.safeCast("5", int.class))
                     .isInstanceOf(AssertionError.class)
-                    .hasMessage("The value 5 of type String cannot be converted to the expected type int.");
+                    .hasMessage("The value \"5\" of type String cannot be converted to the expected type int.");
             assertThatThrownBy(() -> Utils.safeCast(1, boolean.class)).isInstanceOf(AssertionError.class);
             assertThatThrownBy(() -> Utils.safeCast(true, int.class)).isInstanceOf(AssertionError.class);
             assertThatThrownBy(() -> Utils.safeCast(1, String.class)).isInstanceOf(AssertionError.class);
