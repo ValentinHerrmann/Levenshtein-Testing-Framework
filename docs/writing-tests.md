@@ -1,8 +1,9 @@
 # Writing Tests
 
 How to describe the expected classes with wrappers, generate the structural tests, and write behavioural tests
-that still run when the student deviates slightly. [Quick Start](quick-start.md) shows a complete first test;
-this page is the reference for everything after it.
+that still run when the student deviates slightly.
+
+[Quick Start](quick-start.md) shows a complete first test; this page is the reference for everything after it.
 
 ## Wrapper cheat sheet
 
@@ -116,7 +117,9 @@ Artemis, too).
   attributes), because it would always pass, also for an untouched template. `structuralTestFactory(level,
   false, wrappers...)` still generates them.
 * Student code only runs inside the generated tests, i.e. supervised by Ares.
-* If one element cannot be checked, that element is reported and the rest of the test continues.
+* If one element cannot be checked, that element is reported and the rest of the test continues. Only an
+  element that was checked and matches exactly passes: one that cannot be checked is reported by every
+  structural test that contains it.
 
 ## Behavioural tests
 
@@ -143,9 +146,13 @@ Every call goes to the element the wrapper *found*, so a test written for `price
 |---|---|
 | `invoke(args...)`, `getValue()`, `setValue(value)` | the cached default instance (`getObj()`), or `null` for static members |
 | `invokeOnSpecificObject(obj, args...)`, `getValue(obj)`, `setValue(obj, value)` | `obj` |
-| `getObj()` | the cached default instance. The cache is only reused for the same constructor and arguments. |
+| `getObj()` | the cached default instance of the current test. The cache is only reused for the same constructor and arguments. |
 | `newObj()` / `getObj(true)` / `getObj(true, constructorWrapper, args...)` | always a new instance |
-| `setCachedObj(obj)` | pins an object you created yourself as the default instance |
+| `setCachedObj(obj)` | pins an object you created yourself as the default instance, also for the tests that follow |
+
+Every test starts with a new default instance: `@LevenshteinTest` forgets the cached one before each test, so an
+object that one test changed cannot decide the result of the next. To keep it across tests, set
+`LevenshteinSettings.setNewDefaultObjectPerTest(false)`.
 
 Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
 
@@ -171,8 +178,10 @@ Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
   (`[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … (+90)]`). They are shown as they were passed, even if the student's code
   changed them.
 * Ares security violations are passed through unchanged, also when a student's `toString()` causes one while
-  the message is built. A `toString()` that throws anything else is shown with the type of what it threw, e.g.
-  an endlessly recursing one as `(toString() threw StackOverflowError)`.
+  the message is built. A `toString()` that throws anything else is shown with the class of the object and the
+  type of what it threw, e.g. an endlessly recursing one as `Playlist (toString() threw StackOverflowError)`.
+  The `getMessage()` of a student's own exception class is treated the same way
+  (`(getMessage() threw IllegalStateException)`), and a message of more than 1000 characters is cut.
 * A failure inside the call (from Ares, a mock or a number conversion) keeps its own message and gets an
   `Arguments:` line and the text of `invokeWithContext`.
 
@@ -182,6 +191,11 @@ Static members: pass `null` as the object, or use `invoke(...)` / `getValue()`.
 (constructors) pass if the student's code throws `type` or a subclass, and return the exception for further
 checks. If nothing or something else is thrown, the test fails with a failure block whose `Expected:` line names
 the exception type.
+
+A security violation reported by Ares, an `AssertionError` and an error of the virtual machine
+(`StackOverflowError`, `OutOfMemoryError`, ...) only count if you expect exactly that kind. With a supertype
+such as `RuntimeException.class` or `Throwable.class`, a security violation is still passed on and a stack
+overflow still fails the test.
 
 ```java
 IllegalArgumentException e = carWrapper.constructor()
@@ -377,7 +391,9 @@ is no longer recognized.
 ## Abstract classes and interfaces (Byte Buddy)
 
 Abstract classes and interfaces are instantiated through a Byte Buddy subclass, using the actual
-constructor (including `protected` ones). Concrete classes are **always** created with their own
+constructor (including `protected` ones). The subclass is defined in the package of the student's class, so
+an abstract class that is not `public` and a constructor without a visibility (both only deviations) can be
+instantiated, too. Concrete classes are **always** created with their own
 constructor, so `final` classes and `getClass()`-based `equals` work. Calling an abstract method on such
 an instance throws `AbstractMethodError`; test interface behaviour through an implementing class.
 
@@ -405,6 +421,8 @@ static {
     LevenshteinSettings.setGettersSettersRequireSameObject(false);
     // modifiers the specification does not list: DEVIATE (default) or IGNORE
     LevenshteinSettings.setUnexpectedModifiers(LevenshteinSettings.UnexpectedModifiers.DEVIATE);
+    // a new default instance for every test (true, default) or one kept across tests (false)
+    LevenshteinSettings.setNewDefaultObjectPerTest(true);
 }
 ```
 
@@ -414,6 +432,7 @@ static {
 | `set...NameDeviationThreshold` | `20` | How much of a name may differ, see [Name matching](matching.md#name-matching) |
 | `setDecimals` | `2` | Decimals of `double`/`float` values in failure blocks (the separator is always a dot) |
 | `setGettersSettersRequireSameObject` | `false` | `testGettersSetters` compares by content, or requires the very same object |
+| `setNewDefaultObjectPerTest` | `true` | Every test starts with a new default instance (`getObj()`); `false` keeps it until `forceNew` is requested |
 | `setUnexpectedModifiers` | `DEVIATE` | `IGNORE` reports only an unexpected `static` of attributes and methods, and a missing expected `static` makes the element `MISSING`; see [Modifiers](matching.md#modifiers) |
 
 !!! warning "Set them before the first test"

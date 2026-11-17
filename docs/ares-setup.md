@@ -1,9 +1,11 @@
 # Ares 2 Setup in Detail
 
+Why each part of the build templates and of the `test/` folder is there, so you know what you must not remove
+when you adapt a template.
+
 The templates [`example-gradle/build.gradle`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-gradle/build.gradle) (Gradle) and
 [`example-maven/pom.xml`](https://github.com/ValentinHerrmann/Levenshtein-Testing-Framework/blob/main/example-maven/pom.xml) (Maven), together with the `test/` folder, already contain everything
-below. This page explains why each part is there, so you know what you must not remove when you adapt a
-template. Both builds run the same pipeline:
+below. Both builds run the same pipeline:
 
 ```mermaid
 flowchart LR

@@ -175,6 +175,10 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
         try {
             field.setAccessible(true);
             val = field.get(target);
+        } catch (LinkageError e) {
+            // reading a static attribute initialises its class: the static initializer of the student failed
+            return fail(Messages.ATTRIBUTE_ACCESS_FAILED.format(name.expected, getParentClassWrapper().name.expected,
+                    Invocations.describe(e)));
         } catch (ReflectiveOperationException | RuntimeException e) {
             val = getValueViaGetter(target, e);
         }
@@ -287,7 +291,8 @@ public class AttributeWrapper<T, V> extends Wrapper<T>
                     ? value : safeCast(value, field.getType());
             field.set(target, converted);
         }
-        catch (ReflectiveOperationException | RuntimeException e) {
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            // LinkageError: writing a static attribute initialises its class, whose static initializer failed
             Assertions.fail(Messages.ATTRIBUTE_SET_FAILED.format(name.expected, getParentClassWrapper().name.expected)
                     + "\n" + Invocations.describe(e));
         }

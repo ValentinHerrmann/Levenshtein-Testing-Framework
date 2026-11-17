@@ -1,7 +1,9 @@
 # Development and Releasing
 
 For maintainers of the framework: how the repository is built and tested, and how a release reaches Maven
-Central. Exam authors do not need this page.
+Central.
+
+Exam authors do not need this page.
 
 ## Building and testing
 

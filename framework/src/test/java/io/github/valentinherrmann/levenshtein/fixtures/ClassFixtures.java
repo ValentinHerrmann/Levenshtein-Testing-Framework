@@ -35,6 +35,28 @@ public final class ClassFixtures {
         public abstract int wheels();
     }
 
+    /** An abstract class that is package-private: the student left out {@code public}. */
+    abstract static class AbstractNotPublic {
+        public final String origin;
+        protected AbstractNotPublic() { this.origin = "default"; }
+        protected AbstractNotPublic(String origin) { this.origin = origin; }
+        public abstract int wheels();
+        int doors() { return 4; }
+    }
+
+    /** A public abstract class whose constructors are package-private: the student left out the visibility. */
+    public abstract static class AbstractPackagePrivateCtor {
+        public final String origin;
+        AbstractPackagePrivateCtor() { this.origin = "default"; }
+        AbstractPackagePrivateCtor(String origin) {
+            if (origin.isEmpty()) {
+                throw new IllegalArgumentException("empty origin");
+            }
+            this.origin = origin;
+        }
+        public abstract int wheels();
+    }
+
     /** An abstract class whose constructor rejects invalid values, as a constructor test would expect. */
     public abstract static class AbstractValidating {
         protected AbstractValidating(int wheels) {

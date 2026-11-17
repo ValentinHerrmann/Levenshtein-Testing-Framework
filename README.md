@@ -44,7 +44,7 @@ cd Levenshtein-Testing-Framework/example-gradle
 ./gradlew test   # the example exercise under Ares 2, newest framework release from Maven Central
 ```
 
-Then follow the **[Quick Start]([https://levenshtein.valentin-herrmann.com/quick-start/](https://levenshtein.valentin-herrmann.com/quick-start/))**: copy the [Gradle](example-gradle) (or
+Then follow the **[Quick Start](https://levenshtein.valentin-herrmann.com/quick-start/)**: copy the [Gradle](example-gradle) (or
 [Maven](example-maven)) template into your exam repository, write your first wrapper and test, and read the
 results.
 

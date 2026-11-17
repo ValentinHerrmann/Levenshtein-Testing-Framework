@@ -150,12 +150,14 @@ compiles to the same class file and cannot be told apart.
   `@BeforeAll`, not inside a test method.
 * **`static` method:** called without an object.
 * **`abstract` class:** objects are created through a generated subclass, as for expected abstract classes.
+  That also works if the class is not `public` or its constructor has no visibility.
 * **`final` attribute:** `setValue` fails with a message; reading works.
 * **nested class with a different `static`:** an inner (non-static) class where a `static` nested class is
   expected still works: its constructors get an object of the outer class as hidden first argument (one per
   class wrapper, shared by all its inner objects).
 
-**What the student sees.** A modifier deviation adds one line per kind to the `DEVIATION` message:
+**What the student sees.** A modifier deviation of a member adds one line per kind to the `DEVIATION` message
+(the report of a class shows the modifiers in its `Expect:` and `Actual:` lines only):
 
 ```text
 ⚠️ DEVIATION in FestivalStage ⚠️

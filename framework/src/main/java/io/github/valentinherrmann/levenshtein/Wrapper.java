@@ -230,14 +230,24 @@ public abstract class Wrapper<T>
     }
 
     /**
-     * Runs the lookup in the student code exactly once.
+     * Runs the lookup in the student code once. A lookup that fails with an exception or error does not count:
+     * the failure is passed on, the wrapper stays unchecked and the next use runs the lookup again, so a wrapper
+     * is never left half checked (which would let its structural test pass and its behaviour tests fail with a
+     * {@link NullPointerException}).
      */
     protected final void ensureChecked() {
         if (!checked) {
             // set first: wrappers may (indirectly) reference each other, e.g. via superclass wrappers
             checked = true;
-            findWithDeviation();
-            parseExistence();
+            try {
+                findWithDeviation();
+                parseExistence();
+            }
+            catch (Throwable t) {
+                checked = false;
+                existence = UNCHECKED;
+                throw t;
+            }
         }
     }
 

@@ -1,11 +1,12 @@
 # Versions and Migrating
 
-What changed between releases and how to update existing tests. If you start a new exam, you do not need this
-page: the other guides describe the current release.
+What changed between releases and how to update existing tests.
+
+If you start a new exam, you do not need this page: the other guides describe the current release.
 
 | Version | Highlights |
 |---|---|
-| **2026.11.1** | One failure format for behaviour failures (`Failure`), unexpected modifiers reported, student classes as member types, objects without constructor and mocks, docs site |
+| **2026.11.1** | One failure format for behaviour failures (`Failure`), unexpected modifiers reported, a new default object for every test, student classes as member types, objects without constructor and mocks, docs site |
 | 2026.11.0 | `testGettersSetters` (getter/setter tests with setter conditions and own sample values), failing example solution |
 | 2000.0.0 | First release on Ares 2 and Java 25 |
 | 1000.0.0 | Last release on Ares 1 (`0260.9.0` was published by accident instead of `0.9.0`; `1000.0.0` acts as `1.0.0`) |
@@ -26,6 +27,22 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
   * To keep the old behaviour, set `LevenshteinSettings.setUnexpectedModifiers(UnexpectedModifiers.IGNORE)`.
 * **A missing expected `static` is a deviation instead of `MISSING`**: behavioural tests go on and call the
   method or read the attribute on the default object.
+* **Every test starts with a new default object.** `@LevenshteinTest` and `@HiddenLevenshteinTest` forget the
+  cached default instance (`getObj()`, also used by `invoke(...)`, `getValue()` and `setValue(...)` without an
+  object) before each test, so an object that one test changed cannot decide the result of the next. A test that
+  relied on the state an earlier test or `@BeforeAll` left in the default object now starts from a fresh one:
+  prepare the object in the test or in `@BeforeEach`, or pin it with `setCachedObj(obj)`, which is kept. A
+  wrapper subclass that writes the `obj` field directly must call `setCachedObj(obj)` instead. To keep the old
+  behaviour, set `LevenshteinSettings.setNewDefaultObjectPerTest(false)`.
+* **`invokeExpectingException` no longer accepts a security violation, an `AssertionError` or an error of the
+  virtual machine for a supertype.** With `RuntimeException.class`, `Exception.class`, `Error.class` or
+  `Throwable.class` as expected type, a `SecurityException` of Ares and an `AssertionError` are passed on and a
+  `StackOverflowError` or `OutOfMemoryError` fails the test with the usual block. Before, the call returned
+  them and the test passed. Expect the exact type (e.g. `StackOverflowError.class`) if that outcome is wanted.
+* **An element that cannot be checked never passes its structural test.** If the lookup of a wrapper fails
+  (e.g. a type supplier that returns `null`), every structural test that contains it reports "... could not be
+  checked", and every use runs the lookup again. Before, only the first test reported it; later structural
+  tests passed and behavioural tests failed with a `NullPointerException`.
 * **Messages of behaviour failures changed** (#34). Exceptions of student code (`invoke`, `newObj`,
   `ConstructorWrapper.invoke`), `invokeExpectingException` and `testGettersSetters` report with one block of
   `Method:` / `Scenario:` / `Input:` / `Expected:` / `Actual:` lines (German: `Methode:`, `Szenario:`,
@@ -44,7 +61,10 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
     rethrown (#44). Tests that expected the bare error, e.g. from `Failure.call`, now get an `AssertionError`
     with the failure block; `invokeExpectingException(OutOfMemoryError.class, ...)` still returns it.
   * A student's `toString()` that throws an error of the virtual machine while a message is built is shown as
-    `(toString() threw OutOfMemoryError)` instead of failing the test with that error.
+    `(toString() threw OutOfMemoryError)` instead of failing the test with that error. The `getMessage()` of a
+    student's exception class is treated the same way, and a message of more than 1000 characters is cut.
+  * "The value ... cannot be converted to the expected type ..." shows the value like every other message
+    (a string in quotes, a long `toString()` cut).
   * The old message constants are kept but `@Deprecated`.
 * **No structural tests for empty groups.** `structuralTestFactory` no longer generates tests such as
   `Attributes[X]` for a class without attribute wrappers or `Constructors[X]` for an interface. They always
@@ -84,6 +104,11 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
   `static` before each test, so results do not depend on the order of the tests.
 * **Inner instead of nested class**: an inner class where a `static` nested class is expected can still be
   instantiated (the outer instance is created automatically).
+* **Abstract classes without a visibility**: an abstract class that is not `public`, or whose constructor has
+  no visibility, is instantiated like any other abstract class. Before, the behavioural tests failed with an
+  `IllegalAccessError`.
+* A static attribute of a class whose static initializer fails is reported with "Could not access value of
+  attribute ..." (or "Could not set value ...") and the cause, instead of a bare `ExceptionInInitializerError`.
 * **Student classes as member types** (#33). `AttributeWrapper`, `MethodWrapper` and `ConstructorWrapper` accept
   a `ClassWrapper` (e.g. `ClassWrapper.reference("Drummer", pkg)`) or a supplier of one as type; parameter lists
   can be an `Object[]` that mixes them with `Class<?>`. Replace helpers like a copied `TypeWrapper.resolve(name)`
