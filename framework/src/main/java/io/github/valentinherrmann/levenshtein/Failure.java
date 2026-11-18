@@ -62,7 +62,7 @@ public final class Failure {
     private boolean rawValues;
     private int failedCases;
     private int totalCases;
-    /** The hint shown below the block, e.g. on endless recursion; {@code null} for none. */
+    /** The hint shown below the block, e.g. on endless recursion or a different object; {@code null} for none. */
     private Messages hint;
 
     private Failure(String member) {
@@ -326,10 +326,28 @@ public final class Failure {
     }
 
     /**
-     * @return whether this failure shows a {@link StackOverflowError} or an {@link OutOfMemoryError} (it has a hint)
+     * @return whether this failure shows a {@link StackOverflowError} or an {@link OutOfMemoryError} (it has its hint)
      */
     boolean isResourceError() {
-        return hint != null;
+        return hint == Messages.FAILURE_STACK_OVERFLOW_HINT || hint == Messages.FAILURE_OUT_OF_MEMORY_HINT;
+    }
+
+    /**
+     * Shows a hint below the block, e.g. {@link Messages#GETTERS_SETTERS_OTHER_OBJECT_HINT}.
+     *
+     * @param hint the hint, or {@code null} for none
+     * @return this failure
+     */
+    Failure hint(Messages hint) {
+        this.hint = hint;
+        return this;
+    }
+
+    /**
+     * @return the hint shown below the block, or {@code null} if there is none
+     */
+    Messages hint() {
+        return hint;
     }
 
     /**

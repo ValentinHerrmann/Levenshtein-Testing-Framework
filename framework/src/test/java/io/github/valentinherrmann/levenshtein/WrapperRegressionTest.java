@@ -11,6 +11,7 @@ import de.tum.cit.ase.ares.api.jupiter.Hidden;
 import de.tum.cit.ase.ares.api.jupiter.Public;
 import io.github.valentinherrmann.levenshtein.fixtures.Fixtures;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -594,6 +595,87 @@ class WrapperRegressionTest {
                     () -> w.testGettersSetters(attribute("broken", boolean[].class), flags,
                             getter("getBroken", boolean[].class), setter("setBroken", boolean[].class)));
             assertThat(e.getMessage()).contains("[true, false]").contains("[false]").doesNotContain("[Z@");
+        }
+
+        private static final String OTHER_OBJECT_HINT = "Hint: Expected and Actual are different objects";
+
+        private String failure(Runnable test) {
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.ENGLISH);
+            return org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class, test::run).getMessage();
+        }
+
+        @Test
+        void hardcodedGetterShowsACaseWithOtherContent() { // #49
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            String message = failure(() -> w.testGettersSetters(attribute("hardcoded", boolean[].class),
+                    List.of(new boolean[0], new boolean[]{true, false}, new boolean[]{false}),
+                    getter("getHardcoded", boolean[].class)));
+            assertThat(message)
+                    .contains("Input:    hardcoded = [true, false]")
+                    .contains("Expected: [true, false]")
+                    .contains("Actual:   []")
+                    .contains("(3 of 3 cases failed)")
+                    .doesNotContain("Hint");
+        }
+
+        @Test
+        void copyWithSameObjectRequiredGetsAHint() { // #49
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            String message = failure(() -> w.testGettersSetters(attribute("spotlights", boolean[].class), flags,
+                    getter("getSpotlights", boolean[].class), setter("setSpotlights", boolean[].class)));
+            assertThat(message)
+                    .contains("Expected: [true, false]")
+                    .contains("Actual:   [true, false]")
+                    .endsWith("Hint: Expected and Actual are different objects, but the very same object is required: "
+                            + "the setter must store and the getter must return the object itself, not a copy or a new object.");
+            LevenshteinSettings.setLanguage(LevenshteinSettings.Language.DEUTSCH);
+            assertThat(org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,
+                    () -> w.testGettersSetters(attribute("spotlights", boolean[].class), flags,
+                            getter("getSpotlights", boolean[].class))).getMessage())
+                    .contains("Hinweis: Erwartet und Tatsächlich sind verschiedene Objekte");
+        }
+
+        @Test
+        void copyOfAnObjectWithoutEqualsGetsAHint() { // #49
+            String message = failure(() -> w.testGettersSetters(attribute("origin", Fixtures.PointWithoutEquals.class),
+                    List.of(new Fixtures.PointWithoutEquals(1), new Fixtures.PointWithoutEquals(2)),
+                    getter("getOrigin", Fixtures.PointWithoutEquals.class),
+                    setter("setOrigin", Fixtures.PointWithoutEquals.class)));
+            assertThat(message)
+                    .contains("Input:    setOrigin(Point(1))")
+                    .contains("Expected: Point(1)")
+                    .contains("Actual:   Point(1)")
+                    .contains(OTHER_OBJECT_HINT);
+        }
+
+        @Test
+        void otherContentGetsNoObjectHint() { // #49
+            assertThat(failure(() -> w.testGettersSetters(attribute("broken", boolean[].class), flags,
+                    getter("getBroken", boolean[].class), setter("setBroken", boolean[].class))))
+                    .doesNotContain(OTHER_OBJECT_HINT);
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            assertThat(failure(() -> w.testGettersSetters(attribute("broken", boolean[].class), flags,
+                    getter("getBroken", boolean[].class))))
+                    .contains("Actual:   [false]")
+                    .doesNotContain(OTHER_OBJECT_HINT);
+        }
+
+        @Test
+        void differsOnlyAsObjectNeedsDifferentReferenceValues() { // #49
+            Fixtures.PointWithoutEquals point = new Fixtures.PointWithoutEquals(1);
+            assertThat(GettersSettersTest.differsOnlyAsObject(point, new Fixtures.PointWithoutEquals(1))).isTrue();
+            assertThat(GettersSettersTest.differsOnlyAsObject(point, null)).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject(null, point)).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject(point, "Point(1)")).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject("a", point)).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject(point, 1)).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject(List.of(1), List.of(2))).isFalse();
+            // arrays are compared by content unless the same object is required
+            assertThat(GettersSettersTest.differsOnlyAsObject(new int[]{1}, new int[]{1})).isFalse();
+            LevenshteinSettings.setGettersSettersRequireSameObject(true);
+            assertThat(GettersSettersTest.differsOnlyAsObject(new int[]{1}, new int[]{1})).isTrue();
+            assertThat(GettersSettersTest.differsOnlyAsObject(new int[]{1}, new int[]{2})).isFalse();
+            assertThat(GettersSettersTest.differsOnlyAsObject(List.of(1), new ArrayList<>(List.of(1)))).isTrue();
         }
 
         @Test

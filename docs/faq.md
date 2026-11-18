@@ -102,6 +102,13 @@ single array argument as `(Object) array`, see [Arrays as arguments](writing-tes
 Arrays are compared by content. If the test fails, the content differs; the message shows the elements. If you
 want to require the same object instead, set `LevenshteinSettings.setGettersSettersRequireSameObject(true)`.
 
+### A getter/setter test fails although Expected and Actual look the same
+
+The getter or setter works with a different object (a copy or a new object), and the test requires the very same
+one: either `LevenshteinSettings.setGettersSettersRequireSameObject(true)` is set, or the class of the value does
+not override `equals`. The block then ends with a hint saying so. If other cases fail because the content differs,
+one of them is shown instead. See [Getters and setters](writing-tests.md#getters-and-setters).
+
 ### How do my own checks get the same failure format?
 
 Throw `Failure.of(methodWrapper)...error()` instead of an AssertJ assertion, see

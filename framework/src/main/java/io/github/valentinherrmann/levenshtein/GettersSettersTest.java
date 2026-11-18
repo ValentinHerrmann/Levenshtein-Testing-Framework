@@ -16,7 +16,9 @@ import static io.github.valentinherrmann.levenshtein.Utils.toWrapperType;
  * value; the first failing case is reported as {@link Failure} block, followed by the number of failed cases.
  *
  * <p>Values are compared by content ({@link Objects#deepEquals(Object, Object)}, so arrays work), or by identity
- * for reference values if {@link LevenshteinSettings#isGettersSettersRequireSameObject()} is set. Generated sample
+ * for reference values if {@link LevenshteinSettings#isGettersSettersRequireSameObject()} is set. A case that fails
+ * only because a different object was stored or returned gets a hint, and a failed case whose content differs is
+ * shown in preference to it. Generated sample
  * values fit the student's numeric types (e.g. whole numbers if the student declared {@code int} instead of
  * {@code double}); sample values passed by the author are used as they are.</p>
  *
@@ -245,10 +247,22 @@ final class GettersSettersTest {
         if (failure != null) {
             failedCases++;
             if (Failure.replaces(firstFailure, firstFailure != null && firstFailure.isResourceError(),
-                    failure.isResourceError())) {
+                    failure.isResourceError()) || showsContentInstead(failure)) {
                 firstFailure = failure;
             }
         }
+    }
+
+    /**
+     * @return whether the failure shows a difference in content while the kept one only shows another object
+     *         (with the same-object setting, the kept block could read e.g. {@code Expected: []}, {@code Actual: []})
+     */
+    private boolean showsContentInstead(Failure failure) {
+        return isOtherObjectOnly(firstFailure) && !isOtherObjectOnly(failure);
+    }
+
+    private static boolean isOtherObjectOnly(Failure failure) {
+        return failure.hint() == Messages.GETTERS_SETTERS_OTHER_OBJECT_HINT;
     }
 
     private String scenario(Messages label) {
@@ -308,8 +322,9 @@ final class GettersSettersTest {
             if (thrown != null) {
                 return failure.expected(value).thrown(thrown);
             }
-            if (!same(after, normalize(value))) {
-                return failure.expected(value).actual(after);
+            Object expected = normalize(value);
+            if (!same(after, expected)) {
+                return withObjectHint(failure.expected(value).actual(after), expected, after);
             }
         }
         else if (thrown == null && !same(after, before)) {
@@ -327,7 +342,7 @@ final class GettersSettersTest {
         }
         Object actual = normalize(returned.value());
         if (!same(actual, expected)) {
-            return getterFailure(scenario, expected).actual(actual);
+            return withObjectHint(getterFailure(scenario, expected).actual(actual), expected, actual);
         }
         return null;
     }
@@ -424,6 +439,41 @@ final class GettersSettersTest {
             return a == b;
         }
         return Objects.deepEquals(a, b);
+    }
+
+    /**
+     * Adds {@link Messages#GETTERS_SETTERS_OTHER_OBJECT_HINT} if the values (which are not {@link #same}) are
+     * different objects and only the very same object counts.
+     */
+    private static Failure withObjectHint(Failure failure, Object expected, Object actual) {
+        return differsOnlyAsObject(expected, actual) ? failure.hint(Messages.GETTERS_SETTERS_OTHER_OBJECT_HINT) : failure;
+    }
+
+    /**
+     * @return whether two values that are not {@link #same} fail only because they are different objects: equal
+     *         content with the same-object setting, or objects of a class whose {@code equals} compares identity
+     */
+    static boolean differsOnlyAsObject(Object expected, Object actual) {
+        if (expected == null || actual == null || isValueType(expected) || isValueType(actual)) {
+            return false;
+        }
+        if (LevenshteinSettings.isGettersSettersRequireSameObject() && Objects.deepEquals(expected, actual)) {
+            return true;
+        }
+        return expected.getClass() == actual.getClass() && !expected.getClass().isArray()
+                && comparesIdentity(expected.getClass());
+    }
+
+    /**
+     * @return whether the class uses {@link Object#equals(Object)}, i.e. compares objects by identity
+     */
+    private static boolean comparesIdentity(Class<?> type) {
+        try {
+            return type.getMethod("equals", Object.class).getDeclaringClass() == Object.class;
+        }
+        catch (NoSuchMethodException | SecurityException e) {
+            return false;
+        }
     }
 
     /**

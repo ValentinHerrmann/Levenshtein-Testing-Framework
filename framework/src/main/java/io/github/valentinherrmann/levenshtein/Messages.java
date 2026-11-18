@@ -316,6 +316,15 @@ public enum Messages {
             "value rejected (unchanged %s or exception)"),
 
     /**
+     * Appended below a getter/setter {@link Failure} block whose actual value is a different object than the
+     * expected one, although only the very same object counts (same-object setting, or a class without
+     * {@code equals}).
+     */
+    GETTERS_SETTERS_OTHER_OBJECT_HINT(
+            "Hinweis: Erwartet und Tatsächlich sind verschiedene Objekte, verlangt ist aber dasselbe Objekt: Der Setter muss das Objekt selbst speichern und der Getter es selbst zurückgeben, keine Kopie und kein neues Objekt.",
+            "Hint: Expected and Actual are different objects, but the very same object is required: the setter must store and the getter must return the object itself, not a copy or a new object."),
+
+    /**
      * Scenario of a getter/setter case.
      * Placeholders: (1) subtest label, e.g. "setter -> attribute", (2) attribute name.
      */

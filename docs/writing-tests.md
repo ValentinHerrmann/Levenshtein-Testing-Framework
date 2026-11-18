@@ -259,9 +259,10 @@ void priceGettersSetters() {
   the generated values fit it (whole numbers for `int`), so the deviation only costs the structural point.
   Own sample values are used as they are: a value that does not fit (e.g. `2.5` for an `int`) fails.
 * Values are compared by content (`Objects.deepEquals`), so a getter or setter may store or return a copy of
-  an array; failure messages show the elements (`[true, false]`). To require the very same object for
-  reference values, set `LevenshteinSettings.setGettersSettersRequireSameObject(true)` (see
-  [Configuration](#configuration)).
+  an array; failure messages show the elements (`[true, false]`). Objects of a class that does not override
+  `equals` (e.g. a student class) are only equal to themselves, so for them the very same object is required.
+  To require the very same object for all reference values, set
+  `LevenshteinSettings.setGettersSettersRequireSameObject(true)` (see [Configuration](#configuration)).
 * **Setter condition** (`Predicate`, e.g. `v -> v != null`): values that satisfy it must be stored; for other
   values the setter must keep the old value or throw an exception. A condition that throws itself (e.g. a
   `NullPointerException` for `null`) marks the value invalid. Only setters are checked; more complex rules
@@ -278,6 +279,22 @@ Input:    price = 2.50
 Expected: 2.50
 Actual:   30000.00
 (10 of 15 cases failed)
+```
+
+* A case that fails only because a different object was stored or returned (a copy, or a new object) can show
+  the same text after `Expected:` and `Actual:`. Such a block ends with a hint, and a failed case whose content
+  differs is shown in preference to it, so e.g. a getter hard-coded as `return new boolean[]{};` is reported
+  with `Expected: [true, false]` / `Actual: []` rather than with the sample `[]`. If all failed cases differ
+  only as objects (e.g. `return spotlights.clone();` with the same object required):
+
+```text
+Method:   getSpotlights()
+Scenario: attribute -> getter, attribute spotlights
+Input:    spotlights = []
+Expected: []
+Actual:   []
+(3 of 3 cases failed)
+Hint: Expected and Actual are different objects, but the very same object is required: the setter must store and the getter must return the object itself, not a copy or a new object.
 ```
 
 * An exception of the getter or setter is shown as `Actual: IllegalStateException: message`. For an invalid
