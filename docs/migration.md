@@ -98,6 +98,11 @@ apply [the 2000.0.0 changes](#migrating-from-1000x-to-2000).
   `"OutOfMemoryError"` in the message by these. See [Checking many cases](writing-tests.md#checking-many-cases).
   `testGettersSetters` shows a `StackOverflowError` or `OutOfMemoryError` of a later case instead of the first
   failing case, too.
+* **Clearer getter/setter failures for different objects** (#49): if a case of `testGettersSetters` fails only
+  because a different object was stored or returned (same-object setting, or a class without `equals`), the block
+  ends with a hint that the very same object is required, and a failed case whose content differs is shown in
+  preference to it. Before, e.g. a hard-coded `return new boolean[]{};` could be reported as `Expected: []` /
+  `Actual: []`.
 * **Optional modifiers** with a `?` suffix, and `getMissingModifiers()` / `getUnexpectedModifiers()` on every
   wrapper.
 * **`StaticStateReset`**: `@LevenshteinTest` and `@HiddenLevenshteinTest` reset attributes that are unexpectedly

@@ -238,6 +238,13 @@ class FailureTest {
         assertThat(Failure.isResourceError(Failure.of("f()").thrown(new IllegalStateException("x")).error())).isFalse();
         assertThat(Failure.isResourceError(Failure.of("f()").expected(1).actual(2).error())).isFalse();
         assertThat(Failure.isResourceError(Failure.of("f()").thrown(new InternalError("vm")).error())).isFalse();
+        // the hint on a different object (#49) is no resource error
+        Failure otherObject = Failure.of("f()").expected(1).actual(2).hint(Messages.GETTERS_SETTERS_OTHER_OBJECT_HINT);
+        assertThat(otherObject.isResourceError()).isFalse();
+        assertThat(Failure.isResourceError(otherObject.error())).isFalse();
+        assertThat(otherObject.hint()).isEqualTo(Messages.GETTERS_SETTERS_OTHER_OBJECT_HINT);
+        assertThat(Failure.of("f()").thrown(new StackOverflowError()).isResourceError()).isTrue();
+        assertThat(Failure.of("f()").thrown(new OutOfMemoryError()).isResourceError()).isTrue();
         // the same text is not enough
         assertThat(Failure.isResourceError(new AssertionError(outOfMemory.getMessage()))).isFalse();
         assertThat(Failure.isResourceError(new AssertionError("x", new OutOfMemoryError()))).isTrue();

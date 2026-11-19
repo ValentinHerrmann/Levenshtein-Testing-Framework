@@ -162,6 +162,24 @@ public final class Fixtures {
 
         public int[] getLevels() { return levels; }
         public void setLevels(int[] levels) { if (levels.length > 0) { this.levels = levels; } }
+
+        // #49: the getter is hard-coded, so it returns an empty array that only looks right for an empty attribute
+        private boolean[] hardcoded = new boolean[0];
+        public boolean[] getHardcoded() { return new boolean[] {}; }
+        public void setHardcoded(boolean[] hardcoded) { this.hardcoded = hardcoded; }
+
+        // #49: a class without equals, and a setter that stores a copy
+        private PointWithoutEquals origin;
+        public PointWithoutEquals getOrigin() { return origin; }
+        public void setOrigin(PointWithoutEquals origin) { this.origin = origin == null ? null : new PointWithoutEquals(origin.x); }
+    }
+
+    /** A class that does not override {@code equals}, so only the same object is equal (#49). */
+    public static class PointWithoutEquals {
+        final int x;
+        public PointWithoutEquals(int x) { this.x = x; }
+        @Override
+        public String toString() { return "Point(" + x + ")"; }
     }
 
     /** Calls that throw for some inputs, and array parameters (#27, #28). */
